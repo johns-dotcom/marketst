@@ -4010,6 +4010,9 @@ await pool.query(`ALTER TABLE expenses ADD COLUMN IF NOT EXISTS ai_scan JSONB`).
 
 // One-time import of missing catalog releases from the checklist PDF.
 // Runs once, tracked by _meta.checklist_imported flag.
+// Market Street: data/missing_releases.json is an empty list — the Boom
+// checklist was imported into this database on the first deploy by mistake
+// and removed by hand on 2026-09-16. Keep the file empty.
 const importChecklistReleases = async () => {
   try {
     // Check if already imported
