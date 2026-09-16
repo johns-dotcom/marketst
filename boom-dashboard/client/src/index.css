@@ -1,0 +1,540 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+@import './styles/tokens.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply font-sans antialiased text-gray-900 bg-surface-50;
+  }
+
+  /* Refined scrollbar */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply bg-gray-300 rounded-full;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-gray-400;
+  }
+}
+
+@layer components {
+  /* Shared input styling — theme-aware via bg-card (semantic) and
+   * border-gray-200 which now resolves through the CSS-var palette. */
+  .input-base {
+    @apply w-full px-3 py-2 text-sm bg-card border border-gray-200 rounded-lg
+           transition-all duration-150
+           placeholder:text-gray-400
+           focus:outline-none focus:ring-2 focus:ring-boom-600/20 focus:border-boom-500;
+  }
+
+  .select-base {
+    @apply px-3 py-2 text-sm bg-card border border-gray-200 rounded-lg
+           transition-all duration-150
+           focus:outline-none focus:ring-2 focus:ring-boom-600/20 focus:border-boom-500;
+  }
+
+  /* Button variants */
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2
+           text-sm font-medium text-white
+           bg-boom-600 hover:bg-boom-700 active:bg-boom-800
+           rounded-lg transition-all duration-150
+           disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2
+           text-sm font-medium text-gray-700
+           bg-card border border-gray-200 hover:bg-gray-50 active:bg-gray-100
+           rounded-lg transition-all duration-150;
+  }
+
+  /* Card styling */
+  .card {
+    @apply bg-card border border-gray-200/80 rounded-xl;
+  }
+
+  /* Badge variants */
+  .badge {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+  }
+
+  .badge-green {
+    @apply bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-600/10;
+  }
+
+  .badge-red {
+    @apply bg-red-50 text-red-700 ring-1 ring-inset ring-red-600/10;
+  }
+
+  .badge-yellow {
+    @apply bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-600/10;
+  }
+
+  .badge-gray {
+    @apply bg-gray-50 text-gray-600 ring-1 ring-inset ring-gray-500/10;
+  }
+
+  .badge-blue {
+    @apply bg-blue-50 text-blue-700 ring-1 ring-inset ring-blue-600/10;
+  }
+
+  /* Table styling */
+  .table-header {
+    @apply px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider;
+  }
+
+  .table-cell {
+    @apply px-4 py-3.5 text-sm;
+  }
+}
+
+/* ── Skeleton shimmer ───────────────────────────────────────────────────────── */
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.skeleton-shimmer {
+  background: linear-gradient(90deg, #e5e7eb 25%, #f3f4f6 50%, #e5e7eb 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+}
+
+/* ── Pull to refresh indicator ──────────────────────────────────────────────── */
+@keyframes ptr-spin {
+  to { transform: rotate(360deg); }
+}
+.ptr-indicator {
+  display: flex;
+  justify-content: center;
+  padding: 12px;
+  transition: all 0.2s;
+}
+.ptr-indicator .ptr-spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid #e5e7eb;
+  border-top-color: #334155;
+  border-radius: 50%;
+  animation: ptr-spin 0.6s linear infinite;
+}
+
+/* ── Touch feedback ─────────────────────────────────────────────────────────── */
+/* Scope the press-shrink to coarse-pointer (touch) devices. On a mouse the
+ * scale shrinks the hit area mid-click, so a cursor near a button's edge can
+ * end up outside the scaled element on mouseup and the click never lands —
+ * the artist-merge button on Dashboard caught this. */
+@media (hover: none) and (pointer: coarse) {
+  button:active, a:active, [role="button"]:active {
+    transform: scale(0.97);
+    transition: transform 0.05s ease;
+  }
+  .card:active {
+    transform: scale(0.99);
+  }
+}
+.btn-primary:active { opacity: 0.85; }
+
+/* ── Mobile responsive ──────────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  /* Main content padding */
+  .max-w-7xl { padding-left: 1rem !important; padding-right: 1rem !important; }
+
+  /* Stack grids on mobile */
+  .grid-cols-2, .grid-cols-3, .grid-cols-4, .grid-cols-5, .grid-cols-6,
+  .lg\:grid-cols-2, .lg\:grid-cols-3, .lg\:grid-cols-4, .lg\:grid-cols-5, .lg\:grid-cols-6,
+  .sm\:grid-cols-2 {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Make stat card grids 2 columns on mobile */
+  .sm\:grid-cols-2.lg\:grid-cols-4,
+  .sm\:grid-cols-2.lg\:grid-cols-5 {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+
+  /* Table horizontal scroll with gradient indicator */
+  table { font-size: 12px; }
+  th, td { padding: 8px 10px !important; }
+  [style*="overflowX: auto"], [style*="overflow-x: auto"], .overflow-x-auto {
+    -webkit-overflow-scrolling: touch;
+    mask-image: linear-gradient(to right, black calc(100% - 24px), transparent);
+    -webkit-mask-image: linear-gradient(to right, black calc(100% - 24px), transparent);
+  }
+
+  /* Smaller page titles */
+  h1 { font-size: 1.5rem !important; }
+
+  /* Wrap filter bars */
+  .flex-wrap { gap: 6px !important; }
+
+  /* Full-width inputs on mobile */
+  input[type="text"], input[type="search"], input[type="date"], select {
+    min-width: 0 !important;
+  }
+  /* Inline-styled pages (Approvals/Invoices/Vendors/Lookup) hardcode
+     260-280px input widths for desktop toolbars — cap them at the
+     container so they compress instead of forcing horizontal scroll.
+     !important because inline style attributes win otherwise. */
+  input, select, textarea { max-width: 100% !important; }
+
+  /* Touch-friendly buttons */
+  button, a { min-height: 36px; }
+
+  /* Campaign row-action icon strips: give each icon button real tap width
+     (they're 10px-font icon chips tuned for mouse hover on desktop) */
+  .campaign-row-actions { gap: 6px !important; }
+  .campaign-row-actions button { min-width: 36px; justify-content: center; }
+
+  /* Cards: less padding on mobile */
+  .card { padding: 12px !important; }
+  .card.p-5, .card.p-6 { padding: 14px !important; }
+
+  /* Task rows: more touch-friendly */
+  .group { padding: 14px 12px !important; }
+  .group .text-sm { font-size: 14px !important; }
+  .group .text-xs { font-size: 12px !important; }
+
+  /* Kanban columns stack vertically */
+  .grid.grid-cols-2.md\:grid-cols-3.lg\:grid-cols-6 {
+    grid-template-columns: 1fr 1fr !important;
+  }
+
+  /* Modal widths */
+  .max-w-sm, .max-w-md, .max-w-lg, .max-w-xl, .max-w-4xl {
+    max-width: calc(100vw - 2rem) !important;
+    margin-left: 1rem !important;
+    margin-right: 1rem !important;
+  }
+
+  /* File preview modal */
+  .max-h-\[90vh\] { max-height: 85vh !important; }
+  iframe { min-height: 50vh !important; }
+
+  /* Top header adjustments */
+  .h-14 { padding-left: 0.75rem !important; padding-right: 0.75rem !important; }
+
+  /* Hide non-essential on very small screens */
+  .hidden-mobile { display: none !important; }
+
+  /* Ledger frozen columns: reduce widths on mobile */
+  td[style*="position: sticky"], th[style*="position: sticky"] {
+    font-size: 11px !important;
+  }
+
+  /* Charts: allow horizontal scroll */
+  .recharts-responsive-container {
+    min-width: 400px;
+  }
+
+  /* Financials filter rows: stack vertically */
+  .flex.items-center.gap-3.flex-wrap {
+    flex-direction: column;
+    align-items: stretch !important;
+  }
+  .flex.items-center.gap-3.flex-wrap > * { width: 100%; }
+  .flex.items-center.gap-3.flex-wrap > span { text-align: right; width: auto; }
+
+  /* Deal pipeline: horizontal scroll on kanban */
+  .grid.gap-3[class*="grid-cols-6"] {
+    display: flex !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+    scroll-snap-type: x mandatory;
+    gap: 12px !important;
+    padding-bottom: 8px;
+  }
+  .grid.gap-3[class*="grid-cols-6"] > div {
+    min-width: 240px;
+    flex-shrink: 0;
+    scroll-snap-align: start;
+  }
+
+  /* Payments: stack stat cards 2x2 */
+  div[style*="gridTemplateColumns: repeat(5"] {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+
+  /* Salary: tighter layout */
+  .flex.items-center.justify-between.px-5.py-3 {
+    padding: 10px 12px !important;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+}
+
+@media (max-width: 480px) {
+  /* Charts: below 480px let recharts compress to the viewport instead of
+     forcing the 400px scroll floor from the 768px block. */
+  .recharts-responsive-container { min-width: 0; }
+
+  /* Extra small: single column everything */
+  .sm\:grid-cols-2.lg\:grid-cols-4,
+  .sm\:grid-cols-2.lg\:grid-cols-5 {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Kanban: single column */
+  .grid.grid-cols-2.md\:grid-cols-3.lg\:grid-cols-6 {
+    grid-template-columns: 1fr !important;
+  }
+
+  h1 { font-size: 1.25rem !important; }
+  .text-3xl { font-size: 1.5rem !important; }
+
+  /* Catalog: 2 columns on very small */
+  .grid.grid-cols-2.sm\:grid-cols-3.lg\:grid-cols-4.xl\:grid-cols-5 {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 8px !important;
+  }
+
+  /* Ledger: hide frozen column shadow on tiny screens */
+  td[style*="boxShadow"] { box-shadow: none !important; }
+}
+
+/* ── Print styles ───────────────────────────────────────────────────────────── */
+@media print {
+  body { background: white !important; }
+  .w-60, nav, .h-14, .fixed { display: none !important; }
+  .flex-1 { margin: 0 !important; padding: 0 !important; }
+  .max-w-7xl { max-width: none !important; padding: 0 !important; }
+  .card { border: 1px solid #e5e5e5 !important; box-shadow: none !important; break-inside: avoid; }
+  .print\:hidden { display: none !important; }
+}
+
+/* ── Toast animation ────────────────────────────────────────────────────────── */
+@keyframes slide-in {
+  from { transform: translateX(100%); opacity: 0; }
+  to   { transform: translateX(0);    opacity: 1; }
+}
+.animate-slide-in {
+  animation: slide-in 0.25s ease-out;
+}
+
+/* ── Bottom sheet animation (mobile drawers) ───────────────────────────────── */
+@keyframes sheet-up {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
+}
+.animate-sheet-up {
+  animation: sheet-up 0.22s ease-out;
+}
+
+/* ── Dark mode ──────────────────────────────────────────────────────────────── */
+/* ══════════════════════════════════════════════════════════════════
+   DARK MODE — warm, comfortable, easy on the eyes
+   Base: #0f1117 (soft black) / Cards: #181b23 / Elevated: #1f222c
+   ══════════════════════════════════════════════════════════════════ */
+
+.dark body {
+  /* Slightly warmer than #0f1117 — pure near-black against red brand text
+   * was the worst part of the original palette. A hair more blue + a
+   * touch lighter softens the contrast without losing the dark feel. */
+  background: #131520 !important;
+  color: #e0e2e8;
+}
+
+/* .card, .input-base, .select-base, .btn-secondary consume bg-card and
+ * border-gray-200 natively via @apply in the @layer components block above,
+ * so the theme-aware palette handles their dark rendering. Their legacy
+ * !important overrides were removed here. Element-level .dark input /
+ * select / textarea rules further down still apply to raw inputs. */
+
+/* ── Surfaces ──
+ * bg-gray-* / text-gray-* / border-gray-* overrides moved into the
+ * theme-aware gray palette (styles/tokens.css + tailwind.config.js). The
+ * remaining class-based rules here are for selectors that are not on the
+ * gray scale, plus one hover affordance that the palette can't express. */
+.dark .bg-surface-50 { background: #101220 !important; }
+.dark .bg-white { background: #1c1f2b !important; }
+
+/* Keep hover:bg-gray-100 visibly brighter than bg-gray-100 at rest — the
+ * palette gives one color per tier, so the affordance has to live here
+ * until a dedicated "row-hover" token replaces it. */
+.dark .hover\:bg-gray-100:hover { background: #2a2e3c !important; }
+/* hover: variants are their OWN selectors — `.dark .bg-rose-50` never reaches
+   `.hover\:bg-rose-50:hover`, which is why the gray rule above had to be written
+   explicitly. Without these, hovering a Dismiss/Restore control in dark mode
+   flashes the literal light Tailwind tint. Same alphas as the base overrides. */
+.dark .hover\:bg-rose-50:hover { background: rgba(244, 63, 94, 0.10) !important; }
+.dark .hover\:bg-emerald-50:hover { background: rgba(16, 185, 129, 0.10) !important; }
+.dark .hover\:bg-amber-50:hover { background: rgba(245, 158, 11, 0.10) !important; }
+.dark .hover\:bg-blue-50:hover { background: rgba(59, 130, 246, 0.10) !important; }
+.dark .hover\:border-rose-200:hover { border-color: rgba(244, 63, 94, 0.30) !important; }
+.dark .hover\:border-emerald-200:hover { border-color: rgba(16, 185, 129, 0.30) !important; }
+/* Text/border hovers. A `.dark .text-boom-700` rule does NOT reach
+ * `hover:text-boom-700` — every variant needs its own selector, which is why
+ * these hovers were all reverting to their raw light-theme values (near-black
+ * indigo, dark red boom) on a dark ground. Same trap as the opacity and ring
+ * variants above. */
+.dark .hover\:text-boom-700:hover, .dark .hover\:text-boom-600:hover { color: #94A3B8 !important; }
+.dark .hover\:border-boom-300:hover { border-color: rgba(51, 65, 85, 0.35) !important; }
+.dark .hover\:text-indigo-800:hover, .dark .hover\:text-indigo-900:hover { color: #e0e7ff !important; }
+.dark .hover\:text-amber-700:hover, .dark .hover\:text-amber-900:hover { color: #fde68a !important; }
+.dark .hover\:text-gray-600:hover { color: var(--color-text) !important; }
+
+/* ── Amber/Orange — keep visible but softer ── */
+.dark .bg-orange-50\/60, .dark .bg-orange-50 { background: rgba(245, 158, 11, 0.08) !important; }
+.dark .border-orange-100, .dark .border-orange-200 { border-color: rgba(245, 158, 11, 0.2) !important; }
+.dark .text-orange-700, .dark .text-orange-600 { color: #fbbf24 !important; }
+.dark .text-orange-400 { color: #f59e0b !important; }
+.dark .bg-amber-50, .dark .bg-amber-50\/30 { background: rgba(245, 158, 11, 0.06) !important; }
+.dark .border-amber-200 { border-color: rgba(245, 158, 11, 0.2) !important; }
+.dark .text-amber-600, .dark .text-amber-500 { color: #fbbf24 !important; }
+
+/* ── Red/Market Street — backgrounds AND text. The text overrides matter most
+ *    for eye comfort: text-boom-600 (#334155) and text-red-600 (#DC2626)
+ *    on a dark background read as glaring red — push them down to the
+ *    -400 tier so dollar amounts and pill text stay legible without
+ *    visually screaming. Backgrounds get the low-alpha treatment. */
+.dark .bg-boom-50, .dark .bg-boom-50\/20, .dark .bg-boom-50\/30, .dark .bg-boom-50\/40 { background: rgba(51, 65, 85, 0.08) !important; }
+.dark .bg-boom-100 { background: rgba(51, 65, 85, 0.12) !important; }
+.dark .border-boom-200 { border-color: rgba(51, 65, 85, 0.25) !important; }
+.dark .text-boom-600, .dark .text-boom-700 { color: #94A3B8 !important; }
+.dark .text-boom-500 { color: #94A3B8 !important; }
+.dark .bg-red-50 { background: rgba(239, 68, 68, 0.08) !important; }
+.dark .border-red-200 { border-color: rgba(239, 68, 68, 0.2) !important; }
+.dark .bg-red-100 { background: rgba(239, 68, 68, 0.12) !important; }
+.dark .text-red-600, .dark .text-red-700 { color: #fca5a5 !important; }
+.dark .text-rose-600, .dark .text-rose-700 { color: #fda4af !important; }
+/* Rose backgrounds/borders were missing while rose TEXT was already handled, so
+   every rose chip (the "Same / similar name" pill on Flags, and the same pattern
+   across ~23 files) rendered as a bright pink block on dark. Same treatment and
+   alphas as the red/emerald sets above. */
+.dark .bg-rose-50 { background: rgba(244, 63, 94, 0.08) !important; }
+.dark .bg-rose-100 { background: rgba(244, 63, 94, 0.12) !important; }
+.dark .border-rose-200 { border-color: rgba(244, 63, 94, 0.2) !important; }
+
+/* ── Chip rings ──
+   `ring-1 ring-<colour>-200` is used on 88 chips across the app, and rings are
+   their OWN utility — the .dark .border-*-200 rules above never touch them, so
+   every one of those chips drew a bright literal outline on dark. Same alphas as
+   the matching border overrides. */
+.dark .ring-amber-200 { --tw-ring-color: rgba(245, 158, 11, 0.25) !important; }
+.dark .ring-emerald-200 { --tw-ring-color: rgba(16, 185, 129, 0.25) !important; }
+.dark .ring-sky-200 { --tw-ring-color: rgba(14, 165, 233, 0.25) !important; }
+.dark .ring-rose-200 { --tw-ring-color: rgba(244, 63, 94, 0.25) !important; }
+.dark .ring-blue-200 { --tw-ring-color: rgba(59, 130, 246, 0.25) !important; }
+.dark .ring-indigo-200 { --tw-ring-color: rgba(99, 102, 241, 0.25) !important; }
+.dark .ring-red-200 { --tw-ring-color: rgba(239, 68, 68, 0.25) !important; }
+
+/* ── Green — softer but still readable ── */
+.dark .bg-emerald-100, .dark .bg-green-100 { background: rgba(16, 185, 129, 0.1) !important; }
+.dark .bg-green-50, .dark .bg-emerald-50 { background: rgba(16, 185, 129, 0.06) !important; }
+.dark .border-green-300, .dark .border-green-200, .dark .border-emerald-200 { border-color: rgba(16, 185, 129, 0.2) !important; }
+.dark .text-green-700, .dark .text-emerald-700 { color: #34d399 !important; }
+
+/* ── Blue ── */
+.dark .bg-blue-100, .dark .bg-blue-50 { background: rgba(59, 130, 246, 0.08) !important; }
+.dark .border-blue-200 { border-color: rgba(59, 130, 246, 0.2) !important; }
+
+/* ── Purple — cobrand chips. Border + text softened so the chip reads
+ *    as accent, not glow. */
+.dark .bg-violet-50, .dark .bg-purple-50, .dark .bg-purple-100 { background: rgba(139, 92, 246, 0.08) !important; }
+.dark .border-purple-100, .dark .border-purple-200 { border-color: rgba(139, 92, 246, 0.25) !important; }
+.dark .text-purple-600, .dark .text-purple-700 { color: #c4b5fd !important; }
+.dark .text-purple-500 { color: #c4b5fd !important; }
+
+/* ── Teal / sky / indigo — chips used on socials, labels, Paid card. ── */
+.dark .text-teal-600, .dark .text-teal-700 { color: #5eead4 !important; }
+.dark .text-sky-600, .dark .text-sky-700 { color: #7dd3fc !important; }
+.dark .text-indigo-600, .dark .text-indigo-700 { color: #a5b4fc !important; }
+.dark .bg-sky-50 { background: rgba(14, 165, 233, 0.10) !important; }
+.dark .bg-indigo-50, .dark .bg-indigo-50\/50, .dark .bg-indigo-50\/60 { background: rgba(99, 102, 241, 0.10) !important; }
+.dark .border-indigo-100, .dark .border-indigo-100\/60 { border-color: rgba(99, 102, 241, 0.25) !important; }
+/* Reversal notice on Reports. Each variant needs its own selector — an
+ * opacity or shade override never inherits from the base class. */
+.dark .border-indigo-200 { border-color: rgba(99, 102, 241, 0.32) !important; }
+.dark .text-indigo-800, .dark .text-indigo-900 { color: #c7d2fe !important; }
+
+/* Month-reassignment notice and chip on Reports — violet, so it reads as a
+ * different KIND of adjustment than the indigo reversal notice sitting next to
+ * it. Same rule as above applies: `.bg-violet-50` is overridden further up but
+ * that does NOT reach `.bg-violet-50/60`, and the text and border shades used
+ * here had no dark treatment at all. Each variant gets its own selector. */
+.dark .bg-violet-50\/60, .dark .bg-violet-50\/70 { background: rgba(139, 92, 246, 0.10) !important; }
+.dark .border-violet-200 { border-color: rgba(139, 92, 246, 0.28) !important; }
+.dark .border-violet-300 { border-color: rgba(139, 92, 246, 0.40) !important; }
+.dark .text-violet-600 { color: #c4b5fd !important; }
+.dark .text-violet-700 { color: #c4b5fd !important; }
+.dark .text-violet-900 { color: #ddd6fe !important; }
+
+/* ── Amber — notes pill. amber-50 is already overridden above; the
+ *    notes-pill hover uses amber-100 plus deeper text shades. ── */
+.dark .bg-amber-100 { background: rgba(245, 158, 11, 0.14) !important; }
+.dark .text-amber-700, .dark .text-amber-800 { color: #fcd34d !important; }
+
+/* ── Tables ── */
+.dark th { background: #161824 !important; color: #6b7085 !important; border-color: #232734 !important; }
+.dark td { border-color: #232734 !important; }
+/* bg-gray-50/50 now resolves to rgb(var(--color-gray-50) / 0.5) via the
+ * palette — no explicit override needed. */
+
+/* ── Badges — retain color meaning ── */
+.dark .badge-red { background: rgba(239, 68, 68, 0.15) !important; color: #fca5a5 !important; }
+.dark .badge-yellow { background: rgba(245, 158, 11, 0.12) !important; color: #fde68a !important; }
+.dark .badge-green { background: rgba(16, 185, 129, 0.12) !important; color: #6ee7b7 !important; }
+.dark .badge-gray { background: #1f222c !important; color: #8a8f9f !important; }
+
+/* ── Notification pills ── */
+.dark .bg-white.border-orange-100 { background: #1f222c !important; border-color: #2e3340 !important; }
+
+/* ── Select/dropdown ── */
+.dark select { background: #232734 !important; color: #d5d7de !important; border-color: #2e3340 !important; }
+.dark input { background: #232734 !important; color: #d5d7de !important; border-color: #2e3340 !important; }
+.dark input::placeholder { color: #555b6e !important; }
+.dark textarea { background: #232734 !important; color: #d5d7de !important; border-color: #2e3340 !important; }
+.dark input[type="date"] { color-scheme: dark; }
+.dark input[type="month"] { color-scheme: dark; }
+/* Native checkboxes/radios render as bright white squares in dark mode
+   without this — the background/border overrides above don't reach
+   UA-drawn controls; color-scheme does. */
+.dark input[type="checkbox"] { color-scheme: dark; }
+.dark input[type="radio"] { color-scheme: dark; }
+
+/* Ledger cell-input escape hatch. The default `.dark input {...}` rule
+   above uses !important to force a solid pill background on every
+   text input in dark mode — which is right for standalone form fields
+   but wrong for the Ledger's inline table cells, where each cell IS
+   an input. Under the default rule, every row cell rendered as a
+   lighter chip on the row background, so the ledger read as a grid of
+   floating pills instead of clean rows. The higher-specificity
+   selector below beats the global rule and forces cell inputs to
+   inherit the row's background. */
+.dark .ledger-table input,
+.dark .ledger-table select,
+.dark .ledger-table textarea {
+  background: transparent !important;
+  border-color: transparent !important;
+}
+.dark .ledger-table input:focus,
+.dark .ledger-table select:focus,
+.dark .ledger-table textarea:focus {
+  background: #1f222c !important;
+  border-color: #2e3340 !important;
+}
+
+/* ── Bottom nav ── */
+.dark .fixed.bottom-0.bg-white { background: #161824 !important; border-color: #232734 !important; }
+
+/* ── Modals & overlays ── */
+.dark .shadow-lg { box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5) !important; }
+.dark .shadow-sm { box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3) !important; }
+
+/* ── Focus rings ── */
+.dark .focus\:ring-boom-400:focus, .dark .focus\:ring-boom-500:focus { --tw-ring-color: rgba(51, 65, 85, 0.3) !important; }
+.dark .focus\:ring-2:focus { --tw-ring-color: rgba(51, 65, 85, 0.25); }
+
+/* ── Scrollbar ── */
+.dark ::-webkit-scrollbar-track { background: #0f1117; }
+.dark ::-webkit-scrollbar-thumb { background: #2e3340; border-radius: 4px; }
+.dark ::-webkit-scrollbar-thumb:hover { background: #3a3f50; }

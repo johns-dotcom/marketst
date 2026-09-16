@@ -1,0 +1,22 @@
+# ── Repo root ────────────────────────────────────────────────────────────────
+# The app has its own ignores in boom-dashboard/{,client/,server/}.gitignore.
+# What is listed HERE is only what can appear at this level.
+
+# Sensitive — Google OAuth client credentials for the refresh-token scripts.
+# Accidentally committed once; never again.
+client_secret*.json
+tools/client_secret*.json
+
+# An `npm install` run in the wrong directory. It happened: 20 MB of @aws-sdk
+# sat here untracked and unignored, imported by nothing — the server has its own
+# copy, which is the one lib/r2.js uses. Nothing is meant to be installed at this
+# level, so nothing here is meant to exist.
+node_modules/
+package-lock.json
+
+# macOS. Was TRACKED until 2026-09-15.
+.DS_Store
+
+# SSR/mount check scratch — an esbuild bundle regenerated on every run.
+# 55k lines of generated code got committed once by a careless `git add -A`.
+boom-dashboard/client/.ssrcheck/

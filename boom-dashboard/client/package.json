@@ -1,0 +1,44 @@
+{
+  "name": "marketst-dashboard-client",
+  "private": true,
+  "version": "0.0.1",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "smoke": "node scripts/smoke-render.mjs",
+    "budgetsheet-dom": "node scripts/budgetsheet-dom-run.mjs",
+    "invoicedate-dom": "node scripts/invoicedate-dom-run.mjs",
+    "vendorform-dom": "ENTRY=scripts/vendorform-dom-entry.jsx API_STUB=scripts/vendorform-dom-api-stub.js vite build -c scripts/mywork-dom.vite.config.mjs && node scripts/vendorform-dom-run.mjs",
+    "bankmatch-dom": "node scripts/bankmatch-dom-run.mjs",
+    "paymentsend-dom": "node scripts/paymentsend-dom-run.mjs",
+    "ledgervendor-dom": "node scripts/ledgervendor-dom-run.mjs",
+    "tax1099-dom": "node scripts/tax1099-dom-run.mjs",
+    "bankshell-dom": "node scripts/bankshell-dom-run.mjs",
+    "artistbudgets-dom": "node scripts/artistbudgets-dom-run.mjs",
+    "recoupqueue-dom": "node scripts/recoupqueue-dom-run.mjs",
+    "chatattach-dom": "node scripts/chatattach-dom-run.mjs",
+    "statementrecon-dom": "node scripts/statementrecon-dom-run.mjs",
+    "approval-dom": "node scripts/approval-deck-dom-run.mjs"
+  },
+  "dependencies": {
+    "@react-oauth/google": "^0.13.4",
+    "axios": "^1.6.0",
+    "docx": "^9.7.1",
+    "jspdf": "^2.5.2",
+    "lucide-react": "^0.294.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-router-dom": "^6.20.0",
+    "recharts": "^2.10.0",
+    "socket.io-client": "^4.8.3"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.2.0",
+    "autoprefixer": "^10.4.0",
+    "postcss": "^8.4.0",
+    "tailwindcss": "^3.3.0",
+    "vite": "^5.0.0"
+  }
+}

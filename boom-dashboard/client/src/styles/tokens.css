@@ -1,0 +1,159 @@
+/*
+ * Design-system CSS variables.
+ *
+ * These back the semantic Tailwind aliases in tailwind.config.js (`bg-card`,
+ * `text-ink`, `border-rule`, etc.) and match the keys returned by
+ * `utils/darkColors.js` so className-styled pages and inline-styled pages
+ * share one source of truth.
+ *
+ * Legacy dark-mode overrides in the `.dark` block of index.css still apply to
+ * old `bg-white` / `text-gray-900` / etc. selectors. Those get retired in the
+ * final cutover PR after every page has been audited.
+ */
+
+:root {
+  --color-bg-page:    #f4f4f4;
+  --color-bg-card:    #ffffff;
+  --color-bg-elev:    #fafafa;
+  --color-bg-sidebar: #ffffff;
+  --color-bg-header:  #ffffff;
+
+  --color-border:       #e2e2e2;
+  --color-border-light: #f3f4f6;
+  --color-divider:      #f3f4f6;
+
+  --color-text:       #111111;
+  --color-text-muted: #777777;
+  --color-text-faint: #9ca3af;
+
+  --color-row:       #ffffff;
+  --color-row-hover: #fafafa;
+
+  --color-input-bg:     #ffffff;
+  --color-input-border: #e2e2e2;
+  --color-input-text:   #111111;
+
+  --color-th-bg:   #f8f9fa;
+  --color-th-text: #9ca3af;
+
+  --color-brand:        #334155;
+  --color-brand-hover:  #1E293B;
+  --color-brand-active: #0F172A;
+  --color-brand-muted:  rgba(51, 65, 85, 0.08);
+
+  --color-success: #059669;
+  --color-warning: #d97706;
+  --color-danger:  #dc2626;
+  --color-info:    #2563eb;
+
+  /* Rose — ALERTS ONLY, never "destructive action". The house rule is that red
+   * means something is wrong, not that a button deletes; keeping a token for it
+   * stops the alert tint drifting between pages. */
+  --color-rose:    #e11d48;
+  --color-rose-bg: #fff1f2;
+  --color-rose-bd: #fecdd3;
+
+  /* Diff highlight. Marks the fields that DIFFER between two otherwise
+   * identical things, so the eye lands on what separates them instead of
+   * re-reading what they share. Amber rather than rose on purpose: a
+   * difference is something to READ, not something that is wrong. */
+  --color-diff-bg: #fffbeb;
+  --color-diff-bd: #fcd34d;
+
+  --color-focus-ring: rgba(51, 65, 85, 0.25);
+  --color-overlay:    rgba(17, 24, 39, 0.5);
+
+  --shadow-card:  0 1px 3px 0 rgb(0 0 0 / 0.04), 0 1px 2px -1px rgb(0 0 0 / 0.04);
+  --shadow-modal: 0 20px 25px -5px rgb(0 0 0 / 0.08), 0 8px 10px -6px rgb(0 0 0 / 0.08);
+
+  /* Tailwind gray palette as RGB triplets (space-separated), consumed by the
+   * `gray` color in tailwind.config.js via rgb(var(--…) / <alpha-value>).
+   * Light values match Tailwind v3 defaults; dark values mirror the legacy
+   * `.dark .text-gray-*` / `.dark .bg-gray-*` / `.dark .border-gray-*`
+   * !important overrides that used to live in index.css. Swapping those to
+   * variables makes text-gray-900 / bg-gray-50 etc. theme-aware natively so
+   * the legacy block can be retired without touching any page. */
+  --color-gray-50:  249 250 251;
+  --color-gray-100: 243 244 246;
+  --color-gray-200: 229 231 235;
+  --color-gray-300: 209 213 219;
+  --color-gray-400: 156 163 175;
+  --color-gray-500: 107 114 128;
+  --color-gray-600:  75  85  99;
+  --color-gray-700:  55  65  81;
+  --color-gray-800:  31  41  55;
+  --color-gray-900:  17  24  39;
+}
+
+.dark {
+  /* Softer base than the original #0f1117 — pure-black-ish behind the
+   * brand red on dollar amounts was the worst part of the original
+   * palette. Bumping toward a warmer dark gray takes the edge off
+   * without losing the dark feel. Card / elev / sidebar follow suit
+   * so the surface hierarchy stays legible. */
+  --color-bg-page:    #131520;
+  --color-bg-card:    #1c1f2b;
+  --color-bg-elev:    #232734;
+  --color-bg-sidebar: #161824;
+  --color-bg-header:  #131520;
+
+  --color-border:       #2e3340;
+  --color-border-light: #1f222c;
+  --color-divider:      #1f222c;
+
+  --color-text:       #e0e2e8;
+  --color-text-muted: #8a8f9f;
+  --color-text-faint: #555b6e;
+
+  --color-row:       #1c1f2b;
+  --color-row-hover: #232734;
+
+  --color-input-bg:     #232734;
+  --color-input-border: #2e3340;
+  --color-input-text:   #e0e2e8;
+
+  --color-th-bg:   #161824;
+  --color-th-text: #6b7085;
+
+  --color-success: #34d399;
+  --color-warning: #fbbf24;
+  --color-danger:  #fca5a5;
+  --color-info:    #60a5fa;
+
+  /* Both of these go translucent in dark rather than picking a darker hex: the
+   * card sits on --color-bg-elev, and a flat tint at this lightness reads as a
+   * different surface instead of a highlight ON the surface. */
+  --color-rose:    #fda4af;
+  --color-rose-bg: rgba(244, 63, 94, 0.08);
+  --color-rose-bd: rgba(244, 63, 94, 0.25);
+
+  --color-diff-bg: rgba(245, 158, 11, 0.12);
+  --color-diff-bd: rgba(245, 158, 11, 0.40);
+
+  --color-focus-ring: rgba(51, 65, 85, 0.35);
+  --color-overlay:    rgba(0, 0, 0, 0.6);
+
+  --shadow-card:  0 1px 3px rgba(0, 0, 0, 0.3);
+  --shadow-modal: 0 10px 25px rgba(0, 0, 0, 0.5);
+
+  /* Dark-mode gray palette — mirrors the legacy override values exactly:
+   *   50/100 → #1f222c   (old `.dark .bg-gray-50` / `.bg-gray-100`)
+   *   200    → #2e3340   (old `.dark .border-gray-200`)
+   *   300    → #3a3f50   (old `.dark .border-gray-300`)
+   *   400    → #555b6e   (old `.dark .text-gray-400`)
+   *   500    → #6b7085   (old `.dark .text-gray-500`)
+   *   600    → #8a8f9f   (old `.dark .text-gray-600`)
+   *   700    → #bfc2cc   (old `.dark .text-gray-700`)
+   *   800    → #d5d7de   (old `.dark .text-gray-800`)
+   *   900    → #ecedf1   (old `.dark .text-gray-900`) */
+  --color-gray-50:   31  34  44;
+  --color-gray-100:  31  34  44;
+  --color-gray-200:  46  51  64;
+  --color-gray-300:  58  63  80;
+  --color-gray-400:  85  91 110;
+  --color-gray-500: 107 112 133;
+  --color-gray-600: 138 143 159;
+  --color-gray-700: 191 194 204;
+  --color-gray-800: 213 215 222;
+  --color-gray-900: 236 237 241;
+}

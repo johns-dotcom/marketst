@@ -1,0 +1,17 @@
+[phases.setup]
+# Node 20 LTS. Node 18 (previous pin) shipped undici v5.x which had
+# well-documented "Premature close" bugs on long-running document /
+# streaming calls to the Anthropic API — exactly the failure mode the
+# Add Invoice parse was hitting on Railway. Node 18 has also been EOL
+# since April 2025. Node 20 ships undici v6+, stable fetch, and is
+# the minimum version the Anthropic SDK is tested against.
+nixPkgs = ["nodejs-20_x"]
+
+[phases.install]
+cmds = ["cd server && npm install", "cd client && npm install"]
+
+[phases.build]
+cmds = ["cd client && npm run build"]
+
+[start]
+cmd = "cd server && NODE_ENV=production node index.js"
