@@ -45,14 +45,22 @@ if not DRY:
         res = list(ex.map(lambda r: dele(f"/api/releases/{r['id']}"), target_r))
     print('releases deleted:', sum(1 for x in res if x is True), '| failures:', [x for x in res if x is not True][:3])
 
-arts = req('GET', '/api/artists')['data']
-has_rel = {r['artist_id'] for r in req('GET', '/api/releases?in_catalog=any&archived=any')['data']}
-target_a = [a for a in arts if WINDOW[0] <= (a.get('created_at') or '') <= WINDOW[1] and a['id'] not in has_rel]
-print(f'artists total {len(arts)} | from the import with no releases left {len(target_a)}')
-
-if not DRY:
+# GET /api/artists returns at most one page, so loop until the window is empty.
+total_deleted = 0
+for _pass in range(40):
+    arts = req('GET', '/api/artists')['data']
+    has_rel = {r['artist_id'] for r in req('GET', '/api/releases?in_catalog=any&archived=any')['data']}
+    target_a = [a for a in arts if WINDOW[0] <= (a.get('created_at') or '') <= WINDOW[1] and a['id'] not in has_rel]
+    print(f'pass {_pass+1}: artists on page {len(arts)} | from the import with no releases left {len(target_a)}')
+    if DRY or not target_a:
+        break
     with cf.ThreadPoolExecutor(8) as ex:
         res = list(ex.map(lambda a: dele(f"/api/artists/{a['id']}"), target_a))
-    print('artists deleted:', sum(1 for x in res if x is True), '| failures:', [x for x in res if x is not True][:3])
+    ok = sum(1 for x in res if x is True); total_deleted += ok
+    fails = [x for x in res if x is not True]
+    if fails: print('  failures:', fails[:3])
+    if ok == 0: break
+if not DRY:
+    print('artists deleted in total:', total_deleted)
     print('FINAL: artists', len(req('GET', '/api/artists')['data']),
           '| releases', len(req('GET', '/api/releases?in_catalog=any&archived=any')['data']))
