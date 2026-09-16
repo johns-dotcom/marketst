@@ -301,7 +301,7 @@ async function emailOfflineMentions({ notified, channelLabel: label, body, actor
     [offline]
   );
 
-  const origin = process.env.FRONTEND_URL || 'https://marketst-dashboard.up.railway.app';
+  const origin = process.env.FRONTEND_URL || 'https://marketst-production.up.railway.app';
   const link = `${origin}/messages/${channelId}`;
   const snippet = body.slice(0, 280);
   const nowMs = Date.now();

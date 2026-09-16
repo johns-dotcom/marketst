@@ -928,7 +928,7 @@ router.get('/', async (req, res) => {
       `**Records exported:** ${totalRecords.toLocaleString()} across ${Object.keys(counts).length} sections`,
       `**Files exported:** ${totalFiles.toLocaleString()}`,
       '',
-      'This archive is a complete snapshot of every business-relevant table and document attachment from the Market Street dashboard (marketst-dashboard.up.railway.app). Each section folder contains one or more `.xlsx` workbooks (styled, filterable, with totals) plus the original PDF / image attachments organized by section.',
+      'This archive is a complete snapshot of every business-relevant table and document attachment from the Market Street dashboard (marketst-production.up.railway.app). Each section folder contains one or more `.xlsx` workbooks (styled, filterable, with totals) plus the original PDF / image attachments organized by section.',
       '',
       '## Contents',
       '',

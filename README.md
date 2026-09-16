@@ -92,7 +92,7 @@ here unchanged; the guide's history and examples refer to Boom.
     account) in `server/routes/bookkeeping.js` and `client/src/pages/BkPayments.jsx`
   - the accent colour: a neutral slate placeholder in `client/tailwind.config.js`
     (`boom` palette), `client/src/styles/tokens.css`, and the favicon
-  - the production URL: `marketst-dashboard.up.railway.app` stands in wherever
+  - the production URL: `marketst-production.up.railway.app` stands in wherever
     `boom-ap.com` used to be, until a domain exists
 - **Infra:** dev database is Neon project `marketst-dashboard-dev`. No Railway
   service, R2 bucket, Gmail sender or Anthropic key yet — the features that need

@@ -17,7 +17,7 @@
  *   node scripts/backup-invoices.js
  *
  * Set environment variables (or they'll use defaults):
- *   BOOM_API_URL   - API base URL (default: https://marketst-dashboard.up.railway.app/api)
+ *   BOOM_API_URL   - API base URL (default: https://marketst-production.up.railway.app/api)
  *   BOOM_EMAIL     - Login email (default: john@deanst.co)
  *   BOOM_PASSWORD  - Login password
  */
@@ -31,7 +31,7 @@ const path = require('path');
 try { require('dotenv').config({ path: path.join(__dirname, '.env') }); }
 catch { require(path.join(__dirname, '..', 'server', 'node_modules', 'dotenv')).config({ path: path.join(__dirname, '.env') }); }
 
-const API_URL = process.env.BOOM_API_URL || 'https://marketst-dashboard.up.railway.app/api';
+const API_URL = process.env.BOOM_API_URL || 'https://marketst-production.up.railway.app/api';
 const EMAIL = process.env.BOOM_EMAIL;
 const PASSWORD = process.env.BOOM_PASSWORD;
 const OUTPUT_DIR = path.join(require('os').homedir(), 'Desktop', 'Finance & Admin', '2026 Invoices');

@@ -28,7 +28,7 @@ fs.readFileSync(process.argv[2], 'utf8').split('\n').forEach((l) => {
   const m = l.match(/^([A-Z_]+)=(.*)$/);
   if (m) env[m[1]] = m[2].trim();
 });
-const BASE = (env.BOOM_API_URL || 'https://marketst-dashboard.up.railway.app').replace(/\/+$/, '').replace(/\/api$/, '');
+const BASE = (env.BOOM_API_URL || 'https://marketst-production.up.railway.app').replace(/\/+$/, '').replace(/\/api$/, '');
 const money = (n) => '$' + Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2 });
 
 const VENABLE = 1097, REVERSED_TX = 5683, PARTIAL_A = 2079, PARTIAL_B = 4614, DISTANT = 1143;

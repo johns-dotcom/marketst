@@ -53,7 +53,7 @@ fs.readFileSync(process.argv[2], 'utf8').split('\n').forEach((l) => {
   const m = l.match(/^([A-Z_]+)=(.*)$/);
   if (m) env[m[1]] = m[2].trim();
 });
-const BASE = (env.BOOM_API_URL || 'https://marketst-dashboard.up.railway.app').replace(/\/+$/, '').replace(/\/api$/, '');
+const BASE = (env.BOOM_API_URL || 'https://marketst-production.up.railway.app').replace(/\/+$/, '').replace(/\/api$/, '');
 const money = (n) => '$' + Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2 });
 
 // txn, what it points at, how to detach it, and the state it must be in first.

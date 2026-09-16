@@ -39,7 +39,7 @@ import ReconciledBadge from '../components/ReconciledBadge'
 import { useAuth } from '../context/AuthContext'
 import useHotkeys from '../hooks/useHotkeys'
 
-const BK_URL = import.meta.env.VITE_BK_URL || 'https://marketst-dashboard.up.railway.app'
+const BK_URL = import.meta.env.VITE_BK_URL || 'https://marketst-production.up.railway.app'
 
 // Turn whatever the user stored in `spotify_uri` into a clickable https URL.
 // Returns null for anything we can't confidently parse — we'd rather fall

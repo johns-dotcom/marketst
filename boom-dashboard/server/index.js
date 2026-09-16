@@ -376,7 +376,7 @@ if (process.env.NODE_ENV === 'production') {
           .replace('</head>', [
             '<meta property="og:title" content="Market Street — Vendor Submit" />',
             '<meta property="og:description" content="Submit your invoice to Market Street — takes about two minutes." />',
-            '<meta property="og:url" content="https://marketst-dashboard.up.railway.app/submit" />',
+            '<meta property="og:url" content="https://marketst-production.up.railway.app/submit" />',
             '<meta name="description" content="Submit your invoice to Market Street — takes about two minutes." />',
             '</head>',
           ].join('\n    '));
@@ -2909,7 +2909,7 @@ await pool.query(`ALTER TABLE expenses ADD COLUMN IF NOT EXISTS ai_scan JSONB`).
            AND (r.last_emailed IS NULL OR r.last_emailed < r.next_due)`);
       if (!rows.length) return;
       const { sendEmail } = require('./services/email');
-      const base = process.env.FRONTEND_URL || 'https://marketst-dashboard.up.railway.app';
+      const base = process.env.FRONTEND_URL || 'https://marketst-production.up.railway.app';
       for (const r of rows) {
         if (!r.email) continue;
         await sendEmail({

@@ -5,7 +5,7 @@ const https = require('https');
 // the move exists so the two integrations can never drift apart on credentials.
 const { getAccessToken, credentialsPresent } = require('../lib/google-oauth');
 
-const APP_URL = process.env.FRONTEND_URL || 'https://marketst-dashboard.up.railway.app';
+const APP_URL = process.env.FRONTEND_URL || 'https://marketst-production.up.railway.app';
 
 // Encode subject line for non-ASCII characters (RFC 2047)
 function encodeSubject(subject) {

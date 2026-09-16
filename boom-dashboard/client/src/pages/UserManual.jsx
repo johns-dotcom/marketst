@@ -403,7 +403,7 @@ const WORKFLOWS = [
     title: 'Vendor invoice → payment',
     requires: ['/bk/approvals', '/bk/payments'],
     steps: [
-      'Vendor submits on marketst-dashboard.up.railway.app/submit (no login needed) — they can list extra emails to be CC\'d on confirmations. The sidebar has one-click copies of both the form link and the Market Street billing address',
+      'Vendor submits on marketst-production.up.railway.app/submit (no login needed) — they can list extra emails to be CC\'d on confirmations. The sidebar has one-click copies of both the form link and the Market Street billing address',
       'You review on Approvals — AI flags any discrepancies',
       'Approve (optionally with "Notify vendor") → entry lands on the Ledger',
       'On Payments, mark it paid, or upload the proof and let the AI scan mark it paid with the extracted date + reference',
@@ -784,7 +784,7 @@ export default function UserManual() {
           </section>
 
           <div style={{ marginTop: 40, paddingTop: 16, borderTop: '1px solid #e5e5e5', fontSize: 11, color: '#999', textAlign: 'center' }}>
-            Market Street Dashboard · marketst-dashboard.up.railway.app · Manual generated {today}
+            Market Street Dashboard · marketst-production.up.railway.app · Manual generated {today}
           </div>
         </article>
       </div>

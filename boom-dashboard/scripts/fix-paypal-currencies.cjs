@@ -23,7 +23,7 @@ fs.readFileSync(process.argv[2], 'utf8').split('\n').forEach((l) => {
   const m = l.match(/^([A-Z_]+)=(.*)$/);
   if (m) env[m[1]] = m[2].trim();
 });
-const BASE = (env.BOOM_API_URL || 'https://marketst-dashboard.up.railway.app').replace(/\/+$/, '').replace(/\/api$/, '');
+const BASE = (env.BOOM_API_URL || 'https://marketst-production.up.railway.app').replace(/\/+$/, '').replace(/\/api$/, '');
 
 (async () => {
   const health = await (await fetch(`${BASE}/health`)).json();

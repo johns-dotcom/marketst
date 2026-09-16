@@ -32,7 +32,7 @@ const path = require('path');
 try { require('dotenv').config({ path: path.join(__dirname, '.env') }); }
 catch { require(path.join(__dirname, '..', 'server', 'node_modules', 'dotenv')).config({ path: path.join(__dirname, '.env') }); }
 
-const API_URL = process.env.BOOM_API_URL || 'https://marketst-dashboard.up.railway.app/api';
+const API_URL = process.env.BOOM_API_URL || 'https://marketst-production.up.railway.app/api';
 const EMAIL = process.env.BOOM_EMAIL;
 const PASSWORD = process.env.BOOM_PASSWORD;
 // macOS Finder shows "W9/W8" but the filesystem uses ":" for "/"
