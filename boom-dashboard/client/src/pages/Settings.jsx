@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { Users, Shield, Plus, Pencil, Trash2, X, Loader, CheckCircle2, Check, SlidersHorizontal, Sun, Moon, Monitor, FlaskConical, Archive, Download, FileSpreadsheet, FolderArchive, AlertTriangle, EyeOff, Search, ChevronRight, ChevronDown } from 'lucide-react'
 import api from '../api'
 import { NAV_PAGES } from '../navConfig'
+import { PRESETS, DEPARTMENTS, presetsForDepartment, unionPaths, addPaths } from '../lib/navPresets'
 import { useBoomReps, useBoomRepsContext } from '../context/BoomRepsContext'
 import { useAuth } from '../context/AuthContext'
 import { useTheme } from '../context/ThemeContext'
@@ -26,96 +27,11 @@ const ALL_PAGES = NAV_PAGES
 // exports). Superadmin-only to grant so the capability stays scoped.
 const ALL_ROLES = ['Superadmin', 'Admin', 'Approver', 'User']
 const ROLES = ['Admin', 'User'] // shown to regular Admins
-const DEPARTMENTS = ['Operations', 'Executive', 'A&R', 'Marketing', 'Finance', 'Legal']
+// Departments and role presets live in lib/navPresets.js — one definition,
+// read by the user form (default tick from department), the Permissions
+// editor (additive apply) and client/scripts/navpresets-fixture.mjs.
 
 const PAGE_GROUPS = [...new Set(ALL_PAGES.map(p => p.group))]
-
-// Role templates — starter presets for the Permissions editor. Each
-// template is a curated list of ALL_PAGES paths that matches a
-// common department's day-to-day needs. Applying a template
-// overwrites the current allowed set; users can then check/uncheck
-// individual pages. Superadmin edits ALL_PAGES; templates auto-
-// dedupe when a page path in a template no longer exists.
-// The starting page set for a newly created account, by role.
-//
-// Reads the SAME templates the checkboxes below use — there is no second list.
-// A role with no obvious template falls back to the bookkeeping set, which is
-// what almost everyone here actually does.
-function DEFAULT_PRESET_FOR(role) {
-  const key = role === 'Approver' ? 'bookkeeping'
-    : role === 'Admin' || role === 'Superadmin' ? 'full'
-    : 'bookkeeping'
-  const t = PERMISSION_TEMPLATES.find((x) => x.key === key)
-  return t ? [...t.paths] : ['/']
-}
-
-const PERMISSION_TEMPLATES = [
-  {
-    key: 'marketing',
-    label: 'Marketing team',
-    description: 'Everything a marketing lead needs to plan campaigns and track spend.',
-    paths: [
-      '/', '/my-work', '/calendar',
-      '/artists', '/releases', '/catalog',
-      '/financials', '/artist-campaigns', '/recoupments', '/recoupments/planning', '/budget',
-      '/team',
-    ],
-  },
-  {
-    key: 'bookkeeping',
-    label: 'Bookkeeping / AP',
-    description: 'Full accounts-payable stack — the workflow tools an AP specialist uses daily.',
-    paths: [
-      '/', '/my-work',
-      '/bk/approvals', '/bk/payments', '/bk/ledger', '/bk/add',
-      '/bk/vendors', '/bk/reimburse', '/create-invoice',
-      '/bk/bulk-upload', '/bk/bulk-reupload', '/bk/ledger-matching', '/bk/invoices',
-      '/import', '/financials', '/recoupments', '/recoupments/planning',
-    ],
-  },
-  {
-    key: 'anr',
-    label: 'A&R / Artist team',
-    description: 'Roster, deal pipeline, releases, and everything on the artist side.',
-    paths: [
-      '/', '/my-work', '/calendar',
-      '/artists', '/deals',
-      '/releases', '/catalog', '/flags',
-      '/contracts', '/pending-contracts', '/renewals',
-      '/create-nda', '/create-label-waiver', '/create-artist-clearance',
-      '/budget', '/recoupments', '/recoupments/planning', '/artist-campaigns',
-    ],
-  },
-  {
-    key: 'finance_exec',
-    label: 'Finance executive',
-    description: 'High-level financial views + roster context, no day-to-day AP actions.',
-    paths: [
-      '/', '/my-work', '/calendar',
-      '/artists',
-      '/financials', '/budget', '/recoupments', '/recoupments/planning', '/artist-campaigns',
-      '/salary', '/bk/bulk-deals',
-      '/team',
-    ],
-  },
-  {
-    key: 'legal',
-    label: 'Legal',
-    description: 'Contract lifecycle + templates + the legal vault.',
-    paths: [
-      '/', '/my-work', '/calendar',
-      '/contracts', '/pending-contracts', '/renewals',
-      '/contracts/create', '/create-nda', '/create-label-waiver', '/create-artist-clearance',
-      '/legal',
-    ],
-  },
-  {
-    key: 'full',
-    label: 'Full access (all pages)',
-    description: 'Everything. Equivalent to marking the user unrestricted.',
-    paths: ALL_PAGES.map(p => p.path),
-  },
-]
 
 // ─── User Form Modal ──────────────────────────────────────────────────────────
 
@@ -273,7 +189,25 @@ function UserModal({ user, onClose, onSaved, currentUserRole }) {
   // else. Two live accounts sit in exactly that state — created, never
   // configured, and looking at a two-link app ever since.
   const [unrestricted, setUnrestricted] = useState(false)
-  const [allowedPages, setAllowedPages] = useState(new Set(DEFAULT_PRESET_FOR('User')))
+  // Presets are ADDITIVE (lib/navPresets.js): the department seeds the default
+  // tick, the admin can tick a second one for somebody who does two jobs, and
+  // the page set is the union. Ticking rewrites the checkboxes below; the
+  // admin can still adjust single pages afterwards.
+  const [presetKeys, setPresetKeys] = useState(() => new Set(presetsForDepartment(user?.department ?? 'Operations')))
+  const [allowedPages, setAllowedPages] = useState(() => new Set(unionPaths(presetsForDepartment(user?.department ?? 'Operations'))))
+  const togglePreset = (key) => {
+    const next = new Set(presetKeys)
+    next.has(key) ? next.delete(key) : next.add(key)
+    setPresetKeys(next)
+    setAllowedPages(new Set(unionPaths([...next])))
+  }
+  const setDepartment = (d) => {
+    set('department', d)
+    if (isEdit) return
+    const keys = new Set(presetsForDepartment(d))
+    setPresetKeys(keys)
+    setAllowedPages(new Set(unionPaths([...keys])))
+  }
 
   const togglePage = (path) => {
     setAllowedPages(prev => {
@@ -413,7 +347,7 @@ function UserModal({ user, onClose, onSaved, currentUserRole }) {
               <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Department</label>
               <select
                 value={form.department}
-                onChange={e => set('department', e.target.value)}
+                onChange={e => setDepartment(e.target.value)}
                 className="w-full text-sm border border-rule rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-boom-400 bg-card"
               >
                 {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
@@ -509,6 +443,29 @@ function UserModal({ user, onClose, onSaved, currentUserRole }) {
               </div>
               {!unrestricted && (
                 <div>
+                  <div className="flex flex-wrap items-center gap-1.5 mb-2">
+                    <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mr-1">Presets</span>
+                    {PRESETS.map(pr => {
+                      const on = presetKeys.has(pr.key)
+                      return (
+                        <button
+                          key={pr.key}
+                          type="button"
+                          onClick={() => togglePreset(pr.key)}
+                          title={pr.description}
+                          aria-pressed={on}
+                          className={`text-[11px] font-medium px-2.5 py-1 rounded-full border transition-colors ${
+                            on ? 'bg-boom-600 text-white border-boom-600' : 'bg-card text-gray-600 border-rule hover:border-gray-400'
+                          }`}
+                        >
+                          {pr.label}
+                        </button>
+                      )
+                    })}
+                  </div>
+                  <p className="text-[10px] text-gray-400 mb-2 leading-tight">
+                    Tick more than one for somebody who does two jobs — the pages add up. Adjust single pages below.
+                  </p>
                   <div className="flex gap-2 mb-2">
                     <button type="button" onClick={selectAllPages} className="text-[10px] font-semibold text-boom-600 hover:text-boom-700">Select all</button>
                     <button type="button" onClick={deselectAllPages} className="text-[10px] font-semibold text-gray-400 hover:text-gray-600">Deselect all</button>
@@ -905,18 +862,16 @@ function PermissionsTab({ currentUserRole }) {
     setAllowed(new Set(ALL_PAGES.map(p => p.path)))
   }
 
-  // Apply a permission template — overwrites the current allowed
-  // set with exactly the template's paths. Filters out any paths
-  // that aren't in ALL_PAGES (defensive: templates outlive schema).
+  // Apply a preset or a saved template — ADDS its pages to the current
+  // allowed set (lib/navPresets.js addPaths: paths the app no longer has are
+  // dropped). Additive by John's call (2026-09-18): a person who does two
+  // jobs gets both presets, and "apply" must never silently take away what a
+  // previous apply gave. Use Clear first to start over.
   const applyTemplate = (tmpl) => {
     if (!tmpl) return
     setSaved(false)
-    const allPaths = new Set(ALL_PAGES.map(p => p.path))
-    const filtered = new Set(tmpl.paths.filter(p => allPaths.has(p)))
-    setAllowed(filtered)
-    // "Full access" template = unrestricted state. Other templates
-    // switch to restricted mode (an explicit allow-list).
-    setUnrestricted(tmpl.key === 'full')
+    setUnrestricted(false)
+    setAllowed(prev => addPaths(unrestricted ? new Set() : (prev || new Set()), tmpl.paths))
   }
 
   // Save the CURRENT selection as a named template. Re-using an existing
@@ -1128,15 +1083,15 @@ function PermissionsTab({ currentUserRole }) {
                     const t = customTemplates.find(x => String(x.id) === v.slice(7))
                     if (t) applyTemplate({ key: `custom-${t.id}`, paths: t.pages || [] })
                   } else {
-                    const t = PERMISSION_TEMPLATES.find(x => x.key === v)
+                    const t = PRESETS.find(x => x.key === v)
                     if (t) applyTemplate(t)
                   }
                   e.target.value = ''
                 }}
                 className="text-xs font-semibold border border-rule rounded-lg px-3 py-1.5 bg-card cursor-pointer"
-                title="Overwrite this user's permissions with a template"
+                title="Add a preset's or a saved template's pages to this user (additive — use Clear to start over)"
               >
-                <option value="">Apply template…</option>
+                <option value="">Add preset…</option>
                 {customTemplates.length > 0 && (
                   <optgroup label="Your templates">
                     {customTemplates.map(t => (
@@ -1146,8 +1101,8 @@ function PermissionsTab({ currentUserRole }) {
                     ))}
                   </optgroup>
                 )}
-                <optgroup label="Starter presets">
-                  {PERMISSION_TEMPLATES.map(t => (
+                <optgroup label="Role presets">
+                  {PRESETS.map(t => (
                     <option key={t.key} value={t.key} title={t.description}>{t.label}</option>
                   ))}
                 </optgroup>

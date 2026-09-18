@@ -35,6 +35,15 @@ Authoritative project guide: **`boom-dashboard/CLAUDE.md`** — read it before m
   page-access fixture must stay byte-identical across any nav change. Boom
   reverted a similar regroup in Aug 2026 — do not port this back without asking.
   Plan: https://claude.ai/code/artifact/3e97eb42-7e5d-41c3-b7c4-b20b8f424e28
+- **Role presets are ADDITIVE and live in `client/src/lib/navPresets.js`** (Phase 2,
+  2026-09-18): anr, marketing, bookkeeper, ops. A department seeds the default
+  tick on the user form; an admin can tick a second preset for somebody who does
+  two jobs and the pages union. The Permissions editor's "Add preset…" ADDS pages
+  (Clear to start over). Every preset except ops excludes hidden pages; every
+  preset carries Flags. `client/scripts/navpresets-fixture.mjs` (33 assertions)
+  checks the lists against NAV_PAGES and the real canViewPath. Boom's five
+  templates (marketing/bookkeeping/anr/finance_exec/legal, overwrite-on-apply)
+  are gone here. DEPARTMENTS is now A&R, Marketing, Finance, Operations.
 - **Bank-statement heuristics were tuned on Boom's Bank of America statements.** The own-name lists (`statements.js` stop-words, `funding-pairs.js` account-trailer strip) now say Market Street, but the layout parsers have not seen a Market Street statement yet. Expect the AI fallback to do the work until they do.
 
 ## Commands (run from `boom-dashboard/`)
