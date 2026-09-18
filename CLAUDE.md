@@ -44,6 +44,21 @@ Authoritative project guide: **`boom-dashboard/CLAUDE.md`** — read it before m
   checks the lists against NAV_PAGES and the real canViewPath. Boom's five
   templates (marketing/bookkeeping/anr/finance_exec/legal, overwrite-on-apply)
   are gone here. DEPARTMENTS is now A&R, Marketing, Finance, Operations.
+- **Home is the loop, not a label overview** (Phase 3, 2026-09-18). `GET
+  /api/dashboard/loop` (routes/dashboard.js) returns four sections — approvals,
+  payments, bank, releases — each a count + USD + one destination, and each NULL
+  for a caller who could not open that destination (`pagesReachable` in
+  middleware/pagePermission.js, the middleware's rules as a set). The client's
+  `canView` is the second gate. Empty sections render a sentence saying what
+  fills them, never a bare 0; a failed loop read renders no tiles. The label
+  stat cards (Total Artists/Releases/Team) and the dead Flask
+  `/api/dashboard-summary` fetch are gone. Release-shaped panels (Latest
+  Releases, charts, Upcoming) render only for someone who can open Releases.
+  Harnesses: `cd client && npm run home-dom` (36, four scenarios: admin · anr ·
+  empty · down) and `server/scripts/home-loop-fixture.cjs` (20, delta-based,
+  needs a server on :3011). Both verified to fail when a predicate is dropped.
+  `mywork-dom.vite.config.mjs` now takes `AUTH_STUB` so a harness can bring a
+  configurable canView.
 - **Bank-statement heuristics were tuned on Boom's Bank of America statements.** The own-name lists (`statements.js` stop-words, `funding-pairs.js` account-trailer strip) now say Market Street, but the layout parsers have not seen a Market Street statement yet. Expect the AI fallback to do the work until they do.
 
 ## Commands (run from `boom-dashboard/`)

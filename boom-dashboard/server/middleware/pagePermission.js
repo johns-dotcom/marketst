@@ -85,4 +85,35 @@ function requirePagePermission(...pages) {
   };
 }
 
-module.exports = { requirePagePermission };
+/**
+ * Which of `pages` this user can reach — the middleware's rules, as a set,
+ * for a handler that assembles several sections and must show each one only
+ * to somebody who could open the page behind it (GET /dashboard/loop).
+ *
+ * One permission read for the whole list, never one per page. Same rules as
+ * requirePagePermission above — Superadmin everything, base whitelist,
+ * unconfigured Admin everything, unconfigured Approver the bookkeeping set,
+ * otherwise the rows — so the two cannot disagree about a page.
+ */
+async function pagesReachable(user, pages) {
+  const out = new Set();
+  if (!user) return out;
+  if (ADMIN_ROLES.has(user.role)) return new Set(pages);
+  const { rows } = await pool.query(
+    'SELECT page FROM user_page_permissions WHERE user_id = $1',
+    [user.id]
+  );
+  const granted = new Set(rows.map(r => r.page));
+  for (const p of pages) {
+    if (BASE_WHITELIST.has(p)) { out.add(p); continue; }
+    if (rows.length === 0) {
+      if (user.role === 'Admin') { out.add(p); continue; }
+      if (user.role === 'Approver' && approverFallback(p)) { out.add(p); continue; }
+      continue;
+    }
+    if (granted.has(p)) out.add(p);
+  }
+  return out;
+}
+
+module.exports = { requirePagePermission, pagesReachable };

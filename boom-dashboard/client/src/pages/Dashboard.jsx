@@ -16,19 +16,18 @@ import {
   AlertCircle,
   AlertTriangle,
   Info,
-  Music,
-  Users,
-  CalendarClock,
-  UserCheck,
   CalendarDays,
   ChevronRight,
   Filter,
   X,
-  DollarSign,
   CheckSquare,
   ExternalLink,
   Music2,
   RefreshCw,
+  Inbox,
+  CreditCard,
+  Landmark,
+  Disc3,
 } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import api from '../api'
@@ -38,8 +37,6 @@ import PageHeader from '../components/PageHeader'
 import ReconciledBadge from '../components/ReconciledBadge'
 import { useAuth } from '../context/AuthContext'
 import useHotkeys from '../hooks/useHotkeys'
-
-const BK_URL = import.meta.env.VITE_BK_URL || 'https://marketst-production.up.railway.app'
 
 // Turn whatever the user stored in `spotify_uri` into a clickable https URL.
 // Returns null for anything we can't confidently parse — we'd rather fall
@@ -79,99 +76,6 @@ function relativeDateLabel(dateStr) {
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 }
 
-// Fetches a lightweight summary from the Flask bookkeeping app
-function useBookkeepingSummary() {
-  const [data, setData] = useState(null)
-  useEffect(() => {
-    fetch(`${BK_URL}/api/dashboard-summary`, { credentials: 'include' })
-      .then(r => r.json())
-      .then(setData)
-      .catch(() => setData(null)) // app offline — widget hides gracefully
-  }, [])
-  return data
-}
-
-function BookkeepingSummaryWidget({ bk }) {
-  if (!bk) return null
-
-  const fmt = (n) => new Intl.NumberFormat('en-US', {
-    style: 'currency', currency: 'USD', minimumFractionDigits: 0,
-  }).format(n || 0)
-
-  return (
-    <div className="card">
-      {/* Header */}
-      <div className="flex items-center justify-between px-5 pt-4 pb-2">
-        <h2 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
-          <DollarSign size={15} className="text-emerald-500" />
-          Bookkeeping
-        </h2>
-        <Link to="/bk/ledger" className="text-xs text-boom-600 hover:text-boom-700 font-medium flex items-center gap-0.5">
-          Open Ledger <ChevronRight size={14} />
-        </Link>
-      </div>
-
-      {/* Metrics row */}
-      <div className="grid grid-cols-2 gap-3 px-5 pb-4">
-        <div className="bg-gray-50 rounded-lg px-3 py-2.5">
-          <p className="text-[11px] text-gray-500 font-medium">Logged MTD</p>
-          <p className="text-lg font-bold text-gray-900 mt-0.5">{fmt(bk.logged_mtd)}</p>
-          <p className="text-[11px] text-gray-400">{bk.invoice_count} invoices</p>
-        </div>
-        <div className="bg-gray-50 rounded-lg px-3 py-2.5">
-          <p className="text-[11px] text-gray-500 font-medium">Pending QB</p>
-          <p className={`text-lg font-bold mt-0.5 ${bk.pending_qb > 0 ? 'text-amber-600' : 'text-gray-900'}`}>
-            {bk.pending_qb}
-          </p>
-          <p className="text-[11px] text-gray-400">need export</p>
-        </div>
-        <div className="bg-gray-50 rounded-lg px-3 py-2.5">
-          <p className="text-[11px] text-gray-500 font-medium">Awaiting Approval</p>
-          <Link to="/bk/approvals">
-            <p className={`text-lg font-bold mt-0.5 ${bk.pending_approvals > 0 ? 'text-boom-600' : 'text-gray-900'}`}>
-              {bk.pending_approvals}
-            </p>
-          </Link>
-          <p className="text-[11px] text-gray-400">
-            {bk.pending_approvals > 0
-              ? <Link to="/bk/approvals" className="text-boom-600 font-semibold">Review now →</Link>
-              : 'all clear'}
-          </p>
-        </div>
-        <div className="bg-gray-50 rounded-lg px-3 py-2.5">
-          <p className="text-[11px] text-gray-500 font-medium">Paid MTD</p>
-          <p className="text-lg font-bold text-emerald-600 mt-0.5">{fmt(bk.paid_mtd)}</p>
-          <p className="text-[11px] text-gray-400">
-            {bk.logged_mtd > 0 ? `${Math.round((bk.paid_mtd / bk.logged_mtd) * 100)}% of logged` : '—'}
-          </p>
-        </div>
-      </div>
-
-      {/* Recent invoices mini-list */}
-      {bk.recent && bk.recent.length > 0 && (
-        <>
-          <div className="px-5 pb-1">
-            <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Recent</p>
-          </div>
-          <div className="divide-y divide-gray-100 pb-1">
-            {bk.recent.slice(0, 3).map((inv, i) => (
-              <div key={i} className="flex items-center justify-between px-5 py-2">
-                <div className="min-w-0">
-                  <p className="text-sm font-medium text-gray-900 truncate">{inv.payee}</p>
-                  <p className="text-xs text-gray-400">{inv.date} · {inv.category}</p>
-                </div>
-                <p className="text-sm font-semibold text-boom-600 ml-3 whitespace-nowrap">
-                  {fmt(inv.amount)}
-                </p>
-              </div>
-            ))}
-          </div>
-        </>
-      )}
-    </div>
-  )
-}
-
 const GENRE_COLORS = [
   '#334155', '#6366F1', '#0EA5E9', '#10B981', '#F59E0B',
   '#EC4899', '#8B5CF6', '#64748B'
@@ -207,6 +111,50 @@ const CustomPieLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent })
   )
 }
 
+const fmtUsd = (n) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(Number(n) || 0)
+
+// One tile of the loop. A count and a dollar figure with ONE destination, and
+// when there is nothing to do it says so in a sentence that tells a new
+// teammate what would fill it — a "0" over a blank table teaches nothing.
+function LoopTile({ to, icon: Icon, label, value, money, sub, empty, tone = 'text-boom-500', testId }) {
+  const isEmpty = !value
+  return (
+    <Link to={to} data-tile={testId} className="card px-5 py-4 hover:shadow-md hover:border-gray-300 transition-all group flex flex-col">
+      <div className="flex items-center justify-between mb-2">
+        <Icon size={18} className={isEmpty ? 'text-gray-300' : tone} strokeWidth={1.5} />
+        {money != null && !isEmpty && (
+          <span className="text-xs font-semibold text-gray-700 tabular-nums">{fmtUsd(money)}</span>
+        )}
+      </div>
+      <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">{label}</p>
+      {isEmpty ? (
+        <p className="text-xs text-gray-500 mt-1.5 leading-snug">{empty}</p>
+      ) : (
+        <>
+          <p className="text-2xl font-bold text-gray-900 tabular-nums leading-tight mt-0.5">{value}</p>
+          {sub && <p className="text-xs text-gray-400 mt-0.5 leading-snug">{sub}</p>}
+        </>
+      )}
+      <span className="mt-auto pt-2 text-[11px] font-medium text-boom-600 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5">
+        Open <ChevronRight size={12} />
+      </span>
+    </Link>
+  )
+}
+
+function bankSubline(bank) {
+  if (!bank) return null
+  const late = bank.overdue_accounts || []
+  if (late.length) {
+    const a = bank.accounts.find((x) => x.account === late[0])
+    const since = a ? `${a.days_since} days since the last one` : ''
+    return `${late.join(', ')} statement overdue${since ? ' · ' + since : ''}`
+  }
+  if (!bank.accounts?.length) return 'No statement uploaded yet'
+  const newest = bank.accounts.slice().sort((a, b) => b.days_since - a.days_since)[0]
+  return `last statement ${newest.days_since} days ago`
+}
+
 function greeting(name) {
   const h = new Date().getHours()
   const g = h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening'
@@ -214,20 +162,17 @@ function greeting(name) {
 }
 
 export default function Dashboard() {
-  const { user } = useAuth()
-  const isAdmin = user?.role === 'Admin' || user?.role === 'Superadmin'
+  const { user, canView } = useAuth()
   const [stats, setStats] = useState(null)
+  const [loop, setLoop] = useState(null)
   const [notifications, setNotifications] = useState([])
   const [activity, setActivity] = useState([])
   const [myTasks, setMyTasks] = useState(null)
-  const [pendingApprovals, setPendingApprovals] = useState(0)
   const [latestReleases, setLatestReleases] = useState([])
   const [syncingArt, setSyncingArt] = useState(false)
   const [artSyncMsg, setArtSyncMsg] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const bk = useBookkeepingSummary()
-
   // Chart filters
   const [filterYear, setFilterYear] = useState('')
   const [filterGenre, setFilterGenre] = useState('')
@@ -262,12 +207,16 @@ export default function Dashboard() {
 
   const fetchData = async () => {
     try {
-      const [statsRes, notificationsRes, activityRes, tasksRes, approvalsRes, latestRes] = await Promise.all([
+      // The four loop tiles come from ONE endpoint, permission-filtered on the
+      // server (a section is null for a page the user could not open). A failed
+      // loop read leaves `loop` null and the tiles simply do not render — never
+      // a row of zeros claiming there is nothing to do.
+      const [statsRes, notificationsRes, activityRes, tasksRes, loopRes, latestRes] = await Promise.all([
         api.get('/dashboard/stats'),
         api.get('/dashboard/notifications'),
         api.get('/dashboard/activity'),
         api.get('/team/my-work').catch(() => ({ data: { data: { tasks: [] } } })),
-        api.get('/bk/pending-count').catch(() => ({ data: { count: 0 } })),
+        api.get('/dashboard/loop').catch(() => ({ data: { data: null } })),
         // Latest releases for the "Latest Releases" row — past 14 days.
         // `in_catalog=any` bypasses the default pipeline-only filter so we
         // pick up releases that have already been auto-moved to catalog.
@@ -287,7 +236,7 @@ export default function Dashboard() {
         overdue: tasks.filter(t => t.status !== 'Done' && isPastLocal(t.due_date)).length,
         dueToday: tasks.filter(t => t.status !== 'Done' && daysUntilLocal(t.due_date) === 0).length,
       })
-      setPendingApprovals(approvalsRes.data?.count || 0)
+      setLoop(loopRes.data?.data || null)
 
       // Latest releases — released in the past 14 days (inclusive of today).
       // Server already scoped with date_from; cap today as the upper bound so
@@ -383,13 +332,6 @@ export default function Dashboard() {
   const availableGenres = stats?.availableGenres || []
   const availableFormats = stats?.availableFormats || []
 
-  const statCards = [
-    { label: 'Total Artists', value: stats?.totalArtists || 0, icon: Users, color: 'text-violet-600', bg: 'bg-violet-50' },
-    { label: 'Total Releases', value: stats?.totalReleases || 0, icon: Music, color: 'text-boom-600', bg: 'bg-boom-50' },
-    { label: 'Upcoming', value: stats?.upcomingReleases || 0, icon: CalendarClock, color: 'text-blue-600', bg: 'bg-blue-50' },
-    { label: 'Team Members', value: stats?.teamMembers || 0, icon: UserCheck, color: 'text-emerald-600', bg: 'bg-emerald-50' },
-  ]
-
   const getSeverityIcon = (severity) => {
     if (severity === 'critical') return <AlertCircle className="text-red-500" size={15} />
     if (severity === 'warning') return <AlertTriangle className="text-amber-500" size={15} />
@@ -416,51 +358,57 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Action cards row */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* My Tasks */}
-        <Link to="/my-work" className="card px-5 py-4 hover:shadow-md hover:border-gray-300 transition-all group">
-          <div className="flex items-center justify-between mb-2">
-            <CheckSquare size={18} className="text-boom-500" />
-            {myTasks && myTasks.overdue > 0 && (
-              <span className="text-[10px] font-bold bg-red-500 text-white px-2 py-0.5 rounded-full">{myTasks.overdue} overdue</span>
-            )}
-          </div>
-          <p className="text-2xl font-bold text-gray-900">{myTasks?.total || 0}</p>
-          <p className="text-xs text-gray-400 mt-0.5">
-            open task{myTasks?.total !== 1 ? 's' : ''}
-            {myTasks?.dueToday > 0 && <span className="text-amber-500 font-semibold"> · {myTasks.dueToday} due today</span>}
-          </p>
-        </Link>
-
-        {/* Pending Approvals */}
-        {isAdmin && (
-          <Link to="/bk/approvals" className="card px-5 py-4 hover:shadow-md hover:border-gray-300 transition-all">
-            <div className="flex items-center justify-between mb-2">
-              <DollarSign size={18} className="text-amber-500" />
-              {pendingApprovals > 0 && (
-                <span className="text-[10px] font-bold bg-amber-500 text-white px-2 py-0.5 rounded-full">{pendingApprovals}</span>
-              )}
-            </div>
-            <p className="text-2xl font-bold text-gray-900">{pendingApprovals}</p>
-            <p className="text-xs text-gray-400 mt-0.5">pending approval{pendingApprovals !== 1 ? 's' : ''}</p>
-          </Link>
+      {/* The loop. Vendor submits → approve → pay → the bank proves it →
+          reports read from that. One tile per step, each opening the page
+          that resolves it, each rendered only if the server returned the
+          section AND this user can open the destination. */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+        <LoopTile
+          to="/my-work" icon={CheckSquare} label="My tasks" testId="tasks"
+          value={myTasks?.total || 0}
+          sub={myTasks?.overdue > 0 ? `${myTasks.overdue} overdue` : myTasks?.dueToday > 0 ? `${myTasks.dueToday} due today` : 'nothing overdue'}
+          empty="No open tasks. Anyone can assign you one from My Work."
+        />
+        {loop?.approvals && canView('/bk/approvals') && (
+          <LoopTile
+            to={loop.approvals.to} icon={Inbox} label="Awaiting approval" testId="approvals" tone="text-amber-500"
+            value={loop.approvals.count} money={loop.approvals.usd}
+            sub={loop.approvals.oldest_days != null ? `oldest ${loop.approvals.oldest_days} day${loop.approvals.oldest_days === 1 ? '' : 's'}` : null}
+            empty="Nothing waiting. Vendors submit at /submit; you can add one under Invoices › Add."
+          />
         )}
-
-        {/* Stats */}
-        {statCards.map(({ label, value, icon: Icon, color, bg }) => (
-          <div key={label} className="card px-5 py-4 hover:shadow-md hover:border-gray-300 transition-all">
-            <div className="mb-2">
-              <Icon size={18} className={color} strokeWidth={1.5} />
-            </div>
-            <p className="text-2xl font-bold text-gray-900">{value}</p>
-            <p className="text-xs text-gray-400 mt-0.5">{label}</p>
-          </div>
-        ))}
+        {loop?.payments && canView('/bk/payments') && (
+          <LoopTile
+            to={loop.payments.to} icon={CreditCard} label="Due this week" testId="payments" tone="text-boom-500"
+            value={loop.payments.count} money={loop.payments.usd}
+            sub={[loop.payments.rush ? `${loop.payments.rush} rush` : null, loop.payments.overdue ? `${loop.payments.overdue} overdue` : null].filter(Boolean).join(' · ') || 'none rush, none overdue'}
+            empty="Nothing due in the next 7 days. Approved invoices land here on their due date."
+          />
+        )}
+        {loop?.bank && (canView('/bk/bank-matching') || canView('/bk/statements')) && (
+          <LoopTile
+            to={loop.bank.to} icon={Landmark} label="Bank lines for review" testId="bank" tone="text-sky-600"
+            value={loop.bank.open} money={loop.bank.open_usd}
+            sub={bankSubline(loop.bank)}
+            empty={loop.bank.accounts?.length
+              ? (loop.bank.overdue_accounts?.length ? bankSubline(loop.bank) : 'Every bank line is answered. Upload the next statement when it arrives.')
+              : 'No statement uploaded yet. Bank › Statements takes the PDF.'}
+          />
+        )}
+        {loop?.releases && canView('/releases') && (
+          <LoopTile
+            to={loop.releases.to} icon={Disc3} label="Releasing in 30 days" testId="releases" tone="text-violet-500"
+            value={loop.releases.count}
+            sub={loop.releases.under_half
+              ? `${loop.releases.under_half} under half done on the checklist`
+              : loop.releases.next ? `next: ${loop.releases.next.artist_name || '—'} — ${loop.releases.next.project_name}` : null}
+            empty="Nothing scheduled in the next 30 days. Add a release from Releases › Pipeline."
+          />
+        )}
       </div>
 
       {/* Latest Releases — past 14 days */}
-      {latestReleases.length > 0 && (
+      {canView('/releases') && latestReleases.length > 0 && (
         <div className="card p-5 hover:shadow-md transition-shadow">
           <div className="flex items-center justify-between mb-4">
             <div>
@@ -530,8 +478,8 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* Charts Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      {/* Charts Row — release-shaped, so only for somebody who can open Releases */}
+      {canView('/releases') && <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Release Pipeline Chart */}
         <div className="lg:col-span-2 card p-5 hover:shadow-md transition-shadow">
           <div className="flex items-center justify-between mb-4">
@@ -679,12 +627,12 @@ export default function Dashboard() {
             </div>
           )}
         </div>
-      </div>
+      </div>}
 
       {/* Second Row: This Week + Notifications */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* This Week / Next Week */}
-        <div className="card p-5 hover:shadow-md transition-shadow">
+        {canView('/releases') && <div className="card p-5 hover:shadow-md transition-shadow">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
               <CalendarDays size={16} className="text-gray-400" />
@@ -738,7 +686,7 @@ export default function Dashboard() {
           {thisWeek.length === 0 && nextWeek.length === 0 && (
             <p className="text-sm text-gray-400 py-6 text-center">No releases in the next two weeks</p>
           )}
-        </div>
+        </div>}
 
         {/* Notifications */}
         <div className="card p-5 hover:shadow-md transition-shadow flex flex-col">

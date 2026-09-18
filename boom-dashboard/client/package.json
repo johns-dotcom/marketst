@@ -20,7 +20,8 @@
     "recoupqueue-dom": "node scripts/recoupqueue-dom-run.mjs",
     "chatattach-dom": "node scripts/chatattach-dom-run.mjs",
     "statementrecon-dom": "node scripts/statementrecon-dom-run.mjs",
-    "approval-dom": "node scripts/approval-deck-dom-run.mjs"
+    "approval-dom": "node scripts/approval-deck-dom-run.mjs",
+    "home-dom": "node scripts/home-dom-run.mjs"
   },
   "dependencies": {
     "@react-oauth/google": "^0.13.4",

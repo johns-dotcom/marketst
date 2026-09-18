@@ -10,6 +10,8 @@ import react from '@vitejs/plugin-react'
 import path from 'node:path'
 const ENTRY = process.env.ENTRY || 'scripts/mywork-dom-entry.jsx'
 const API_STUB = process.env.API_STUB || 'scripts/mywork-dom-api-stub.js'
+// A harness may bring its own auth stub (home-dom needs a configurable canView).
+const AUTH_STUB = process.env.AUTH_STUB || 'scripts/mywork-dom-auth-stub.js'
 
 export default defineConfig({
   plugins: [react()],
@@ -20,8 +22,8 @@ export default defineConfig({
       { find: /^\.\.\/\.\.\/api$/, replacement: path.resolve(process.cwd(), API_STUB) },
       // Anchored at both ends: a partial match leaves the '../' prefix in place
       // and vite tries to load '..//abs/path'.
-      { find: /^\.\.\/context\/AuthContext$/, replacement: path.resolve(process.cwd(), 'scripts/mywork-dom-auth-stub.js') },
-      { find: /^\.\.\/\.\.\/context\/AuthContext$/, replacement: path.resolve(process.cwd(), 'scripts/mywork-dom-auth-stub.js') },
+      { find: /^\.\.\/context\/AuthContext$/, replacement: path.resolve(process.cwd(), AUTH_STUB) },
+      { find: /^\.\.\/\.\.\/context\/AuthContext$/, replacement: path.resolve(process.cwd(), AUTH_STUB) },
     ],
   },
   build: {

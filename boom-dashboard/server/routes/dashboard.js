@@ -1,6 +1,9 @@
 const express = require('express');
 const pool = require('../db');
 const authMiddleware = require('../middleware/auth');
+const { pagesReachable } = require('../middleware/pagePermission');
+const { usdOf } = require('../lib/usd');
+const { expectedNext } = require('../lib/statement-integrity');
 
 const router = express.Router();
 
@@ -334,6 +337,151 @@ router.get('/activity', authMiddleware, async (req, res) => {
     });
   } catch (error) {
     console.error('Get activity error:', error);
+    res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+});
+
+
+// GET /api/dashboard/loop — the Home page's four tiles.
+//
+// The loop is: a vendor submits at /submit, somebody approves, somebody pays,
+// the bank statement proves it, reports read from that. Each section below is
+// one count and one dollar figure with one destination, and a section is
+// NULL for anyone who could not open that destination — the tile then does
+// not render. Gating is done HERE, with the same rules the page routes use
+// (pagesReachable), so an A&R account never receives money figures it cannot
+// click through to; the client's canView is a second gate, not the only one.
+//
+// One request instead of five. The Dashboard used to fan out to
+// /dashboard/stats, /bk/pending-count, /team/my-work, /releases and a dead
+// Flask summary endpoint on every load.
+//
+// Money is usdOf(amount, currency, locked rate) per row — the same helper
+// every report uses — never a SUM over `amount` across currencies.
+const LOOP_PAGES = {
+  approvals: '/bk/approvals',
+  payments:  '/bk/payments',
+  bank:      '/bk/bank-matching',
+  releases:  '/releases',
+};
+const round2 = (n) => Math.round(Number(n || 0) * 100) / 100;
+const sumUsd = (rows) => round2(rows.reduce((t, r) => t + (usdOf(r.amount, r.currency, r.fx_rate_to_usd) || 0), 0));
+
+router.get('/loop', authMiddleware, async (req, res) => {
+  try {
+    const reach = await pagesReachable(req.user, Object.values(LOOP_PAGES));
+    const data = { approvals: null, payments: null, bank: null, releases: null };
+    const jobs = [];
+
+    // Awaiting approval — the same predicate as /bk/pending-count and the
+    // Approvals queue: pending, not deleted, not voided, family roots only.
+    if (reach.has(LOOP_PAGES.approvals)) jobs.push((async () => {
+      const { rows } = await pool.query(
+        `SELECT amount, currency, fx_rate_to_usd, created_at FROM expenses
+          WHERE status = 'pending'
+            AND (deleted = false OR deleted IS NULL)
+            AND (voided = false OR voided IS NULL)
+            AND parent_id IS NULL`
+      );
+      const oldest = rows.reduce((d, r) => (r.created_at && (!d || r.created_at < d)) ? r.created_at : d, null);
+      data.approvals = {
+        count: rows.length,
+        usd: sumUsd(rows),
+        oldest_days: oldest ? Math.max(0, Math.floor((Date.now() - new Date(oldest).getTime()) / 86400000)) : null,
+        to: LOOP_PAGES.approvals,
+      };
+    })());
+
+    // Due this week — approved, unpaid, not on hold, family roots, due within
+    // seven days or already overdue. scheduled_payment_date is TEXT, so only
+    // rows that carry a real ISO day are compared; a free-text date is not a
+    // deadline the queue can act on.
+    if (reach.has(LOOP_PAGES.payments)) jobs.push((async () => {
+      const { rows } = await pool.query(
+        `SELECT amount, currency, fx_rate_to_usd,
+                COALESCE(rush_requested, false) AS rush,
+                (scheduled_payment_date::date < CURRENT_DATE) AS overdue
+           FROM expenses
+          WHERE status = 'approved'
+            AND payment_status IS DISTINCT FROM 'Paid'
+            AND (deleted = false OR deleted IS NULL)
+            AND (voided = false OR voided IS NULL)
+            AND (on_hold = false OR on_hold IS NULL)
+            AND parent_id IS NULL
+            AND scheduled_payment_date ~ '^\\d{4}-\\d{2}-\\d{2}'
+            AND scheduled_payment_date::date <= CURRENT_DATE + INTERVAL '7 days'`
+      );
+      data.payments = {
+        count: rows.length,
+        usd: sumUsd(rows),
+        rush: rows.filter((r) => r.rush).length,
+        overdue: rows.filter((r) => r.overdue).length,
+        to: LOOP_PAGES.payments,
+      };
+    })());
+
+    // Bank — debit lines nobody has answered (no ledger entry, not dismissed),
+    // and whether each account's next statement is late, by the cadence the
+    // account itself has shown (lib/statement-integrity expectedNext: median
+    // gap between period ends, plus five days' grace; one statement implies a
+    // month).
+    if (reach.has(LOOP_PAGES.bank)) jobs.push((async () => {
+      const [{ rows: open }, { rows: ends }] = await Promise.all([
+        pool.query(
+          `SELECT t.amount, t.currency FROM bank_transactions t
+            WHERE t.direction = 'debit'
+              AND t.matched_expense_id IS NULL
+              AND COALESCE(t.dismissed, false) = false`
+        ),
+        pool.query(
+          `SELECT account, period_end FROM bank_statements
+            WHERE period_end IS NOT NULL AND COALESCE(status, 'ready') <> 'error'
+            ORDER BY period_end`
+        ),
+      ]);
+      const byAccount = {};
+      for (const r of ends) (byAccount[r.account] = byAccount[r.account] || []).push(r);
+      const accounts = Object.entries(byAccount).map(([account, stmts]) => ({
+        account, statements: stmts.length, ...expectedNext(stmts, new Date()),
+      }));
+      data.bank = {
+        open: open.length,
+        open_usd: round2(open.reduce((t, r) => t + (usdOf(r.amount, r.currency) || 0), 0)),
+        accounts,
+        overdue_accounts: accounts.filter((a) => a.overdue).map((a) => a.account),
+        to: open.length ? LOOP_PAGES.bank : '/bk/statements',
+      };
+    })());
+
+    // Releasing in 30 days — not archived. "Under half done" uses the same
+    // fourteen checklist columns the notifications feed reads.
+    if (reach.has(LOOP_PAGES.releases)) jobs.push((async () => {
+      const { rows } = await pool.query(
+        `SELECT r.id, r.project_name, a.name AS artist_name, r.release_date::text AS release_day,
+                (COALESCE(r.yt_video,false)::int + COALESCE(r.recoup_added,false)::int + COALESCE(r.uploaded,false)::int
+               + COALESCE(r.stem_pitch,false)::int + COALESCE(r.s4a_pitch,false)::int + COALESCE(r.amazon_pitch,false)::int
+               + COALESCE(r.pandora,false)::int + COALESCE(r.budget,false)::int + COALESCE(r.marketing_plan,false)::int
+               + COALESCE(r.official_thread,false)::int + COALESCE(r.marquee,false)::int + COALESCE(r.content,false)::int
+               + COALESCE(r.dsp_email,false)::int + COALESCE(r.musixmatch,false)::int) AS items_completed
+           FROM releases r LEFT JOIN artists a ON a.id = r.artist_id
+          WHERE r.release_date >= CURRENT_DATE
+            AND r.release_date <= CURRENT_DATE + INTERVAL '30 days'
+            AND (r.archived = false OR r.archived IS NULL)
+          ORDER BY r.release_date, r.id`
+      );
+      const next = rows[0] || null;
+      data.releases = {
+        count: rows.length,
+        under_half: rows.filter((r) => Number(r.items_completed) / 14 < 0.5).length,
+        next: next ? { id: next.id, project_name: next.project_name, artist_name: next.artist_name, release_date: next.release_day } : null,
+        to: LOOP_PAGES.releases,
+      };
+    })());
+
+    await Promise.all(jobs);
+    res.json({ success: true, data });
+  } catch (err) {
+    console.error('GET /api/dashboard/loop:', err);
     res.status(500).json({ success: false, error: 'Internal server error' });
   }
 });
