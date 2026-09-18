@@ -2873,34 +2873,6 @@ router.get('/entries/:id/file-info/:type', async (req, res) => {
   }
 });
 
-// GET /api/bk/admin/corrupt-invoices
-// Lists entries whose invoice_data blob looks truncated or too small to be a
-// real PDF (base64 length <= 11,000 ≈ 8 KB decoded) AND hasn't been migrated
-// to R2 yet. Used by the Bulk Re-upload page to surface broken files in one
-// view. LENGTH() uses TEXT length metadata so we don't actually read the
-// blob contents — fast even with thousands of rows.
-router.get('/admin/corrupt-invoices', async (req, res) => {
-  try {
-    if (!isAdmin(req.user)) return res.status(403).json({ success: false, error: 'Admin required' });
-    const { rows } = await pool.query(
-      `SELECT id, payee, invoice_number, invoice_filename, invoice_date,
-              LENGTH(invoice_data) AS base64_length
-         FROM expenses
-        WHERE invoice_filename IS NOT NULL
-          AND invoice_data IS NOT NULL
-          AND LENGTH(invoice_data) > 0
-          AND invoice_r2_key IS NULL
-          AND LENGTH(invoice_data) <= 11000
-          AND (deleted = false OR deleted IS NULL)
-        ORDER BY payee ASC, invoice_date DESC, id DESC`
-    );
-    res.json({ success: true, data: rows });
-  } catch (err) {
-    console.error('GET /api/bk/admin/corrupt-invoices:', err);
-    res.status(500).json({ success: false, error: err.message });
-  }
-});
-
 // GET /api/bk/entries/:id/file/:type
 //
 // Serves the bytes directly from the Node server — R2 fetches are proxied

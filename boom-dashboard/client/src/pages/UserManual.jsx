@@ -63,13 +63,6 @@ const MANUAL_PAGES = [
       'Dismiss individual flags or whole groups (audited, restorable)',
       'Apply an artist rename across the whole app — the mapping is remembered so future imports auto-collapse',
     ] },
-  { path: '/import/master-sheet', group: 'Releases', title: 'Master Sheet Import',
-    intro: 'Import the label master sheet — new releases and artists diffed against the app before anything is written.',
-    tasks: [
-      'Header-row detection handles tabs with different column layouts',
-      'Review the diff (new artists / new releases / changes) before committing',
-      'Date-shaped artist names are rejected as parse errors, not imported',
-    ] },
   { path: '/contracts',         group: 'Contracts', title: 'Contracts',
     intro: 'Every signed contract with artist, advance, royalty split, and expiration.',
     tasks: [
@@ -203,20 +196,6 @@ const MANUAL_PAGES = [
       'Select the team member being reimbursed',
       'Automatically tagged as Reimbursement on the ledger',
     ] },
-  { path: '/bk/bulk-upload',   group: 'Finance — Invoicing', title: 'Bulk Upload',
-    intro: 'Batch-upload a stack of invoices and proofs; AI matches them up.',
-    tasks: [
-      'Drop multiple PDFs into the Invoices and Proofs drop zones',
-      'AI parses each, matches proofs to invoices by payee + amount',
-      'Review and manually re-match on the confirmation table before submit',
-    ] },
-  { path: '/bk/bulk-reupload', group: 'Finance — Invoicing', title: 'Bulk Re-upload',
-    intro: 'Repair page — NOT for new invoices. Lists expenses whose stored files are broken/truncated so the originals can be re-uploaded.',
-    tasks: [
-      'Use when an invoice / W9 / proof preview fails to load',
-      'Re-upload the original file and it lands in current storage',
-      'For normal batch intake use Bulk Upload, not this page',
-    ] },
   { path: '/create-invoice',   group: 'Finance — Invoicing', title: 'Create Invoice',
     intro: 'Generate an invoice FROM Market Street to an external party.',
     tasks: [
@@ -297,13 +276,6 @@ const MANUAL_PAGES = [
       'Costs-to-date pulls matching ledger spend against each line',
       'Every approve / lock is attributed (who, when)',
     ] },
-  { path: '/import',           group: 'Finance — Analytics', title: 'QB Import',
-    intro: 'Import a QuickBooks CSV to back-populate the ledger.',
-    tasks: [
-      'Map QB columns to ledger fields on the preview screen',
-      'Duplicate detection uses invoice number + email',
-      'Successfully imported rows go straight to status = approved',
-    ] },
 
   { path: '/team',     group: 'Team', title: 'Team',
     intro: 'Team members and their assigned tasks.',
@@ -332,12 +304,6 @@ const MANUAL_PAGES = [
     tasks: [
       'Upload and organize company documents',
       'Access is strictly admin-gated (no permission grant can open it)',
-    ] },
-  { path: '/legal',      group: 'Admin', title: 'Legal',
-    intro: 'Legal document storage — waivers, clearances, and templates.',
-    tasks: [
-      'Central home for the label\'s legal records (admin-only)',
-      'Waivers and clearances created from the Contracts pages surface here',
     ] },
   { path: '/analytics',  group: 'Admin', title: 'Analytics',
     intro: 'App usage at a glance — which pages get used, who\'s most active, and daily trends. Admin only.',

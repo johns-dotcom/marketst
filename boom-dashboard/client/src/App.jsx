@@ -36,8 +36,6 @@ import CreateNDA from './pages/CreateNDA'
 import CreateLabelWaiver from './pages/CreateLabelWaiver'
 import ArtistClearance from './pages/ArtistClearance'
 import Calendar from './pages/Calendar'
-import QBImport from './pages/QBImport'
-import MasterSheetImport from './pages/MasterSheetImport'
 // Bookkeeping iframe pages
 import BkLedger from './pages/BkLedger'
 import BkAddInvoice from './pages/BkAddInvoice'
@@ -60,7 +58,6 @@ import ArtistCampaigns from './pages/ArtistCampaigns'
 import AdAllocation from './pages/AdAllocation'
 import BkInvoices from './pages/BkInvoices'
 import BkBulkDeals from './pages/BkBulkDeals'
-import BkBulkUpload from './pages/BkBulkUpload'
 import LedgerMatching from './pages/LedgerMatching'
 import BkStatements from './pages/BkStatements'
 import BkBankMatching from './pages/BkBankMatching'
@@ -71,11 +68,9 @@ import BkRules from './pages/BkRules'
 // file only redirects the old /bk/vendor-flags URL.
 import BkVendorsUnified from './pages/BkVendorsUnified'
 import Reports from './pages/Reports'
-import BkBulkReupload from './pages/BkBulkReupload'
 import VendorSubmit from './pages/VendorSubmit'
 import VendorSubmitLab from './pages/VendorSubmitLab'
 import UserManual from './pages/UserManual'
-import Legal from './pages/Legal'
 import AdminDocs from './pages/AdminDocs'
 import Messages from './pages/Messages'
 
@@ -204,8 +199,6 @@ function AppContent() {
             redirect so existing links and bookmarks land in the hub. */}
         <Route path="/flags" element={<Duplicates />} />
         <Route path="/duplicates" element={<Navigate to="/flags" replace />} />
-        <Route path="/import" element={<TabbedShell family="settings"><QBImport /></TabbedShell>} />
-        <Route path="/import/master-sheet" element={<AdminRoute><TabbedShell family="settings"><MasterSheetImport /></TabbedShell></AdminRoute>} />
         <Route path="/create-invoice" element={<TabbedShell family="documents"><CreateInvoice /></TabbedShell>} />
         <Route path="/create-nda" element={<TabbedShell family="documents"><CreateNDA /></TabbedShell>} />
         <Route path="/create-nda/:template" element={<TabbedShell family="documents"><CreateNDA /></TabbedShell>} />
@@ -214,7 +207,6 @@ function AppContent() {
         <Route path="/calendar" element={<Calendar />} />
         <Route path="/activity" element={<TabbedShell family="settings"><ActivityHistory /></TabbedShell>} />
         <Route path="/analytics" element={<StrictAdminRoute><Analytics /></StrictAdminRoute>} />
-        <Route path="/legal" element={<TabbedShell family="settings"><Legal /></TabbedShell>} />
         <Route path="/admin" element={<StrictAdminRoute><TabbedShell family="settings"><AdminDocs /></TabbedShell></StrictAdminRoute>} />
         <Route path="/settings" element={<TabbedShell family="settings"><Settings /></TabbedShell>} />
         {/* Bookkeeping routes — iframe-embedded Flask app */}
@@ -254,7 +246,6 @@ function AppContent() {
         <Route path="/artist-campaigns/:artistName/:songName" element={<TabbedShell family="artist-spend"><ArtistCampaigns /></TabbedShell>} />
         <Route path="/bk/invoices"  element={<BkInvoices />} />
         <Route path="/bk/bulk-deals" element={<BkBulkDeals />} />
-        <Route path="/bk/bulk-upload" element={<TabbedShell family="settings"><BkBulkUpload /></TabbedShell>} />
         <Route path="/bk/ledger-matching" element={<LedgerMatching />} />
         {/* Wrapped, not nested — the same shape the vendors / import /
             recoupments families use, and for the same reason: the tab bar is
@@ -270,7 +261,6 @@ function AppContent() {
         <Route path="/bk/1099" element={<TabbedShell family="vendors"><Bk1099 /></TabbedShell>} />
         <Route path="/bk/vendor-flags" element={<Navigate to="/bk/vendors?tab=duplicates" replace />} />
         <Route path="/reports" element={<Reports />} />
-        <Route path="/bk/bulk-reupload" element={<TabbedShell family="settings"><BkBulkReupload /></TabbedShell>} />
       </Route>
     </Routes>
   )

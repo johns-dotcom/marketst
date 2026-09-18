@@ -88,8 +88,8 @@ ok(!one(['/budget'],   '/budgets'),             "/budget does NOT admit /budgets
 ok( one(['/artists'],  '/artists/9'),           "/artists DOES admit /artists/9")
 ok( one(['/bk/vendors'],'/bk/vendors/ACME%20LLC'), "/bk/vendors DOES admit an encoded vendor name")
 ok( one(['/financials'],'/financials/month/2026-01'), "/financials DOES admit a two-level descendant")
-ok(!one(['/import'],   '/import/master-sheet'),  "/import does NOT confer the adminOnly Master Sheet Import")
-ok( one(['/import','/import/master-sheet'], '/import/master-sheet'), "...but an explicit grant does")
+ok(!one(['/contracts'], '/contracts/create'), "/contracts does NOT confer Create Contract — a grantable page never inherits from a page that merely shares its prefix")
+ok( one(['/contracts','/contracts/create'], '/contracts/create'), "...but an explicit grant does")
 ok(!one(['/recoupments'], '/recoupments/audit'), "/recoupments does NOT confer the Audit page (it is its own grantable page)")
 ok( one(['/recoupments'], '/recoupments/planning'), "...while Planning still rides on /recoupments via its carve-out")
 

@@ -21,9 +21,9 @@
 //   • /recoupments/:artistName renders the same Recoupments page filtered to one
 //     artist, and /recoupments/2025 is a routed orphan John wants left exactly as
 //     it is. Nesting would sweep both into the family; wrapping touches neither.
-//   • The Import family shares no path prefix AT ALL — /import, /bk/bulk-upload,
-//     /bk/bulk-reupload, /import/master-sheet. Nesting cannot express that.
-//     A wrapper can, so both families use one mechanism instead of two.
+//   • A family need not share a path prefix at all — Settings holds /settings,
+//     /team, /activity and /admin. Nesting cannot express that. A wrapper can,
+//     so every family uses one mechanism instead of two.
 
 import { useMemo } from 'react'
 import { Link, useLocation } from 'react-router-dom'
@@ -73,8 +73,7 @@ export default function TabbedShell({ family, children, counts = {} }) {
 
   // A family with one reachable tab is not a tab bar, it is a heading with extra
   // steps. Render the page alone. This is the normal case for a user granted
-  // exactly one page of a family, and for the Import family when a non-admin
-  // cannot see the master sheet.
+  // exactly one page of a family — a non-admin on Settings sees only Settings.
   if (tabs.length < 2) return children
 
   return (

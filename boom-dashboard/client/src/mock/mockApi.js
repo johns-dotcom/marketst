@@ -429,7 +429,6 @@ const MATCHERS = [
   ) },
 
   // ── Bookkeeping ──────────────────────────────────────────────────────────
-  { m: /^\/bk\/admin\/corrupt-invoices/, fn: () => ok([]) },
   // Payment terms on the create-invoice page. Sub-path matchers before any
   // catch-all, and the SHAPES mirror routes/invoices.js — a test user hitting the
   // generic fallback would get an array where the page reads `.terms`, and the
@@ -1433,7 +1432,6 @@ const MATCHERS = [
   // and rendered empty for test users.
   { m: /^\/flags/,                         fn: () => ok([]) },
   { m: /^\/dsp/,        fn: () => ok([]) },
-  { m: /^\/import/,     fn: () => ok([]) },
   { m: /^\/search/,     fn: () => ok([]) },
 
   // ── Vendor submit (admin side) ──────────────────────────────────────────

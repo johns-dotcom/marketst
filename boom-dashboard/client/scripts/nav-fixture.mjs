@@ -33,14 +33,14 @@ const flat = (g) => g.items.flatMap(i => (i.collapsible || i.tabbed) ? i.childre
 const allPaths = NAV_GROUPS.flatMap(flat).map(i => i.path)
 
 console.log('1. no page can go missing')
-ok(allPaths.length === 53, `53 paths across ${NAV_GROUPS.length} groups (got ${allPaths.length}) — every page Boom's nav had on 2026-09-18, none dropped by the Market Street regroup`)
+ok(allPaths.length === 48, `48 paths across ${NAV_GROUPS.length} groups (got ${allPaths.length}) — Boom's 53 minus the five John had removed outright on 2026-09-18 (bulk upload, re-upload, QuickBooks, master sheet, Legal)`)
 ok(new Set(allPaths).size === allPaths.length, 'no path appears twice')
-ok(NAV_PAGES.length === 53, "NAV_PAGES flattens to 53 — Settings' permission matrix renders from it, so a new page must appear here or nobody can ever be granted it")
+ok(NAV_PAGES.length === 48, "NAV_PAGES flattens to 48 — Settings' permission matrix renders from it, so a new page must appear here or nobody can ever be granted it")
 // Market Street regroup (2026-09-18): pages leave the SIDEBAR with `hidden`,
 // never by deletion. A hidden page is still grantable, still searchable, and
 // still a known page for the permission walk.
 const hiddenRows = NAV_PAGES.filter(p => p.hidden).map(p => p.path).sort()
-const expectHidden = ['/analytics', '/bk/bulk-deals', '/bk/bulk-reupload', '/bk/bulk-upload', '/bk/invoices', '/bk/ledger-matching', '/bk/reimburse', '/budget', '/financials', '/import', '/import/master-sheet', '/legal', '/salary'].sort()
+const expectHidden = ['/analytics', '/bk/bulk-deals', '/bk/invoices', '/bk/ledger-matching', '/bk/reimburse', '/budget', '/financials', '/salary'].sort()
 ok(JSON.stringify(hiddenRows) === JSON.stringify(expectHidden), `exactly these pages are hidden from the sidebar: ${hiddenRows.join(', ')}`)
 const famKeys = NAV_GROUPS.flatMap(g => g.items.filter(i => i.tabbed).map(i => i.key))
 ok(new Set(famKeys).size === famKeys.length, `tab family keys are unique (${famKeys.join(', ')})`)
@@ -140,7 +140,7 @@ for (const [path, want] of [['/', 'Home'], ['/releases', 'Pipeline'], ['/deals',
   ok(labelOf(path) === want, `${path.padEnd(18)} is "${labelOf(path)}"`)
 }
 for (const [path, fam] of [['/deals', 'contracts'], ['/create-invoice', 'documents'], ['/bk/creators', 'invoices'],
-                           ['/bk/advertising', 'artist-spend'], ['/import', 'settings'], ['/team', 'settings']]) {
+                           ['/bk/advertising', 'artist-spend'], ['/activity', 'settings'], ['/team', 'settings']]) {
   ok(familyOf(path) === fam, `${path.padEnd(18)} is a tab of "${familyOf(path)}"`)
 }
 ok(groupOf('/bk/ledger') === 'Money' && groupOf('/bk/statements') === 'Money' && groupOf('/bk/vendors') === 'Money',
@@ -175,7 +175,7 @@ console.log('\n8. synonym reachability — finding a page by what you call it')
 const find = (q) => NAV_GROUPS.flatMap(flat).filter(i =>
   (i.label + ' ' + i.path + ' ' + (i.synonyms || '')).toLowerCase().includes(q))
 for (const [q, want] of [['w9', '/bk/vendors'], ['p&l', '/reports'], ['payroll', '/salary'],
-                          ['quickbooks', '/import'], ['recoup', '/recoupments'], ['duplicates', '/flags'],
+                          ['recoup', '/recoupments'], ['duplicates', '/flags'],
                           ['bill a client', '/create-invoice']]) {
   ok(find(q).map(i => i.path).includes(want), `"${q}" finds ${want}`)
 }

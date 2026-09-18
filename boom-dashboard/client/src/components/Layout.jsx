@@ -51,8 +51,6 @@ const PAGE_LABELS = {
   '/financials':         'Financials',
   '/reports':            'Reports',
   '/budget':             'Recording Budgets',
-  '/import':             'QuickBooks Import',
-  '/import/master-sheet': 'Master Sheet Import',
   '/team':               'Members',
   '/activity':           'Activity History',
   '/analytics':          'Analytics',
@@ -89,13 +87,10 @@ const PAGE_LABELS = {
   '/create-invoice':     'Create Invoice',
   '/calendar':           'Calendar',
   '/bk/bulk-deals':      'Bulk Deals',
-  '/bk/bulk-upload':     'Bulk Upload',
-  '/bk/bulk-reupload':   'Bulk Re-upload',
   '/bk/ledger-matching': 'Bookkeeper Reconcile',
   '/bk/statements':      'Bank',
   '/bk/bank-matching':   'Bank',
   '/bk/rules':           'Bank',
-  '/legal':              'Legal',
 }
 
 const REQUEST_TYPES = [
