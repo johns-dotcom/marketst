@@ -43,7 +43,7 @@
 //   unpaid              an invoice nobody has paid
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useParams, Link } from 'react-router-dom'
+import { useParams, Link, useSearchParams } from 'react-router-dom'
 import {
   ArrowLeft, Download, Loader, AlertTriangle, ChevronDown, ChevronRight,
   ArrowUp, ArrowDown, ClipboardPaste, X, Keyboard,
@@ -126,6 +126,11 @@ function parseCell(raw) {
 
 export default function ArtistBudgetSheet() {
   const { artistKey } = useParams()
+  // "New budget" passes the spelling it was opened with. The server names a
+  // sheet from its ledger rows, then the roster; an off-roster name with no
+  // spend yet has neither, and would otherwise be titled by its key.
+  const [searchParams] = useSearchParams()
+  const openedAs = searchParams.get('name') || ''
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [err, setErr] = useState('')
@@ -447,7 +452,7 @@ export default function ArtistBudgetSheet() {
   return (
     <div className="space-y-5">
       <PageHeader
-        title={data.artist}
+        title={data.artist === artistKey && openedAs ? openedAs : data.artist}
         subtitle="Budget typed on the category rows, with every expense matched to them by its category."
         actions={(
           <>

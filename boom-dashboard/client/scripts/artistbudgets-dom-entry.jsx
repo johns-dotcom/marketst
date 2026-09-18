@@ -20,7 +20,7 @@
 // spreadsheet".
 import React from 'react'
 import { createRoot } from 'react-dom/client'
-import { MemoryRouter } from 'react-router-dom'
+import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom'
 import ArtistBudgets from '../src/pages/ArtistBudgets'
 import { calls } from './artistbudgets-api-stub.js'
 import { ThemeProvider } from '../src/context/ThemeContext'
@@ -48,6 +48,11 @@ const findByText = (root, re, sel = '*') =>
   [...root.querySelectorAll(sel)].filter((n) => re.test(textOf(n)))
 const click = (el) => el && el.dispatchEvent(new window.MouseEvent('click', { bubbles: true }))
 
+function Landed() {
+  const loc = useLocation()
+  return <div data-landed={loc.pathname + loc.search}>landed</div>
+}
+
 async function main() {
   const host = document.createElement('div')
   document.body.appendChild(host)
@@ -56,7 +61,11 @@ async function main() {
     <Catch>
       <ThemeProvider>
         <MemoryRouter initialEntries={['/artist-budgets']}>
-          <ArtistBudgets />
+          <Routes>
+            <Route path="/artist-budgets" element={<ArtistBudgets />} />
+            {/* Where "New budget" lands. Prints the URL so the harness can read it. */}
+            <Route path="/artist-budgets/:artistKey" element={<Landed />} />
+          </Routes>
         </MemoryRouter>
       </ThemeProvider>
     </Catch>
@@ -155,7 +164,36 @@ async function main() {
 
   say('\nno late errors -> ' + (errors.length === 0))
   if (errors.length) for (const e of errors.slice(0, 6)) say('     ' + e)
-  say('\nDONE')
+    say('\nNEW BUDGET')
+  // A label with no sheet had no way onto a sheet. The button asks WHO and
+  // opens their sheet; the roster comes from /bk/artist-names, the key from
+  // artistBucket, and the spelling rides along so a fresh sheet is not titled
+  // by its key.
+  const newBtn = host.querySelector('[data-action="new-budget"]')
+  assert('the header has a New budget button', !!newBtn)
+  click(newBtn)
+  await sleep(100)
+  const modal = host.querySelector('[data-modal="new-budget"]')
+  assert('it opens the picker', !!modal)
+  assert('it says typing in a cell is what saves', /type a budget in any cell/i.test(textOf(modal)))
+  assert('the roster was read', calls.get.some((u) => u.startsWith('/bk/artist-names')))
+  // ArtistSelect renders a trigger button; the menu it opens is PORTALLED to
+  // document.body (so it can escape overflow clipping), so its rows are found
+  // there, not inside the modal.
+  click(modal.querySelector('button'))
+  await sleep(150)
+  const row = findByText(document.body, /^Rosa Vale$/, 'button')[0]
+  assert('the roster name is offered', !!row)
+  click(row)
+  await sleep(100)
+  const openBtn = findByText(modal, /^Open sheet$/, 'button')[0]
+  assert('Open sheet is enabled once a real artist is picked', !!openBtn && !openBtn.disabled)
+  click(openBtn)
+  await sleep(200)
+  const landed = host.querySelector('[data-landed]')
+  assert('it navigates to that artist\'s sheet by KEY, carrying the spelling',
+    !!landed && landed.getAttribute('data-landed') === '/artist-budgets/rosavale?name=Rosa%20Vale')
+say('\nDONE')
 }
 
 main().catch((e) => { console.log('HARNESS THREW: ' + e.message); console.log('DONE') })

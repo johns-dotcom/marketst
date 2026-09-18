@@ -77,6 +77,7 @@ const api = {
       if (key) return ok({ ...BY_ARTIST, artists: BY_ARTIST.artists.filter((a) => a.artist_key === key) })
       return ok(BY_ARTIST)
     }
+    if (url.startsWith('/bk/artist-names')) return ok({ names: ['Darci', 'Oxis', 'Pluko', 'Rosa Vale'] })
     if (url.startsWith('/artist-budgets')) return ok(LEDGER)
     if (url.startsWith('/spend-plans/queue')) {
       return Promise.resolve({ data: { success: true, data: QUEUE, total: 359 } })

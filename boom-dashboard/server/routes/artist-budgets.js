@@ -168,6 +168,22 @@ const SHEET_ROWS_SQL = `
 `;
 
 /** The spelling to PRINT: most-used wins, ties alphabetically. */
+// The roster's spelling, by artist key. A sheet that exists only because
+// somebody typed a budget has no ledger rows to take a spelling from, and
+// without this the index card and the sheet header read the KEY ("rosavale")
+// for an artist the roster calls "Rosa Vale". Read once per request, never per
+// artist.
+async function rosterNamesByKey() {
+  const { rows } = await pool.query(
+    `SELECT name FROM artists WHERE (archived = false OR archived IS NULL)`);
+  const m = new Map();
+  for (const r of rows) {
+    const k = artistBucketKey(r.name);
+    if (k && !m.has(k)) m.set(k, String(r.name).trim());
+  }
+  return m;
+}
+
 function bestSpelling(counts) {
   return [...counts.entries()]
     .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))[0]?.[0] || null;
@@ -185,11 +201,12 @@ router.get('/', async (req, res) => {
     // every artist whose budget has actually been typed — the same surface
     // disagreeing with itself one click apart.
     const [{ rows: expenses }, { rows: budgets }, { rows: catBudgets },
-      { rows: relBudgets }] = await Promise.all([
+      { rows: relBudgets }, roster] = await Promise.all([
       pool.query(SHEET_ROWS_SQL),
       pool.query(`SELECT artist_key, section, amount::float8 AS amount FROM artist_budget_sections`),
       pool.query(`SELECT artist_key, category, amount::float8 AS amount FROM artist_budget_categories`),
       pool.query(`SELECT artist_key, release_id, amount::float8 AS amount FROM artist_budget_releases`),
+      rosterNamesByKey(),
     ]);
 
     const byKey = new Map();
@@ -238,7 +255,7 @@ router.get('/', async (req, res) => {
       const budget = r2(r.budget);
       return {
         ...r,
-        artist: bestSpelling(spellings.get(r.artist_key) || new Map()) || r.artist_key,
+        artist: bestSpelling(spellings.get(r.artist_key) || new Map()) || roster.get(r.artist_key) || r.artist_key,
         budget, release_budget: r2(r.release_budget), spent, open, committed: r2(spent + open),
         verified, awaiting, unverified, unpaid,
         variance: r2(budget - spent),
@@ -529,7 +546,7 @@ async function buildSheet(key) {
     const sum = (f) => r2(sections.reduce((t, s) => t + s[f], 0));
     return {
       artist_key: key,
-      artist: bestSpelling(spellings) || key,
+      artist: bestSpelling(spellings) || (await rosterNamesByKey()).get(key) || key,
       sections,
       releases,
       unassigned_release: unassigned,

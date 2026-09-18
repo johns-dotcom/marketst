@@ -27,15 +27,15 @@
 // spending per artist".
 
 import { useEffect, useMemo, useState, useCallback } from 'react'
-import { Link } from 'react-router-dom'
-import {
-  Search, AlertCircle, X, RefreshCw, ChevronDown, ChevronRight,
-  Upload, FileSpreadsheet, CheckCircle2, Loader,
-} from 'lucide-react'
+import { Link, useNavigate } from 'react-router-dom'
+import { Search, AlertCircle, X, RefreshCw, ChevronDown, ChevronRight, Upload, FileSpreadsheet, CheckCircle2, Loader, Plus } from 'lucide-react'
 import api from '../api'
 import PageHeader from '../components/PageHeader'
 import Skeleton from '../components/Skeleton'
 import { QueueRow, Stat } from '../components/SpendSheetPanels'
+import ArtistSelect from '../components/ArtistSelect'
+import useArtistNames from '../hooks/useArtistNames'
+import { artistBucket } from '../utils'
 
 const usd = (v) => new Intl.NumberFormat('en-US', {
   style: 'currency', currency: 'USD', maximumFractionDigits: 0,
@@ -299,7 +299,54 @@ function ImportPanel({ onImported }) {
 }
 
 // ── Page ─────────────────────────────────────────────────────────────────────
+// Start a budget by hand. John, 2026-09-18: "I want users to be able to
+// manually add artist budgets." Until now the only way onto this page was the
+// imported marketing sheet — an artist with no block on it had no card, and a
+// label with no sheet had no page.
+//
+// There is nothing to CREATE here, on purpose: a sheet exists for every artist
+// key, and typing in a category cell is what makes the budget (see the sheet's
+// header note on why "create a budget" is where this feature died three times
+// at Boom). So this only asks WHO, then opens their sheet. The picker is the
+// roster ∪ the names already on the ledger, typable — an off-roster name is
+// allowed, exactly as on every other artist field.
+function NewBudgetModal({ onClose }) {
+  const navigate = useNavigate()
+  const names = useArtistNames()
+  const [name, setName] = useState('')
+  const key = artistBucket(name)
+  const go = () => {
+    if (!key) return
+    onClose()
+    navigate(`/artist-budgets/${encodeURIComponent(key)}?name=${encodeURIComponent(name.trim())}`)
+  }
+  return (
+    <div className="fixed inset-0 z-50 flex items-start justify-center pt-24 bg-overlay" onClick={onClose}>
+      <div className="card p-5 w-full max-w-md space-y-4" onClick={(e) => e.stopPropagation()} data-modal="new-budget">
+        <div>
+          <h2 className="text-[15px] font-bold text-ink">New budget</h2>
+          <p className="text-[12px] text-gray-500 mt-1">
+            Pick an artist. Their sheet opens with every category as a row — type a budget in any cell and it is saved.
+          </p>
+        </div>
+        <ArtistSelect value={name} onChange={setName} options={names} placeholder="Artist…" allowClear={false}
+          className="w-full" />
+        {name && !key && (
+          <p className="text-[12px] text-rose-600">"{name}" is a placeholder, not an artist.</p>
+        )}
+        <div className="flex justify-end gap-2">
+          <button type="button" onClick={onClose}
+            className="text-[12.5px] px-3 py-1.5 rounded-lg border border-rule text-gray-600 hover:bg-gray-100">Cancel</button>
+          <button type="button" onClick={go} disabled={!key}
+            className="btn-primary text-[12.5px] px-3 py-1.5 disabled:opacity-50">Open sheet</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function ArtistBudgets() {
+  const [newBudget, setNewBudget] = useState(false)
   const [tab, setTab] = useState('budgets')
   const [data, setData] = useState(null)
   const [ledger, setLedger] = useState(null)
@@ -401,14 +448,21 @@ export default function ArtistBudgets() {
     <div className="space-y-5">
       <PageHeader
         title="Artist budgets"
-        subtitle="What each artist's campaigns were planned to cost, what is still owed, and what the ledger actually paid."
+        subtitle="What each artist was budgeted, what is still owed, and what the ledger actually paid. Type a budget on an artist's sheet, or import the marketing spend sheet."
         actions={
-          <button onClick={load}
-            className="text-[12.5px] px-3 py-1.5 rounded-lg border border-rule text-gray-600 hover:bg-gray-100 inline-flex items-center gap-1.5">
-            <RefreshCw size={13} /> Refresh
-          </button>
+          <>
+            <button onClick={load}
+              className="text-[12.5px] px-3 py-1.5 rounded-lg border border-rule text-gray-600 hover:bg-gray-100 inline-flex items-center gap-1.5">
+              <RefreshCw size={13} /> Refresh
+            </button>
+            <button onClick={() => setNewBudget(true)} data-action="new-budget"
+              className="btn-primary text-[12.5px] px-3 py-1.5 inline-flex items-center gap-1.5">
+              <Plus size={13} /> New budget
+            </button>
+          </>
         }
       />
+      {newBudget && <NewBudgetModal onClose={() => setNewBudget(false)} />}
 
       {err && (
         <div className="card p-3 border-l-4 border-l-rose-500 flex items-start gap-2">
@@ -484,11 +538,19 @@ export default function ArtistBudgets() {
             <Skeleton.StatCards count={3} />
           ) : rows.length === 0 ? (
             <div className="card p-8 text-center">
-              <p className="text-[12.5px] text-gray-500">
-                {data?.totals?.artists
-                  ? 'No artist matches.'
-                  : 'No sheet has been imported yet — use the Import sheet tab.'}
-              </p>
+              {data?.totals?.artists || ledger?.totals?.artists ? (
+                <p className="text-[12.5px] text-gray-500">No artist matches.</p>
+              ) : (
+                <div className="space-y-3">
+                  <p className="text-[12.5px] text-gray-500">
+                    No budgets yet. Start one by hand, or import the marketing spend sheet from the Import sheet tab.
+                  </p>
+                  <button onClick={() => setNewBudget(true)} data-action="new-budget-empty"
+                    className="btn-primary text-[12.5px] px-3 py-1.5 inline-flex items-center gap-1.5">
+                    <Plus size={13} /> New budget
+                  </button>
+                </div>
+              )}
             </div>
           ) : (
             <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
