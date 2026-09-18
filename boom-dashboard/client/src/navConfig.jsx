@@ -252,6 +252,10 @@ export const NAV_GROUPS = [
       // One row. Settings is on the BASE_WHITELIST (My Nav + Theme for
       // everyone); every other tab is gated by its own route guard or by the
       // adminOnly flag, which Layout and TabbedShell both honour.
+      //
+      // John, 2026-09-18: "remove bulk upload, reupload, quickbooks, legal, and
+      // mastersheet. they're not needed." Hidden, not deleted — same rule as
+      // the rest of the fork: routed, grantable, reachable by URL, not drawn.
       label: 'Admin',
       items: [
         {
@@ -262,13 +266,13 @@ export const NAV_GROUPS = [
           children: [
             { path: '/settings',            label: 'Settings',     icon: Settings, synonyms: 'preferences theme my nav permissions' },
             { path: '/team',                label: 'Members',      icon: UserCheck, synonyms: 'staff people users team' },
-            { path: '/bk/bulk-upload',      label: 'Bulk upload',  icon: Upload, synonyms: 'many invoices at once bulk upload batch import' },
-            { path: '/bk/bulk-reupload',    label: 'Re-upload',    icon: Upload, synonyms: 'replace files batch reupload repair' },
-            { path: '/import',              label: 'QuickBooks',   icon: Upload, synonyms: 'quickbooks import qbo sync qb' },
-            { path: '/import/master-sheet', label: 'Master sheet', icon: FileSpreadsheet, adminOnly: true, synonyms: 'master sheet catalog releases spreadsheet import' },
+            { path: '/bk/bulk-upload',      label: 'Bulk upload',  icon: Upload, hidden: true, synonyms: 'many invoices at once bulk upload batch import' },
+            { path: '/bk/bulk-reupload',    label: 'Re-upload',    icon: Upload, hidden: true, synonyms: 'replace files batch reupload repair' },
+            { path: '/import',              label: 'QuickBooks',   icon: Upload, hidden: true, synonyms: 'quickbooks import qbo sync qb' },
+            { path: '/import/master-sheet', label: 'Master sheet', icon: FileSpreadsheet, adminOnly: true, hidden: true, synonyms: 'master sheet catalog releases spreadsheet import' },
             { path: '/activity',            label: 'Activity',     icon: ScrollText, adminOnly: true, synonyms: 'audit log history who changed' },
             { path: '/admin',               label: 'Admin docs',   icon: ShieldCheck, adminOnly: true, synonyms: 'documentation admin runbook' },
-            { path: '/legal',               label: 'Legal',        icon: Scale, adminOnly: true, synonyms: 'terms privacy legal' },
+            { path: '/legal',               label: 'Legal',        icon: Scale, adminOnly: true, hidden: true, synonyms: 'terms privacy legal' },
             { path: '/admin/vendor-lab',    label: 'Sandbox',      icon: Send, adminOnly: true, external: true, synonyms: 'vendor form sandbox lab test preview' },
             { path: '/analytics',           label: 'Analytics',    icon: BarChart2, adminOnly: true, hidden: true, synonyms: 'usage pageviews logins' },
           ],

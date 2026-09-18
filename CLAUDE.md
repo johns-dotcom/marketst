@@ -31,7 +31,11 @@ Authoritative project guide: **`boom-dashboard/CLAUDE.md`** — read it before m
   Documents, Invoices, Bank, Vendors, Recoupments, Artist Spend, Settings. NO PATH
   MOVED. Pages leave the sidebar with `hidden: true`, never by deletion: a hidden
   page stays in `NAV_PAGES` (grantable, ⌘K-searchable, a known page for the
-  permission walk). `client/scripts/nav-fixture.mjs` encodes this layout; the
+  permission walk). Hidden as of 2026-09-18: Financials, Recording Budgets, Salary,
+  Bulk Deals, Invoices View, Bookkeeper Reconcile, Add Reimbursement, Analytics,
+  and (John: "not needed") Bulk upload, Re-upload, QuickBooks import, Master
+  sheet import, Legal. Settings' tab bar is therefore Settings · Members ·
+  Activity · Admin docs · Sandbox. `client/scripts/nav-fixture.mjs` encodes this layout; the
   page-access fixture must stay byte-identical across any nav change. Boom
   reverted a similar regroup in Aug 2026 — do not port this back without asking.
   Plan: https://claude.ai/code/artifact/3e97eb42-7e5d-41c3-b7c4-b20b8f424e28

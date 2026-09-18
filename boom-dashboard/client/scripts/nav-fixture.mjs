@@ -40,7 +40,7 @@ ok(NAV_PAGES.length === 53, "NAV_PAGES flattens to 53 — Settings' permission m
 // never by deletion. A hidden page is still grantable, still searchable, and
 // still a known page for the permission walk.
 const hiddenRows = NAV_PAGES.filter(p => p.hidden).map(p => p.path).sort()
-const expectHidden = ['/analytics', '/bk/bulk-deals', '/bk/invoices', '/bk/ledger-matching', '/bk/reimburse', '/budget', '/financials', '/salary'].sort()
+const expectHidden = ['/analytics', '/bk/bulk-deals', '/bk/bulk-reupload', '/bk/bulk-upload', '/bk/invoices', '/bk/ledger-matching', '/bk/reimburse', '/budget', '/financials', '/import', '/import/master-sheet', '/legal', '/salary'].sort()
 ok(JSON.stringify(hiddenRows) === JSON.stringify(expectHidden), `exactly these pages are hidden from the sidebar: ${hiddenRows.join(', ')}`)
 const famKeys = NAV_GROUPS.flatMap(g => g.items.filter(i => i.tabbed).map(i => i.key))
 ok(new Set(famKeys).size === famKeys.length, `tab family keys are unique (${famKeys.join(', ')})`)
