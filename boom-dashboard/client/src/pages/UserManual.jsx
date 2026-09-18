@@ -30,7 +30,7 @@ const MANUAL_PAGES = [
       'Click an artist to open their profile + release history',
       'Use the filter pills to segment by genre or signing status',
     ] },
-  { path: '/deals',        group: 'Artists',  title: 'Deal Pipeline',
+  { path: '/deals',        group: 'Contracts', title: 'Contracts · Deals',
     intro: 'A&R signing funnel: Scouting → In talks → Signed / Passed.',
     tasks: [
       'Drag-drop cards between stages to update a deal',
@@ -38,7 +38,7 @@ const MANUAL_PAGES = [
       'Click a card for full notes, contacts, and links',
     ] },
 
-  { path: '/releases',     group: 'Releases', title: 'Release Tracker',
+  { path: '/releases',     group: 'Releases', title: 'Releases · Pipeline',
     intro: 'Upcoming and past releases with per-release checklists, metadata, DSP links, and budgets.',
     tasks: [
       'Filter by year, month, genre, priority, format',
@@ -54,7 +54,7 @@ const MANUAL_PAGES = [
       'Sort by streams, revenue, or release date',
     ] },
 
-  { path: '/duplicates',   group: 'Releases', title: 'Flags & Duplicates',
+  { path: '/duplicates',   group: 'Releases', title: 'Flags',
     intro: 'Data-quality sweep — duplicate detection and consistency flags across releases, artists, vendors, invoices, and the ledger.',
     tasks: [
       'Duplicate releases (name / UPC / ISRC / Spotify URI), artists, vendors, and invoices (4 severity tiers) with one-click merge',
@@ -272,14 +272,14 @@ const MANUAL_PAGES = [
       'Statement flags: parse problems, duplicate uploads, balances that don\'t reconcile',
       'Open the original file for any statement you\'re working against',
     ] },
-  { path: '/bk/bank-matching', group: 'Finance — Analytics', title: 'Banking — For review',
+  { path: '/bk/bank-matching', group: 'Finance — Analytics', title: 'Bank — For review',
     intro: 'Tie every line on the bank statements to the ledger. The bank knows money moved; only the invoice knows who it was for and why — this is where the two are connected. It matters more than it sounds: the P&L is built from the bank, so an unexplained line is already in your totals as spend nobody can account for.',
     tasks: [
       'Every open line has exactly three honest answers: it\'s this invoice (match), there\'s no invoice for it (book it), or it isn\'t really spending (set it aside — an internal transfer, a PayPal funding leg)',
       'When several invoices could be the one, the cards highlight only the fields that DIFFER between them and mute what they share — same vendor and amount is common, so artist, song and entry time are usually what tells them apart',
       'A red warning appears when candidates match on vendor, amount and confidence: marking the wrong one paid is silent, and nothing downstream contradicts it',
       'Actions are grouped by consequence — flagging and searching are free to undo; booking and setting aside move a reported total',
-      'This is one tab of Banking. The header above the tabs picks the statement and holds the tie-out, and it scopes all four tabs — choose the month once and Categorized, Statements and Rules follow you',
+      'This is one tab of Bank. The header above the tabs picks the statement and holds the tie-out, and it scopes all four tabs — choose the month once and Categorized, Statements and Rules follow you',
       '"N left to review" in that header is the whole to-do, and the statement picker counts the same way — a bank line with no ledger entry, or with one the app invented and no invoice behind it',
       'Three tabs across the table, and they add up to the debits exactly: For review (nothing decided, plus booked-with-no-invoice), Categorized (matched, or booked and not owed a document), Excluded (set aside). Refine, next to the search box, holds the narrower worklists — Likely, Suggested, Needs invoice, Flagged, Reversals',
       'The bar under the title is one whole: filled dark is invoice-backed, grey is booked but with nothing billed, the rest is untouched. Closing the grey gap is the job',
@@ -455,7 +455,7 @@ const WORKFLOWS = [
     title: 'New artist → signed release',
     requires: ['/deals', '/contracts', '/releases'],
     steps: [
-      'Add a deal in Deal Pipeline, drag it through Scouting → In talks',
+      'Add a deal in Contracts › Deals, drag it through Scouting → In talks',
       'Once ready, generate a contract (Contracts page or from the artist profile)',
       'Sign + upload the counter-signed PDF — contract flips to Active',
       'Create a release against the artist; work through the 14-item checklist',
@@ -471,7 +471,7 @@ const USER_OVERRIDES = {
     '/releases': {
       extraTitle: 'Ingestion — adding new releases',
       extra: [
-        'You own ingestion, so the Release Tracker is your workbench. Every new release starts here.',
+        'You own ingestion, so Releases (Pipeline tab) is your workbench. Every new release starts here.',
         'Click "+ New Release" (or press "n" on the page) to open the add-release modal.',
         'Type the artist name into the Artist field — it autocompletes against existing artists; unknown names create a new artist record automatically.',
         'Fill Project Name, Release Date, Release Type (Single / EP / Album / Compilation), Genre, and Subgenre. These drive the catalog + analytics filters, so don\'t skip them.',

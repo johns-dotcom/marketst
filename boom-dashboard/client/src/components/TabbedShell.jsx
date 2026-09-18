@@ -49,9 +49,10 @@ export default function TabbedShell({ family, children, counts = {} }) {
     if (!def) return []
     const isSysAdmin = user?.role === 'Admin' || user?.role === 'Superadmin'
     return def.children
-      // Same two gates the sidebar applies, in the same order. A tab the user
+      // Same gates the sidebar applies, in the same order. A tab the user
       // would be redirected away from must not be offered — App.jsx bounces an
       // unauthorized path to '/', so an ungated tab is a trapdoor, not a link.
+      .filter((c) => !c.hidden)
       .filter((c) => !c.adminOnly || isSysAdmin)
       .filter((c) => canView(c.path))
   }, [def, canView, user])
@@ -81,16 +82,27 @@ export default function TabbedShell({ family, children, counts = {} }) {
       <div className="flex gap-0 border-b border-divider mb-6 overflow-x-auto">
         {tabs.map((t) => {
           const active = t.path === activePath
+          const cls = `text-xs font-medium px-4 py-2.5 -mb-px whitespace-nowrap transition-colors ${
+            active
+              ? 'text-boom-600 border-b-2 border-boom-500'
+              : 'text-gray-400 border-b-2 border-transparent hover:text-gray-600'
+          }`
+          // `external` tabs (the vendor-form sandbox) open in a new window, as
+          // the sidebar has always opened them. A <Link> would render the
+          // sandbox inside the app shell it exists to stand apart from.
+          if (t.external) {
+            return (
+              <a key={t.path} href={t.path} target="_blank" rel="noopener noreferrer" className={cls}>
+                {t.label}
+              </a>
+            )
+          }
           return (
             <Link
               key={t.path}
               to={t.path}
               aria-current={active ? 'page' : undefined}
-              className={`text-xs font-medium px-4 py-2.5 -mb-px whitespace-nowrap transition-colors ${
-                active
-                  ? 'text-boom-600 border-b-2 border-boom-500'
-                  : 'text-gray-400 border-b-2 border-transparent hover:text-gray-600'
-              }`}
+              className={cls}
             >
               {t.label}
               {counts[t.path] != null && (

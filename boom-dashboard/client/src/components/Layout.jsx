@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { Outlet, Link, useLocation, Navigate } from 'react-router-dom'
-import { NAV_GROUPS } from '../navConfig'
+import { NAV_GROUPS, tabFamilyFor } from '../navConfig'
 import { useSocket } from '../context/SocketContext'
 import {
   LogOut,
@@ -36,13 +36,13 @@ import NotificationBell from './NotificationBell'
 import api from '../api'
 
 const PAGE_LABELS = {
-  '/':                   'Dashboard',
+  '/':                   'Home',
   '/my-work':            'My Work',
   '/messages':           'Messages',
   '/artists':            'Artist Roster',
-  '/deals':              'Deal Pipeline',
+  '/deals':              'Deals',
   '/pending-contracts':  'Pending Contracts',
-  '/releases':           'Release Tracker',
+  '/releases':           'Releases',
   '/catalog':            'Catalog',
   '/flags':              'Flags',
   '/duplicates':         'Flags', // legacy path — redirects to /flags
@@ -53,7 +53,7 @@ const PAGE_LABELS = {
   '/budget':             'Recording Budgets',
   '/import':             'QuickBooks Import',
   '/import/master-sheet': 'Master Sheet Import',
-  '/team':               'Team',
+  '/team':               'Members',
   '/activity':           'Activity History',
   '/analytics':          'Analytics',
   '/admin':              'Admin Docs',
@@ -62,12 +62,12 @@ const PAGE_LABELS = {
   '/create-label-waiver': 'Create Label Waiver',
   '/create-artist-clearance': 'Create Artist Clearance',
   '/bk/ledger':          'Ledger',
-  // The four banking paths all title 'Banking' — they are one page with a tab
+  // The four bank paths all title 'Bank' — they are one page with a tab
   // bar, and the bar says which tab. Every KEY has to stay: resolveBasePath
   // below uses PAGE_LABELS as the "is this a known page" test for the
   // permission gate, so deleting one sends it walking up the path and can
   // bounce a legitimate user to Dashboard.
-  '/bk/bank-ledger':     'Banking',
+  '/bk/bank-ledger':     'Bank',
   '/bk/add':             'Add Invoice',
   '/salary':             'Salary',
   '/recoupments':        'Recoupments',
@@ -92,9 +92,9 @@ const PAGE_LABELS = {
   '/bk/bulk-upload':     'Bulk Upload',
   '/bk/bulk-reupload':   'Bulk Re-upload',
   '/bk/ledger-matching': 'Bookkeeper Reconcile',
-  '/bk/statements':      'Banking',
-  '/bk/bank-matching':   'Banking',
-  '/bk/rules':           'Banking',
+  '/bk/statements':      'Bank',
+  '/bk/bank-matching':   'Bank',
+  '/bk/rules':           'Bank',
   '/legal':              'Legal',
 }
 
@@ -540,17 +540,27 @@ export default function Layout() {
       // real thing to want, and a config key that silently does nothing is worse
       // than either having it or not.
       items: g.items
+        // `hidden` rows stay in NAV_PAGES (grantable, searchable, known to the
+        // permission walk) and are simply not drawn. Children can be hidden
+        // too — Analytics inside the Settings family.
+        .filter(item => !item.hidden)
         .filter(item => !item.adminOnly || isSysAdmin)
-        // A container's CHILDREN carry the flag too — Master Sheet Import is
-        // adminOnly and now lives inside the Import family, so filtering only at
+        // A container's CHILDREN carry the flags too — Master Sheet Import is
+        // adminOnly and lives inside the Settings family, so filtering only at
         // the top level would leak it into a non-admin's tab bar.
         .map(item => ((item.collapsible || item.tabbed)
-          ? { ...item, children: item.children.filter(c => !c.adminOnly || isSysAdmin) }
+          ? { ...item, children: item.children.filter(c => !c.hidden).filter(c => !c.adminOnly || isSysAdmin) }
           : item))
         .map(item => {
-          if (item.path === '/bk/approvals') return { ...item, badge: pendingApprovals }
-          if (item.path === '/messages') return { ...item, badge: chatUnread }
-          return item
+          // Badges attach to the PAGE wherever it sits. Approvals is a tab of
+          // the Invoices family now, and the family row sums its children's
+          // badges, so the count follows the page into its new row.
+          const badgeFor = (path) => path === '/bk/approvals' ? pendingApprovals
+                                   : path === '/messages' ? chatUnread : undefined
+          if (item.collapsible || item.tabbed) {
+            return { ...item, children: item.children.map(c => badgeFor(c.path) != null ? { ...c, badge: badgeFor(c.path) } : c) }
+          }
+          return badgeFor(item.path) != null ? { ...item, badge: badgeFor(item.path) } : item
         }),
     })), [isSysAdmin, pendingApprovals, chatUnread])
 
@@ -657,9 +667,10 @@ export default function Layout() {
                   if (item.tabbed) {
                     const first = item.children.find(c => canView(c.path)) || item.children[0]
                     const FamIcon = item.icon
-                    const isActive = item.children.some(
-                      c => location.pathname === c.path || location.pathname.startsWith(c.path + '/')
-                    )
+                    const owner = tabFamilyFor(location.pathname)
+                    const isActive = owner
+                      ? owner.key === item.key
+                      : item.children.some(c => location.pathname === c.path || location.pathname.startsWith(c.path + '/'))
                     const famBadge = item.children.reduce((n, c) => n + (c.badge || 0), 0)
                     return (
                       <Link

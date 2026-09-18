@@ -178,12 +178,12 @@ function AppContent() {
       <Route path="/manual" element={<UserManual />} />
       <Route element={<Layout />}>
         <Route path="/" element={<Dashboard />} />
-        <Route path="/releases" element={<Releases />} />
+        <Route path="/releases" element={<TabbedShell family="releases"><Releases /></TabbedShell>} />
         <Route path="/releases/:id" element={<ReleaseDetail />} />
         <Route path="/artists" element={<Artists />} />
         <Route path="/artists/:id" element={<ArtistProfile />} />
-        <Route path="/deals" element={<DealPipeline />} />
-        <Route path="/team" element={<Team />} />
+        <Route path="/deals" element={<TabbedShell family="contracts"><DealPipeline /></TabbedShell>} />
+        <Route path="/team" element={<TabbedShell family="settings"><Team /></TabbedShell>} />
         <Route path="/team/:id" element={<TeamMember />} />
         <Route path="/my-work" element={<MyWork />} />
         {/* '/messages' is on the BASE_WHITELIST (lib/pageAccess.js + its server
@@ -191,34 +191,34 @@ function AppContent() {
             channel is what bounds you, enforced in server/routes/chat.js. */}
         <Route path="/messages" element={<Messages />} />
         <Route path="/messages/:channelId" element={<Messages />} />
-        <Route path="/contracts" element={<AdminRoute><Contracts /></AdminRoute>} />
-        <Route path="/contracts/create" element={<AdminRoute><CreateContract /></AdminRoute>} />
-        <Route path="/renewals" element={<AdminRoute><Renewals /></AdminRoute>} />
+        <Route path="/contracts" element={<AdminRoute><TabbedShell family="contracts"><Contracts /></TabbedShell></AdminRoute>} />
+        <Route path="/contracts/create" element={<AdminRoute><TabbedShell family="documents"><CreateContract /></TabbedShell></AdminRoute>} />
+        <Route path="/renewals" element={<AdminRoute><TabbedShell family="contracts"><Renewals /></TabbedShell></AdminRoute>} />
         <Route path="/financials" element={<Financials />} />
         <Route path="/financials/month/:month" element={<Financials />} />
         <Route path="/budget" element={<Budget />} />
         <Route path="/budget/:id" element={<BudgetDetail />} />
-        <Route path="/pending-contracts" element={<AdminRoute><PendingContracts /></AdminRoute>} />
-        <Route path="/catalog" element={<Catalog />} />
+        <Route path="/pending-contracts" element={<AdminRoute><TabbedShell family="contracts"><PendingContracts /></TabbedShell></AdminRoute>} />
+        <Route path="/catalog" element={<TabbedShell family="releases"><Catalog /></TabbedShell>} />
         {/* Global flags hub. /duplicates was its old home — kept as a
             redirect so existing links and bookmarks land in the hub. */}
         <Route path="/flags" element={<Duplicates />} />
         <Route path="/duplicates" element={<Navigate to="/flags" replace />} />
-        <Route path="/import" element={<TabbedShell family="import"><QBImport /></TabbedShell>} />
-        <Route path="/import/master-sheet" element={<AdminRoute><TabbedShell family="import"><MasterSheetImport /></TabbedShell></AdminRoute>} />
-        <Route path="/create-invoice" element={<CreateInvoice />} />
-        <Route path="/create-nda" element={<CreateNDA />} />
-        <Route path="/create-nda/:template" element={<CreateNDA />} />
-        <Route path="/create-label-waiver" element={<CreateLabelWaiver />} />
-        <Route path="/create-artist-clearance" element={<ArtistClearance />} />
+        <Route path="/import" element={<TabbedShell family="settings"><QBImport /></TabbedShell>} />
+        <Route path="/import/master-sheet" element={<AdminRoute><TabbedShell family="settings"><MasterSheetImport /></TabbedShell></AdminRoute>} />
+        <Route path="/create-invoice" element={<TabbedShell family="documents"><CreateInvoice /></TabbedShell>} />
+        <Route path="/create-nda" element={<TabbedShell family="documents"><CreateNDA /></TabbedShell>} />
+        <Route path="/create-nda/:template" element={<TabbedShell family="documents"><CreateNDA /></TabbedShell>} />
+        <Route path="/create-label-waiver" element={<TabbedShell family="documents"><CreateLabelWaiver /></TabbedShell>} />
+        <Route path="/create-artist-clearance" element={<TabbedShell family="documents"><ArtistClearance /></TabbedShell>} />
         <Route path="/calendar" element={<Calendar />} />
-        <Route path="/activity" element={<ActivityHistory />} />
+        <Route path="/activity" element={<TabbedShell family="settings"><ActivityHistory /></TabbedShell>} />
         <Route path="/analytics" element={<StrictAdminRoute><Analytics /></StrictAdminRoute>} />
-        <Route path="/legal" element={<Legal />} />
-        <Route path="/admin" element={<StrictAdminRoute><AdminDocs /></StrictAdminRoute>} />
-        <Route path="/settings" element={<Settings />} />
+        <Route path="/legal" element={<TabbedShell family="settings"><Legal /></TabbedShell>} />
+        <Route path="/admin" element={<StrictAdminRoute><TabbedShell family="settings"><AdminDocs /></TabbedShell></StrictAdminRoute>} />
+        <Route path="/settings" element={<TabbedShell family="settings"><Settings /></TabbedShell>} />
         {/* Bookkeeping routes — iframe-embedded Flask app */}
-        <Route path="/bk/ledger"    element={<BkLedger />} />
+        <Route path="/bk/ledger"    element={<TabbedShell family="invoices"><BkLedger /></TabbedShell>} />
         {/* The other half of the ledger. Same component: 2,326 of the 3,692
             rows were created by booking a bank debit, and every invoice control
             — approve, mark paid, W9, invoice file — is inert on them. `bank`
@@ -226,9 +226,9 @@ function AppContent() {
             export and inline edit stay literally the same code, so the two
             halves cannot drift. */}
         <Route path="/bk/bank-ledger" element={<BankShell><BkLedger bank /></BankShell>} />
-        <Route path="/bk/add"       element={<BkAddInvoice />} />
+        <Route path="/bk/add"       element={<TabbedShell family="invoices"><BkAddInvoice /></TabbedShell>} />
         <Route path="/bk/reimburse" element={<BkAddReimbursement />} />
-        <Route path="/bk/approvals" element={<BkApprovals />} />
+        <Route path="/bk/approvals" element={<TabbedShell family="invoices"><BkApprovals /></TabbedShell>} />
         <Route path="/bk/approvals/archive" element={<BkArchive />} />
         {/* Wrapped, not nested — the tab bar is chrome and neither URL moved.
             /bk/vendors/:vendorName and /bk/vendors/added-expenses stay OUT of
@@ -236,25 +236,25 @@ function AppContent() {
             page is a destination reached from the directory, not a sibling tab
             of it. */}
         <Route path="/bk/vendors"   element={<TabbedShell family="vendors"><BkVendorsUnified /></TabbedShell>} />
-        <Route path="/bk/creators"  element={<BkCreators />} />
+        <Route path="/bk/creators"  element={<TabbedShell family="invoices"><BkCreators /></TabbedShell>} />
         <Route path="/bk/vendors/added-expenses" element={<BkVendorsAdded />} />
         <Route path="/bk/vendors/:vendorName" element={<BkVendors />} />
-        <Route path="/bk/payments"  element={<BkPayments />} />
+        <Route path="/bk/payments"  element={<TabbedShell family="invoices"><BkPayments /></TabbedShell>} />
         <Route path="/salary"       element={<AdminRoute><Salary /></AdminRoute>} />
         <Route path="/recoupments" element={<TabbedShell family="recoupments"><Recoupments /></TabbedShell>} />
         <Route path="/recoupments/planning" element={<TabbedShell family="recoupments"><RecoupmentsPlanning /></TabbedShell>} />
         <Route path="/recoupments/2025" element={<Recoupments2025 />} />
         <Route path="/recoupments/audit" element={<TabbedShell family="recoupments"><RecoupmentsAudit /></TabbedShell>} />
-        <Route path="/artist-budgets" element={<ArtistBudgets />} />
+        <Route path="/artist-budgets" element={<TabbedShell family="artist-spend"><ArtistBudgets /></TabbedShell>} />
         <Route path="/artist-budgets/:artistKey" element={<ArtistBudgetSheet />} />
         <Route path="/recoupments/:artistName" element={<TabbedShell family="recoupments"><Recoupments /></TabbedShell>} />
-        <Route path="/bk/advertising" element={<AdAllocation />} />
-        <Route path="/artist-campaigns" element={<ArtistCampaigns />} />
-        <Route path="/artist-campaigns/:artistName" element={<ArtistCampaigns />} />
-        <Route path="/artist-campaigns/:artistName/:songName" element={<ArtistCampaigns />} />
+        <Route path="/bk/advertising" element={<TabbedShell family="artist-spend"><AdAllocation /></TabbedShell>} />
+        <Route path="/artist-campaigns" element={<TabbedShell family="artist-spend"><ArtistCampaigns /></TabbedShell>} />
+        <Route path="/artist-campaigns/:artistName" element={<TabbedShell family="artist-spend"><ArtistCampaigns /></TabbedShell>} />
+        <Route path="/artist-campaigns/:artistName/:songName" element={<TabbedShell family="artist-spend"><ArtistCampaigns /></TabbedShell>} />
         <Route path="/bk/invoices"  element={<BkInvoices />} />
         <Route path="/bk/bulk-deals" element={<BkBulkDeals />} />
-        <Route path="/bk/bulk-upload" element={<TabbedShell family="import"><BkBulkUpload /></TabbedShell>} />
+        <Route path="/bk/bulk-upload" element={<TabbedShell family="settings"><BkBulkUpload /></TabbedShell>} />
         <Route path="/bk/ledger-matching" element={<LedgerMatching />} />
         {/* Wrapped, not nested — the same shape the vendors / import /
             recoupments families use, and for the same reason: the tab bar is
@@ -270,7 +270,7 @@ function AppContent() {
         <Route path="/bk/1099" element={<TabbedShell family="vendors"><Bk1099 /></TabbedShell>} />
         <Route path="/bk/vendor-flags" element={<Navigate to="/bk/vendors?tab=duplicates" replace />} />
         <Route path="/reports" element={<Reports />} />
-        <Route path="/bk/bulk-reupload" element={<TabbedShell family="import"><BkBulkReupload /></TabbedShell>} />
+        <Route path="/bk/bulk-reupload" element={<TabbedShell family="settings"><BkBulkReupload /></TabbedShell>} />
       </Route>
     </Routes>
   )

@@ -33,9 +33,20 @@ const flat = (g) => g.items.flatMap(i => (i.collapsible || i.tabbed) ? i.childre
 const allPaths = NAV_GROUPS.flatMap(flat).map(i => i.path)
 
 console.log('1. no page can go missing')
-ok(allPaths.length === 52, `52 paths across ${NAV_GROUPS.length} groups (got ${allPaths.length}) — 51 plus 1099 Filing`)
+ok(allPaths.length === 53, `53 paths across ${NAV_GROUPS.length} groups (got ${allPaths.length}) — every page Boom's nav had on 2026-09-18, none dropped by the Market Street regroup`)
 ok(new Set(allPaths).size === allPaths.length, 'no path appears twice')
-ok(NAV_PAGES.length === 52, "NAV_PAGES flattens to 52 — Settings' permission matrix renders from it, so a new page must appear here or nobody can ever be granted it")
+ok(NAV_PAGES.length === 53, "NAV_PAGES flattens to 53 — Settings' permission matrix renders from it, so a new page must appear here or nobody can ever be granted it")
+// Market Street regroup (2026-09-18): pages leave the SIDEBAR with `hidden`,
+// never by deletion. A hidden page is still grantable, still searchable, and
+// still a known page for the permission walk.
+const hiddenRows = NAV_PAGES.filter(p => p.hidden).map(p => p.path).sort()
+const expectHidden = ['/analytics', '/bk/bulk-deals', '/bk/invoices', '/bk/ledger-matching', '/bk/reimburse', '/budget', '/financials', '/salary'].sort()
+ok(JSON.stringify(hiddenRows) === JSON.stringify(expectHidden), `exactly these pages are hidden from the sidebar: ${hiddenRows.join(', ')}`)
+const famKeys = NAV_GROUPS.flatMap(g => g.items.filter(i => i.tabbed).map(i => i.key))
+ok(new Set(famKeys).size === famKeys.length, `tab family keys are unique (${famKeys.join(', ')})`)
+ok(famKeys.includes('banking') && famKeys.includes('vendors') && famKeys.includes('recoupments'), 'the three pre-existing family keys survive — BankShell and the bankshell harness name `banking`')
+const visibleRows = NAV_GROUPS.flatMap(g => g.items.filter(i => !i.hidden)).length
+ok(visibleRows <= 16, `at most 16 sidebar rows for an admin (got ${visibleRows}) — the whole point of the regroup`)
 ok(NAV_PAGES.every(p => p.path && p.label && p.group), 'every NAV_PAGES row has path + label + group')
 ok(NAV_PAGES.every(p => p.synonyms), 'every row carries ⌘K synonyms')
 
@@ -74,11 +85,12 @@ console.log('\n4. tab families: one row, still several grantable pages')
 const families = NAV_GROUPS.flatMap(g => g.items.filter(i => i.tabbed).map(i => ({ ...i, group: g.label })))
 const navPaths = new Set(NAV_PAGES.map(p => p.path))
 // Bumped from 2 when Vendors became a family (1099 Filing moved under it,
-// 2026-09-02), and from 3 when Banking did (Bank Matching, Bank Ledger,
-// Statements and Upload Rules folded into one row, 2026-09-02). These counts
-// are canaries on purpose: they caught the 1099 page being ADDED the day before
-// without this file being touched.
-ok(families.length === 4, `${families.length} families (${families.map(f => `${f.key} in ${f.group}`).join(', ')})`)
+// 2026-09-02), from 3 when Banking did (2026-09-02), and from 4 to 9 for the
+// Market Street regroup (2026-09-18: releases, contracts, documents, invoices,
+// artist-spend, settings; the `import` family folded into settings). These
+// counts are canaries on purpose: they caught the 1099 page being ADDED the day
+// before without this file being touched.
+ok(families.length === 9, `${families.length} families (${families.map(f => `${f.key} in ${f.group}`).join(', ')})`)
 for (const f of families) {
   ok(f.children.every(c => navPaths.has(c.path)),
      `every "${f.key}" tab is in NAV_PAGES — Settings can still grant each one`)
@@ -88,13 +100,25 @@ for (const f of families) {
 
 console.log('\n5. the tab shells moved no URL')
 const app = fs.readFileSync(SRC + '/App.jsx', 'utf8')
-for (const p of ['/recoupments', '/recoupments/planning', '/recoupments/audit', '/recoupments/:artistName',
-                 '/import', '/import/master-sheet', '/bk/bulk-upload', '/bk/bulk-reupload',
-                 // Banking. These four matter most of the set: two of them
-                 // already carry a pageAccess carve-out, so a moved path here
-                 // silently revokes a grant somebody is holding today.
-                 '/bk/bank-matching', '/bk/bank-ledger', '/bk/statements', '/bk/rules']) {
+// Every tab of every family, plus the parameterized siblings the shells wrap.
+// Two of the bank paths already carry a pageAccess carve-out, so a moved path
+// there silently revokes a grant somebody is holding today.
+const familyPaths = families.flatMap(f => f.children.map(c => c.path)).filter(p => p !== '/admin/vendor-lab')
+for (const p of [...familyPaths, '/recoupments/:artistName', '/create-nda/:template',
+                 '/artist-campaigns/:artistName', '/artist-campaigns/:artistName/:songName']) {
   ok(app.includes(`<Route path="${p}"`), `${p} still declared verbatim`)
+}
+// And each of those routes is wrapped in ITS family's shell (BankShell wraps
+// the banking family itself), so a tab bar cannot name a page that renders
+// without one — the mismatch that makes a family look like it lost a tab.
+const esc = (str) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+for (const f of families) {
+  if (f.key === 'banking') continue
+  for (const c of f.children) {
+    if (c.external || c.hidden) continue
+    const re = new RegExp('<Route path="' + esc(c.path) + '"\\s+element=\\{[^\\n]*?<TabbedShell family="' + f.key + '">')
+    ok(re.test(app), `${c.path.padEnd(28)} renders inside <TabbedShell family="${f.key}">`)
+  }
 }
 // /recoupments/2025 is a routed orphan John asked to leave alone. It is a path
 // DESCENDANT of /recoupments, so nested routes would have swallowed it — the
@@ -103,20 +127,29 @@ ok(/<Route path="\/recoupments\/2025" element=\{<Recoupments2025 \/>\}/.test(app
    '/recoupments/2025 still routed and still unwrapped')
 ok(!navPaths.has('/recoupments/2025'), 'and still absent from the nav, as it was')
 
-console.log('\n6. the original labels are restored')
+console.log('\n6. the Market Street layout (John, 2026-09-18)')
+// Boom reverted an August regroup the same day; these are the decisions John
+// made for Market Street with the plan in front of him. Tab labels are short
+// because the tab bar already says which family they are in.
 const labelOf = (p) => NAV_GROUPS.flatMap(flat).find(i => i.path === p)?.label
 const groupOf = (p) => NAV_GROUPS.find(g => flat(g).some(i => i.path === p))?.label
-for (const [path, want] of [['/bk/add', 'Add Invoice'], ['/create-invoice', 'Create Invoice'],
-                            ['/bk/invoices', 'Invoices View'], ['/artist-budgets', 'Artist Budgets']]) {
+const familyOf = (p) => families.find(f => f.children.some(c => c.path === p))?.key
+for (const [path, want] of [['/', 'Home'], ['/releases', 'Pipeline'], ['/deals', 'Deals'], ['/contracts', 'Active'],
+                            ['/bk/add', 'Add'], ['/bk/creators', 'Creators'], ['/create-invoice', 'Invoice'],
+                            ['/artist-budgets', 'Budgets'], ['/team', 'Members']]) {
   ok(labelOf(path) === want, `${path.padEnd(18)} is "${labelOf(path)}"`)
 }
-ok(groupOf('/salary') === 'Reports', 'Salary is back in Reports')
-ok(groupOf('/bk/bulk-deals') === 'Reports', 'Bulk Deals is back in Reports')
-ok(groupOf('/bk/ledger') === 'Bookkeeping' && groupOf('/bk/statements') === 'Bookkeeping',
-   'the ledger and the bank tools share Bookkeeping again')
-ok(NAV_GROUPS.map(g => g.label).join(',') ===
-   'null,Artists,Releases,Contracts,Bookkeeping,Reports,Team,System'.replace('null', ''),
-   `groups in original order: ${NAV_GROUPS.map(g => g.label || '(pinned)').join(' · ')}`)
+for (const [path, fam] of [['/deals', 'contracts'], ['/create-invoice', 'documents'], ['/bk/creators', 'invoices'],
+                           ['/bk/advertising', 'artist-spend'], ['/import', 'settings'], ['/team', 'settings']]) {
+  ok(familyOf(path) === fam, `${path.padEnd(18)} is a tab of "${familyOf(path)}"`)
+}
+ok(groupOf('/bk/ledger') === 'Money' && groupOf('/bk/statements') === 'Money' && groupOf('/bk/vendors') === 'Money',
+   'Invoices, Bank and Vendors share Money')
+ok(groupOf('/reports') === 'Reports' && labelOf('/financials') === 'Financials' && NAV_PAGES.find(p => p.path === '/financials').hidden,
+   'Reports leads; Financials is routed and grantable but not drawn')
+ok(labelOf('/banking') === undefined && families.find(f => f.key === 'banking')?.label === 'Bank', 'the banking family is labelled Bank')
+ok(NAV_GROUPS.map(g => g.label || '(pinned)').join(' · ') === '(pinned) · Artists & releases · Money · Reports · Admin',
+   `groups in order: ${NAV_GROUPS.map(g => g.label || '(pinned)').join(' · ')}`)
 
 console.log('\n7. ⌘K page search — the real ranking function, not a replica')
 const { searchPages } = await import(SRC + '/lib/pageSearch.js')

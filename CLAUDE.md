@@ -26,6 +26,15 @@ Authoritative project guide: **`boom-dashboard/CLAUDE.md`** — read it before m
 - **The accent palette is a slate placeholder** — `boom` in `client/tailwind.config.js`, `--color-brand*` in `client/src/styles/tokens.css`, the favicon, and the hex fills in server-side Excel/email templates (`#334155`). Swap values, not class names.
 - **No Market Street domain yet** — `marketst-production.up.railway.app` stands in wherever `boom-ap.com` was (`FRONTEND_URL` fallbacks, `client/.env.production`, og tags, the user manual). Replace when a domain exists.
 - **Seed = one account.** `server/seed.js` and `syncUsers` in `server/index.js` create `john@deanst.co` (Superadmin) from `PW_JOHN`. `server/data.json` and `server/data/pending-contracts.js` are empty shells; the payroll and category seeds carry no Boom rows.
+- **The sidebar is Market Street's own (2026-09-18), Boom's is not.** 43 rows became
+  16 via `tabbed` families in `client/src/navConfig.jsx` — Releases, Contracts,
+  Documents, Invoices, Bank, Vendors, Recoupments, Artist Spend, Settings. NO PATH
+  MOVED. Pages leave the sidebar with `hidden: true`, never by deletion: a hidden
+  page stays in `NAV_PAGES` (grantable, ⌘K-searchable, a known page for the
+  permission walk). `client/scripts/nav-fixture.mjs` encodes this layout; the
+  page-access fixture must stay byte-identical across any nav change. Boom
+  reverted a similar regroup in Aug 2026 — do not port this back without asking.
+  Plan: https://claude.ai/code/artifact/3e97eb42-7e5d-41c3-b7c4-b20b8f424e28
 - **Bank-statement heuristics were tuned on Boom's Bank of America statements.** The own-name lists (`statements.js` stop-words, `funding-pairs.js` account-trailer strip) now say Market Street, but the layout parsers have not seen a Market Street statement yet. Expect the AI fallback to do the work until they do.
 
 ## Commands (run from `boom-dashboard/`)
