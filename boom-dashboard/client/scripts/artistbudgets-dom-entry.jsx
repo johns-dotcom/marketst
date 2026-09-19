@@ -105,8 +105,8 @@ async function main() {
   assert('the ledger-only card renders', !!oxisCard)
   assert('it labels the figure "Ledger spend"', /Ledger spend/.test(textOf(oxisCard)))
   assert('it does NOT label it "Paid"', !/\bPaid\b/.test(textOf(oxisCard)))
-  assert('it says nothing was planned',
-    /nothing planned for this artist on the sheet/.test(textOf(oxisCard)))
+  assert('it says no budget has been typed and points at the sheet',
+    /no budget typed yet/.test(textOf(oxisCard)))
   // The render branch above is only half of it: the DATA must keep ledger_paid
   // campaign-scoped too, or the header total and the "most paid" sort silently
   // fold in whole-artist spend. Darci is the only campaign-linked paid figure

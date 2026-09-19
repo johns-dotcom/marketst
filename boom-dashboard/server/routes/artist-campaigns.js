@@ -1650,3 +1650,6 @@ router.post('/:artist/rename-song', async (req, res) => {
 });
 
 module.exports = router;
+// The simple artist budget sheet (routes/artist-budgets.js) reads this so its
+// "Total marketing" line and this page's campaign scope are one definition.
+module.exports.CAMPAIGN_CATEGORIES = CAMPAIGN_CATEGORIES;

@@ -47,6 +47,7 @@ import Recoupments2025 from './pages/Recoupments2025'
 import RecoupmentsAudit from './pages/RecoupmentsAudit'
 import ArtistBudgets from './pages/ArtistBudgets'
 import ArtistBudgetSheet from './pages/ArtistBudgetSheet'
+import ArtistBudgetSimple from './pages/ArtistBudgetSimple'
 import BkVendors from './pages/BkVendors'
 import BkVendorsAdded from './pages/BkVendorsAdded'
 import BkPayments from './pages/BkPayments'
@@ -238,7 +239,13 @@ function AppContent() {
         <Route path="/recoupments/2025" element={<Recoupments2025 />} />
         <Route path="/recoupments/audit" element={<TabbedShell family="recoupments"><RecoupmentsAudit /></TabbedShell>} />
         <Route path="/artist-budgets" element={<TabbedShell family="artist-spend"><ArtistBudgets /></TabbedShell>} />
-        <Route path="/artist-budgets/:artistKey" element={<ArtistBudgetSheet />} />
+        {/* The simple sheet is THE sheet (John, 2026-09-18: "basic and editable
+            … total artist budgets (advance, total marketing) and release
+            budgets inside that"). The category grid it replaced stays one
+            click away at /detail — a descendant path, so a grant on
+            /artist-budgets covers it exactly as it covers the sheet. */}
+        <Route path="/artist-budgets/:artistKey" element={<ArtistBudgetSimple />} />
+        <Route path="/artist-budgets/:artistKey/detail" element={<ArtistBudgetSheet />} />
         <Route path="/recoupments/:artistName" element={<TabbedShell family="recoupments"><Recoupments /></TabbedShell>} />
         <Route path="/bk/advertising" element={<TabbedShell family="artist-spend"><AdAllocation /></TabbedShell>} />
         <Route path="/artist-campaigns" element={<TabbedShell family="artist-spend"><ArtistCampaigns /></TabbedShell>} />

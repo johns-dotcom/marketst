@@ -101,14 +101,36 @@ function ArtistCard({ a }) {
           </div>
         </div>
       ) : (
+        a.artist_budget > 0 ? (
+          // A budget typed on the simple sheet (Advance + Total marketing), with
+          // the ledger's paid spend against it — the same three columns the sheet shows.
+          <div className="grid grid-cols-3 gap-2 mb-3" data-card-budget>
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Budget</p>
+              <p className="text-[15px] font-bold text-ink tabular-nums">{usd(a.artist_budget)}</p>
+            </div>
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Spent</p>
+              <p className="text-[15px] font-bold text-ink tabular-nums">{usd(a.artist_total_spent || 0)}</p>
+              {a.artist_total_open > 0 && <p className="text-[10px] text-amber-700">+{usd(a.artist_total_open)} unpaid</p>}
+            </div>
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Left</p>
+              <p className={`text-[15px] font-bold tabular-nums ${a.artist_budget - (a.artist_total_spent || 0) < 0 ? 'text-rose-600' : 'text-emerald-700'}`}>
+                {usd(a.artist_budget - (a.artist_total_spent || 0))}
+              </p>
+            </div>
+          </div>
+        ) : (
         <div className="mb-3">
           <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Ledger spend</p>
           <p className="text-[15px] font-bold text-ink tabular-nums">{usd(a.artist_total_spent || 0)}</p>
           <p className="text-[10px] text-gray-400 mt-0.5">
-            nothing planned for this artist on the sheet
+            no budget typed yet — open the sheet to add one
             {a.artist_total_open > 0 && <> · {usd(a.artist_total_open)} unpaid</>}
           </p>
         </div>
+        )
       )}
 
       {/* Spend outside the plan is worth seeing on a budget card: it is money on
@@ -392,7 +414,7 @@ export default function ArtistBudgets() {
     for (const a of data?.artists || []) byKey.set(a.artist_key, { ...a })
     for (const l of ledger?.artists || []) {
       const cur = byKey.get(l.artist_key)
-      if (cur) { cur.artist_total_spent = l.spent; cur.artist_total_open = l.open }
+      if (cur) { cur.artist_total_spent = l.spent; cur.artist_total_open = l.open; cur.artist_budget = l.budget }
       else {
         // ledger_paid stays ZERO here, deliberately. On every other card it
         // means "paid on this artist's planned campaigns"; putting the artist's
@@ -400,6 +422,7 @@ export default function ArtistBudgets() {
         // "most paid" sort compare unlike things. The total is carried
         // separately and the card labels it as what it is.
         byKey.set(l.artist_key, {
+          artist_budget: l.budget,
           artist_key: l.artist_key, artist: l.artist, campaigns: [], campaign_count: 0,
           planned: 0, owed: 0, sheet_paid: 0, ledger_paid: 0, ledger_open: 0,
           paid_pct: null, artist_total_spent: l.spent, artist_total_open: l.open,

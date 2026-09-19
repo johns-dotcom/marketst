@@ -4322,3 +4322,6 @@ module.exports = router;
 // how $3.73M once disagreed with itself. If you need per-artist spend anywhere
 // else, call this.
 module.exports.buildPnl = buildPnl;
+// The simple artist budget sheet (routes/artist-budgets.js) reads this so its
+// "Advance" line and the P&L's advances column are one definition.
+module.exports.ADVANCE_CATEGORIES = ADVANCE_CATEGORIES;

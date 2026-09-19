@@ -68,6 +68,21 @@ Authoritative project guide: **`boom-dashboard/CLAUDE.md`** — read it before m
   needs a server on :3011). Both verified to fail when a predicate is dropped.
   `mywork-dom.vite.config.mjs` now takes `AUTH_STUB` so a harness can bring a
   configurable canView.
+- **The artist budget sheet is the SIMPLE one** (2026-09-18, John: "basic and
+  editable … total artist budgets (advance, total marketing) and release budgets
+  inside that"). `/artist-budgets/:key` → `ArtistBudgetSimple.jsx`: Advance and
+  Total marketing typed (stored in `artist_budget_sections` under keys `advance`
+  / `marketing`), releases under marketing (`artist_budget_releases`,
+  independent of the total, gap shown), a read-only Other spend line, columns
+  Budget · Spent · Left (Spent = paid; unpaid is a note). `GET
+  /artist-budgets/:key/simple` builds it; category sets are imported from
+  reports.js (ADVANCE_CATEGORIES) and artist-campaigns.js (CAMPAIGN_CATEGORIES)
+  so the sheet cannot disagree with the P&L or Campaigns. The 32-category grid
+  moved to `/artist-budgets/:key/detail` ("Full breakdown"). The index's
+  `budget` is the two simple totals when either is typed, else the category sum
+  — never both. Harnesses: `npm run budgetsimple-dom` (29),
+  `server/scripts/artist-budget-simple-fixture.cjs` (21). Index has a "New
+  budget" button (roster picker → the sheet by key, `?name=` carries spelling).
 - **Bank-statement heuristics were tuned on Boom's Bank of America statements.** The own-name lists (`statements.js` stop-words, `funding-pairs.js` account-trailer strip) now say Market Street, but the layout parsers have not seen a Market Street statement yet. Expect the AI fallback to do the work until they do.
 
 ## Commands (run from `boom-dashboard/`)

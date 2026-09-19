@@ -69,6 +69,18 @@ const isBkAdmin = (u) => u && ['Admin', 'Superadmin', 'Approver'].includes(u.rol
 const SECTION_KEYS = CATEGORY_GROUPS.expense.map(([key]) => key);
 const SECTION_LABEL = new Map(CATEGORY_GROUPS.expense);
 const LAST_SECTION = SECTION_KEYS[SECTION_KEYS.length - 1];
+
+// ── The simple sheet's two typed totals ──────────────────────────────────────
+// John, 2026-09-18, looking at the 32-category grid: "budget sheets should be
+// basic and editable. this is too much to start. there should be total artist
+// budgets (advance, total marketing) and release budgets inside that."
+//
+// Stored in artist_budget_sections under these two keys — the table already
+// existed, already had the write route, and holds no other rows here. They are
+// NOT ui_group sections: buildSheet() skips them (its sections come from
+// CATEGORY_GROUPS), and the index treats them as THE artist budget when
+// present, so a category budget typed on the detail grid never double-counts.
+const SIMPLE_TOTALS = new Set(['advance', 'marketing']);
 const r2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
 
 /**
@@ -219,8 +231,18 @@ router.get('/', async (req, res) => {
       }
       return byKey.get(key);
     };
-    for (const b of budgets) take(b.artist_key).budget += Number(b.amount) || 0;
+    // The two simple-sheet totals are the artist budget when either is typed;
+    // category budgets from the detail grid count only when neither is. Adding
+    // both would report the same plan twice.
+    const simpleOf = new Map();
+    for (const b of budgets) {
+      if (SIMPLE_TOTALS.has(b.section)) {
+        simpleOf.set(b.artist_key, (simpleOf.get(b.artist_key) || 0) + (Number(b.amount) || 0));
+        take(b.artist_key);
+      } else take(b.artist_key).budget += Number(b.amount) || 0;
+    }
     for (const b of catBudgets) take(b.artist_key).budget += Number(b.amount) || 0;
+    for (const [k, v] of simpleOf) if (v > 0) take(k).budget = v;
     // NOT added into `budget`. A release budget is the same money sliced the
     // other way, so summing both would report an artist who planned $50k twice
     // as having planned $100k. Carried alongside instead, so an artist budgeted
@@ -767,9 +789,9 @@ router.put('/:artistKey/:section', async (req, res) => {
     const key = String(req.params.artistKey || '').trim();
     const section = String(req.params.section || '').trim();
     if (!key) return res.status(400).json({ success: false, error: 'artist key required' });
-    if (!SECTION_LABEL.has(section)) {
+    if (!SECTION_LABEL.has(section) && !SIMPLE_TOTALS.has(section)) {
       return res.status(400).json({ success: false,
-        error: `section must be one of: ${SECTION_KEYS.join(', ')}` });
+        error: `section must be one of: ${[...SIMPLE_TOTALS, ...SECTION_KEYS].join(', ')}` });
     }
     const amount = Number(req.body.amount);
     if (!Number.isFinite(amount) || amount < 0) {
@@ -808,6 +830,130 @@ router.put('/:artistKey/:section', async (req, res) => {
 // TWO sheets, because a summary alone is a number somebody has to trust: the
 // second lists every expense behind it, with its state, so a recipient can see
 // what the totals are made of.
+/**
+ * The simple sheet: two typed totals, the releases under the second, and one
+ * read-only line for everything else, so the sheet still ties to the ledger.
+ *
+ *                       BUDGET     SPENT      LEFT
+ *   Advance           [ 25,000]   25,000         —
+ *   Total marketing   [ 40,000]   18,200    21,800   allocated 30,000 of 40,000
+ *     Night Drive     [ 20,000]   12,400     7,600
+ *     Late Message    [ 10,000]    5,800     4,200
+ *     Not tied to a release  —         —         —
+ *   Other spend             —      1,250         —   (read-only)
+ *
+ * Release budgets are INDEPENDENT of Total marketing (John: "independent, with
+ * the gap shown") — the original spreadsheet planned per release, and marketing
+ * spend not tied to a release still needs a budget to sit under. Spent is what
+ * the ledger has PAID; unpaid invoices ride along as `open` for a small note,
+ * never as the headline. Category sets come from the P&L and the campaigns page
+ * so this sheet cannot disagree with either about what an advance or a campaign
+ * cost is.
+ */
+async function buildSimple(key) {
+  // Required lazily: reports.js and artist-campaigns.js are large routers and
+  // requiring them at module load risks a cycle through index.js.
+  const { ADVANCE_CATEGORIES } = require('./reports');
+  const { CAMPAIGN_CATEGORIES } = require('./artist-campaigns');
+  const isAdvance = (c) => ADVANCE_CATEGORIES.has(String(c || '').trim());
+  const marketingSet = new Set(CAMPAIGN_CATEGORIES.map((c) => String(c).trim().toLowerCase()));
+  const isMarketing = (c) => marketingSet.has(String(c || '').trim().toLowerCase());
+
+  const [{ rows: allRows }, { rows: totals }, { rows: relBudgets }, { rows: allReleases }, roster] = await Promise.all([
+    pool.query(SHEET_ROWS_SQL),
+    pool.query(`SELECT section, amount::float8 AS amount FROM artist_budget_sections
+                 WHERE artist_key = $1 AND section IN ('advance', 'marketing')`, [key]),
+    pool.query(`SELECT release_id, amount::float8 AS amount FROM artist_budget_releases WHERE artist_key = $1`, [key]),
+    pool.query(`SELECT r.id, r.project_name, r.release_date::text AS release_date, a.name AS artist_name
+                  FROM releases r LEFT JOIN artists a ON a.id = r.artist_id
+                 WHERE (r.archived = false OR r.archived IS NULL)`),
+    rosterNamesByKey(),
+  ]);
+  const mine = allRows.filter((e) => artistBucketKey(e.artist) === key);
+  const spellings = new Map();
+  for (const e of mine) { const n = String(e.artist).trim(); spellings.set(n, (spellings.get(n) || 0) + 1); }
+
+  const line = () => ({ budget: 0, spent: 0, open: 0, count: 0, open_count: 0 });
+  const add = (l, e) => {
+    const usd = rowUsd(e);
+    if (e.payment_status === 'Paid') { l.spent += usd; l.count += 1; }
+    else { l.open += usd; l.open_count += 1; }
+  };
+  const advance = line(), marketing = line(), other = line(), unassigned = line();
+  const byRelease = new Map();
+  const otherCats = new Map();
+  for (const e of mine) {
+    if (isAdvance(e.category)) add(advance, e);
+    else if (isMarketing(e.category)) {
+      add(marketing, e);
+      if (e.release_id == null) add(unassigned, e);
+      else {
+        const id = Number(e.release_id);
+        if (!byRelease.has(id)) byRelease.set(id, line());
+        add(byRelease.get(id), e);
+      }
+    } else {
+      add(other, e);
+      const c = String(e.category || '').trim() || '—';
+      otherCats.set(c, (otherCats.get(c) || 0) + (e.payment_status === 'Paid' ? rowUsd(e) : 0));
+    }
+  }
+  for (const t of totals) {
+    if (t.section === 'advance') advance.budget = Number(t.amount) || 0;
+    if (t.section === 'marketing') marketing.budget = Number(t.amount) || 0;
+  }
+  const finish = (l) => ({
+    budget: r2(l.budget), spent: r2(l.spent), open: r2(l.open),
+    left: r2(l.budget - l.spent), count: l.count, open_count: l.open_count,
+    over: l.budget > 0 && l.spent > l.budget,
+  });
+
+  // Every release of this artist (the roster's, by key), plus any release that
+  // carries a budget or marketing spend for them even if the roster disagrees.
+  const info = new Map(allReleases.map((r) => [Number(r.id), r]));
+  const ids = new Set();
+  for (const r of allReleases) if (artistBucketKey(r.artist_name) === key) ids.add(Number(r.id));
+  for (const b of relBudgets) ids.add(Number(b.release_id));
+  for (const id of byRelease.keys()) ids.add(id);
+  const relBudgetOf = new Map(relBudgets.map((b) => [Number(b.release_id), Number(b.amount) || 0]));
+  const releases = [...ids].map((id) => {
+    const l = byRelease.get(id) || line();
+    l.budget = relBudgetOf.get(id) || 0;
+    const r = info.get(id) || {};
+    return { release_id: id, title: r.project_name || `Release #${id}`, release_date: r.release_date || null, ...finish(l) };
+  }).sort((a, b) => String(b.release_date || '').localeCompare(String(a.release_date || ''))
+    || String(a.title).localeCompare(String(b.title)));
+  const allocated = r2(releases.reduce((t, x) => t + x.budget, 0));
+
+  const A = finish(advance), M = finish(marketing), O = finish(other), U = finish(unassigned);
+  const budget = r2(A.budget + M.budget);
+  const spent = r2(A.spent + M.spent + O.spent);
+  const open = r2(A.open + M.open + O.open);
+  return {
+    artist_key: key,
+    artist: bestSpelling(spellings) || roster.get(key) || key,
+    advance: A,
+    marketing: { ...M, allocated, unallocated: r2(M.budget - allocated),
+      over_allocated: M.budget > 0 && allocated > M.budget, releases, unassigned: U },
+    other: { ...O, categories: [...otherCats.entries()].filter(([, v]) => v > 0)
+      .sort((a, b) => b[1] - a[1]).slice(0, 4).map(([category, v]) => ({ category, spent: r2(v) })) },
+    totals: { budget, spent, open, left: r2(budget - spent), over: budget > 0 && spent > budget },
+  };
+}
+
+// GET /api/artist-budgets/:artistKey/simple
+router.get('/:artistKey/simple', async (req, res) => {
+  try {
+    if (!isBkAdmin(req.user)) return res.status(403).json({ success: false, error: 'Admin required' });
+    const key = String(req.params.artistKey || '').trim();
+    if (!key) return res.status(400).json({ success: false, error: 'artist key required' });
+    res.json({ success: true, data: await buildSimple(key) });
+  } catch (err) {
+    console.error('GET /api/artist-budgets/:artistKey/simple:', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 router.get('/:artistKey/export', async (req, res) => {
   try {
     if (!isBkAdmin(req.user)) return res.status(403).json({ success: false, error: 'Admin required' });

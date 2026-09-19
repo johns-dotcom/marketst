@@ -21,7 +21,8 @@
     "chatattach-dom": "node scripts/chatattach-dom-run.mjs",
     "statementrecon-dom": "node scripts/statementrecon-dom-run.mjs",
     "approval-dom": "node scripts/approval-deck-dom-run.mjs",
-    "home-dom": "node scripts/home-dom-run.mjs"
+    "home-dom": "node scripts/home-dom-run.mjs",
+    "budgetsimple-dom": "node scripts/budgetsimple-dom-run.mjs"
   },
   "dependencies": {
     "@react-oauth/google": "^0.13.4",

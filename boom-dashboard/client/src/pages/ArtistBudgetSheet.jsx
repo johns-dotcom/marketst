@@ -453,12 +453,16 @@ export default function ArtistBudgetSheet() {
     <div className="space-y-5">
       <PageHeader
         title={data.artist === artistKey && openedAs ? openedAs : data.artist}
-        subtitle="Budget typed on the category rows, with every expense matched to them by its category."
+        subtitle="The full breakdown: every expense category as its own row, with spend matched to it. The simple sheet (Advance, Total marketing, releases) is the everyday view."
         actions={(
           <>
+            <Link to={`/artist-budgets/${encodeURIComponent(artistKey)}${openedAs ? `?name=${encodeURIComponent(openedAs)}` : ''}`}
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-[12px] font-bold text-gray-500 border border-rule hover:text-ink hover:border-gray-300">
+              <ArrowLeft size={13} /> Simple sheet
+            </Link>
             <Link to="/artist-budgets"
               className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-[12px] font-bold text-gray-500 border border-rule hover:text-ink hover:border-gray-300">
-              <ArrowLeft size={13} /> All sheets
+              All budgets
             </Link>
             <button type="button"
               onClick={() => {
