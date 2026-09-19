@@ -34,6 +34,25 @@ const LOOP = {
   },
 }
 
+const now = new Date()
+const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+const plus = (n) => iso(new Date(now.getFullYear(), now.getMonth(), now.getDate() + n))
+// The calendar feed: two inside the week, one beyond it, one yesterday.
+const CAL = { events: [
+  { id: 'release-9', type: 'release', title: 'Night Drive', subtitle: 'Rosa Vale', date: plus(2), meta: 'Single', to: '/releases' },
+  { id: 'payment-77', type: 'payment_due', title: 'Northgate Studios — $1,500 due', date: plus(5), meta: 'Rush', to: '/bk/payments' },
+  { id: 'task-3', type: 'deadline', title: 'Send the artwork', date: plus(0), meta: 'High', to: '/my-work' },
+  { id: 'contract-exp-5', type: 'contract_expiry', title: 'Rosa Vale — Recording expires', date: plus(12), to: '/renewals' },
+  { id: 'event-1', type: 'manual', title: 'Yesterday thing', date: plus(-1), deletable: true },
+], sources: { releases: true, contracts: true, renewals: true, payments: true, tasks: 'team' } }
+// Activity: rows by me (user 1) and by a teammate (user 2)
+const ACTIVITY = [
+  { id: 1, user_id: 2, user_name: 'Sam Chen', action: 'Approved invoice', detail: 'Northgate Studios $1,500', created_at: new Date(now.getTime() - 5 * 60000).toISOString() },
+  { id: 2, user_id: 1, user_name: 'John', action: 'Added release', detail: 'Night Drive', created_at: new Date(now.getTime() - 9 * 60000).toISOString() },
+  { id: 3, user_id: 2, user_name: 'Sam Chen', action: 'Signed deal', detail: 'Rosa Vale', created_at: new Date(now.getTime() - 3 * 3600000).toISOString() },
+]
+const ALERTS = [{ type: 'Release checklist', message: 'Night Drive releases in 2 days with 3 of 14 items done', severity: 'critical' }]
+
 const STATS = {
   totalArtists: 0, totalReleases: 0, upcomingReleases: 0, teamMembers: 1,
   releasesByMonth: [], releasesByGenre: [], thisWeek: [], nextWeek: [],
@@ -48,9 +67,10 @@ const api = {
       return ok(LOOP[scenario()])
     }
     if (url.startsWith('/dashboard/stats')) return ok(STATS)
-    if (url.startsWith('/dashboard/notifications')) return ok([])
-    if (url.startsWith('/dashboard/activity')) return ok([])
-    if (url.startsWith('/team/my-work')) return ok({ tasks: [{ id: 1, status: 'To Do', due_date: null }, { id: 2, status: 'Done', due_date: null }] })
+    if (url.startsWith('/dashboard/notifications')) return ok(scenario() === 'admin' ? ALERTS : [])
+    if (url.startsWith('/dashboard/activity')) return ok(scenario() === 'anr' || scenario() === 'empty' ? [] : ACTIVITY)
+    if (url.startsWith('/calendar')) return scenario() === 'down' ? Promise.reject(new Error('cal down')) : Promise.resolve({ data: scenario() === 'empty' ? { events: [], sources: CAL.sources } : CAL })
+    if (url.startsWith('/team/my-work')) return ok({ tasks: scenario() === 'empty' ? [] : [{ id: 1, status: 'To Do', due_date: null }, { id: 2, status: 'Done', due_date: null }] })
     if (url.startsWith('/releases')) return ok([])
     if (url.startsWith('/statements')) return ok({ statements: [], months: [] })
     return ok([])

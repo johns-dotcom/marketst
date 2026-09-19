@@ -12,7 +12,7 @@ import {
   Pie,
   Cell
 } from 'recharts'
-import { AlertCircle, AlertTriangle, Info, CalendarDays, ChevronRight, Filter, X, CheckSquare, ExternalLink, Music2, RefreshCw, Inbox, CreditCard, Landmark, Disc3, UserPlus } from 'lucide-react'
+import { AlertCircle, AlertTriangle, Info, CalendarDays, ChevronRight, Filter, X, CheckSquare, ExternalLink, Music2, RefreshCw, Inbox, CreditCard, Landmark, Disc3, UserPlus, FilePlus2, TrendingUp, Music, Activity, CheckCircle2 } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import api from '../api'
 import { formatDate, isPastLocal, daysUntilLocal } from '../utils'
@@ -21,6 +21,8 @@ import PageHeader from '../components/PageHeader'
 import ReconciledBadge from '../components/ReconciledBadge'
 import { useAuth } from '../context/AuthContext'
 import useHotkeys from '../hooks/useHotkeys'
+import { humanizeAction } from '../lib/activityText'
+import { groupOf } from './Calendar'
 
 // Turn whatever the user stored in `spotify_uri` into a clickable https URL.
 // Returns null for anything we can't confidently parse — we'd rather fall
@@ -47,6 +49,20 @@ function spotifyWebUrl(uri) {
 
   // Bare IDs, apple music links pasted into the wrong field, etc. — bail.
   return null
+}
+
+// Dots for the week list, by the calendar's own groups
+const WEEK_DOT = { release: 'bg-blue-500', deadline: 'bg-amber-500', payment: 'bg-teal-600', renewal: 'bg-red-500', contract: 'bg-emerald-500', dsp: 'bg-purple-500', signed: 'bg-emerald-600', manual: 'bg-gray-500' }
+function relativeTime(ts) {
+  if (!ts) return ''
+  const ms = Date.now() - new Date(ts).getTime()
+  const m = Math.round(ms / 60000)
+  if (m < 1) return 'just now'
+  if (m < 60) return `${m}m ago`
+  const h = Math.round(m / 60)
+  if (h < 24) return `${h}h ago`
+  const d = Math.round(h / 24)
+  return d === 1 ? 'yesterday' : `${d}d ago`
 }
 
 function relativeDateLabel(dateStr) {
@@ -153,6 +169,7 @@ export default function Dashboard() {
   const [activity, setActivity] = useState([])
   const [myTasks, setMyTasks] = useState(null)
   const [latestReleases, setLatestReleases] = useState([])
+  const [week, setWeek] = useState(null)   // the calendar feed, next 7 days; null = not read
   const [syncingArt, setSyncingArt] = useState(false)
   const [artSyncMsg, setArtSyncMsg] = useState('')
   const [loading, setLoading] = useState(true)
@@ -195,7 +212,7 @@ export default function Dashboard() {
       // server (a section is null for a page the user could not open). A failed
       // loop read leaves `loop` null and the tiles simply do not render — never
       // a row of zeros claiming there is nothing to do.
-      const [statsRes, notificationsRes, activityRes, tasksRes, loopRes, latestRes] = await Promise.all([
+      const [statsRes, notificationsRes, activityRes, tasksRes, loopRes, latestRes, calRes] = await Promise.all([
         api.get('/dashboard/stats'),
         api.get('/dashboard/notifications'),
         api.get('/dashboard/activity'),
@@ -208,6 +225,8 @@ export default function Dashboard() {
           const d = new Date(); d.setHours(0,0,0,0); d.setDate(d.getDate() - 14)
           return d.toISOString().slice(0, 10)
         })()}`).catch(() => ({ data: { data: [] } })),
+        // The team calendar's feed — already typed and permission-gated server-side.
+        api.get('/calendar').catch(() => ({ data: null })),
       ])
 
       setStats(statsRes.data.data)
@@ -221,6 +240,18 @@ export default function Dashboard() {
         dueToday: tasks.filter(t => t.status !== 'Done' && daysUntilLocal(t.due_date) === 0).length,
       })
       setLoop(loopRes.data?.data || null)
+      // Next 7 days, today included, from the same feed the Calendar page draws.
+      if (calRes?.data?.events) {
+        const local = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+        const t0 = new Date(); const from = local(t0); const to = local(new Date(t0.getTime() + 6 * 86400000))
+        // Second gate, as the tiles have: the server withholds by permission,
+        // and the client drops anything whose page this user cannot open.
+        const pageFor = (t) => (t === 'release' || t.startsWith('dsp')) ? '/releases' : t === 'payment_due' ? '/bk/payments' : t === 'contract_expiry' ? '/renewals' : t === 'contract_signed' ? '/contracts' : null
+        setWeek(calRes.data.events
+          .filter((e) => e.date >= from && e.date <= to)
+          .filter((e) => { const pg = pageFor(e.type); return !pg || canView(pg) })
+          .sort((a, b) => a.date.localeCompare(b.date) || a.type.localeCompare(b.type)))
+      } else setWeek(null)
 
       // Latest releases — released in the past 14 days (inclusive of today).
       // Server already scoped with date_from; cap today as the upper bound so
@@ -307,6 +338,22 @@ export default function Dashboard() {
     )
   }
 
+  // Every loop section present AND zero, and no open task → one line instead
+  // of six grey sentences. Sections the server withheld (null) do not count
+  // either way; a failed loop read (loop null) never collapses.
+  const loopAllClear = !!loop && (myTasks?.total || 0) === 0
+    && (!loop.approvals || loop.approvals.count === 0)
+    && (!loop.payments || loop.payments.count === 0)
+    && (!loop.bank || (loop.bank.open === 0 && !(loop.bank.overdue_accounts?.length)))
+    && (!loop.releases || loop.releases.count === 0)
+    && (!loop.onboarding || loop.onboarding.count === 0)
+  // Everyone's recent work except mine: what the rest of the team did.
+  const teamActivity = activity.filter((a) => Number(a.user_id) !== Number(user?.id)).slice(0, 20)
+  const quickActions = [
+    canView('/bk/add') && { to: '/bk/add', icon: FilePlus2, label: 'Add invoice', hint: 'one that did not come through the vendor form', testId: 'add-invoice' },
+    canView('/releases') && { to: '/releases?add=1', icon: Music, label: 'Add release', hint: 'a date in the pipeline', testId: 'add-release' },
+    canView('/deals') && { to: '/deals?new=1', icon: TrendingUp, label: 'New deal', hint: 'the start of signing an artist', testId: 'new-deal' },
+  ].filter(Boolean)
   const chartData = stats?.releasesByMonth || []
   const genreData = stats?.releasesByGenre || []
   const thisWeek = stats?.thisWeek || []
@@ -346,6 +393,23 @@ export default function Dashboard() {
           reports read from that. One tile per step, each opening the page
           that resolves it, each rendered only if the server returned the
           section AND this user can open the destination. */}
+      {loopAllClear ? (
+        <div className="card px-5 py-3 flex items-center gap-3" data-loop-clear>
+          <CheckCircle2 size={18} className="text-emerald-500 flex-shrink-0" strokeWidth={1.5} />
+          <p className="text-sm text-gray-700">
+            <span className="font-semibold">All clear.</span>{' '}
+            {[
+              'no open tasks',
+              loop.approvals && 'nothing awaiting approval',
+              loop.payments && 'nothing due this week',
+              loop.bank && 'no bank lines to review',
+              loop.releases && 'nothing releasing in 30 days',
+              loop.onboarding && 'nobody mid-onboarding',
+            ].filter(Boolean).join(', ')}.
+          </p>
+          <span className="ml-auto text-[11px] text-gray-400 whitespace-nowrap">Tiles return when something needs doing</span>
+        </div>
+      ) : (
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
         <LoopTile
           to="/my-work" icon={CheckSquare} label="My tasks" testId="tasks"
@@ -398,6 +462,90 @@ export default function Dashboard() {
               : loop.releases.next ? `next: ${loop.releases.next.artist_name || '—'} — ${loop.releases.next.project_name}` : null}
             empty="Nothing scheduled in the next 30 days. Add a release from Releases › Pipeline."
           />
+        )}
+      </div>
+      )}
+
+      {/* Quick actions — the things people come here to start, each only for
+          someone who can open its page. */}
+      {quickActions.length > 0 && (
+        <div className="flex items-center gap-2 flex-wrap" data-quick-actions>
+          <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mr-1">Start</span>
+          {quickActions.map((a) => (
+            <Link key={a.to} to={a.to} data-action={a.testId} title={a.hint}
+              className="inline-flex items-center gap-1.5 text-xs font-semibold text-gray-700 bg-card border border-rule rounded-lg px-3 py-1.5 hover:border-gray-300 hover:shadow-sm transition-all">
+              <a.icon size={13} className="text-gray-400" /> {a.label}
+            </Link>
+          ))}
+        </div>
+      )}
+
+      {/* Next 7 days + Recent activity */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="card p-5" data-week>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-sm font-semibold text-gray-900 flex items-center gap-2"><CalendarDays size={16} className="text-gray-400" /> Next 7 days</h2>
+            <Link to="/calendar" className="text-xs text-boom-600 hover:text-boom-700 font-medium flex items-center gap-0.5">Calendar <ChevronRight size={14} /></Link>
+          </div>
+          {week === null ? (
+            <p className="text-sm text-gray-400 py-6 text-center">The calendar could not be read.</p>
+          ) : week.length === 0 ? (
+            <p className="text-sm text-gray-400 py-6 text-center">Nothing dated in the next week. Release dates, payment due dates, task deadlines and renewals land here from their own pages.</p>
+          ) : (
+            <ul className="divide-y divide-divider">
+              {Object.entries(week.reduce((m, e) => { (m[e.date] = m[e.date] || []).push(e); return m }, {})).map(([date, evs]) => (
+                <li key={date} className="py-2 flex gap-3" data-week-day={date}>
+                  <div className="w-14 flex-shrink-0 text-right">
+                    <p className="text-[10px] font-bold text-gray-400 uppercase">{new Date(date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short' })}</p>
+                    <p className="text-sm font-semibold text-gray-900 tabular-nums leading-tight">{new Date(date + 'T12:00:00').getDate()}</p>
+                  </div>
+                  <ul className="flex-1 min-w-0 space-y-1">
+                    {evs.map((e) => (
+                      <li key={e.id} className="flex items-center gap-2 min-w-0" data-week-event={e.type}>
+                        <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${WEEK_DOT[groupOf(e.type)] || 'bg-gray-400'}`} />
+                        {e.to
+                          ? <Link to={e.to} className="text-sm text-gray-800 hover:underline truncate">{e.title}</Link>
+                          : <span className="text-sm text-gray-800 truncate">{e.title}</span>}
+                        {e.meta && <span className="text-[10px] text-gray-400 flex-shrink-0">{e.meta}</span>}
+                      </li>
+                    ))}
+                  </ul>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
+        {canView('/activity') && (
+          <div className="card p-5" data-activity>
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-sm font-semibold text-gray-900 flex items-center gap-2"><Activity size={16} className="text-gray-400" /> Recent activity</h2>
+              <Link to="/activity" className="text-xs text-boom-600 hover:text-boom-700 font-medium flex items-center gap-0.5">All activity <ChevronRight size={14} /></Link>
+            </div>
+            {notifications.length > 0 && (
+              <ul className="space-y-1.5 mb-3" data-alerts>
+                {notifications.map((n, idx) => (
+                  <li key={idx} className={`p-2 rounded-lg ${getSeverityStyle(n.severity)} flex gap-2 items-start`}>
+                    <span className="flex-shrink-0 mt-0.5">{getSeverityIcon(n.severity)}</span>
+                    <p className="text-xs text-gray-600 leading-relaxed"><span className="font-semibold text-gray-700">{n.type}</span> — {n.message}</p>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {teamActivity.length === 0 ? (
+              <p className="text-sm text-gray-400 py-6 text-center">{activity.length ? 'Nothing from the rest of the team yet — only your own actions so far.' : 'Nothing logged yet. Approvals, payments, signings and releases show up here as the team works.'}</p>
+            ) : (
+              <ul className="divide-y divide-divider">
+                {teamActivity.map((a) => (
+                  <li key={a.id} className="py-1.5 flex items-baseline gap-2 text-sm" data-activity-row>
+                    <span className="font-semibold text-gray-800 whitespace-nowrap">{(a.user_name || 'Someone').split(' ')[0]}</span>
+                    <span className="text-gray-600 truncate">{humanizeAction(a).toLowerCase()}{a.detail ? ` — ${a.detail}` : ''}</span>
+                    <span className="ml-auto text-[10px] text-gray-400 whitespace-nowrap tabular-nums">{relativeTime(a.created_at)}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
         )}
       </div>
 
@@ -472,8 +620,10 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* Charts Row — release-shaped, so only for somebody who can open Releases */}
-      {canView('/releases') && <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      {/* Charts Row — release-shaped, so only for somebody who can open
+          Releases, and only once there is something to chart: two empty
+          charts were half the page for a new label. */}
+      {canView('/releases') && (chartData.some(d => d.releases > 0 || d.lastYear > 0) || genreData.length > 0) && <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Release Pipeline Chart */}
         <div className="lg:col-span-2 card p-5 hover:shadow-md transition-shadow">
           <div className="flex items-center justify-between mb-4">
@@ -622,99 +772,6 @@ export default function Dashboard() {
           )}
         </div>
       </div>}
-
-      {/* Second Row: This Week + Notifications */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* This Week / Next Week */}
-        {canView('/releases') && <div className="card p-5 hover:shadow-md transition-shadow">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
-              <CalendarDays size={16} className="text-gray-400" />
-              Upcoming Releases
-            </h2>
-            <Link to="/releases" className="text-xs text-boom-600 hover:text-boom-700 font-medium flex items-center gap-0.5">
-              View all <ChevronRight size={14} />
-            </Link>
-          </div>
-
-          {thisWeek.length > 0 && (
-            <div className="mb-4">
-              <p className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-2">This Week</p>
-              <div className="space-y-1.5">
-                {thisWeek.map((r, idx) => (
-                  <div key={idx} className="flex items-center justify-between py-1.5">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <span className="w-1.5 h-1.5 rounded-full bg-boom-500 flex-shrink-0" />
-                      <span className="text-sm text-gray-900 font-medium truncate">{r.artist_name}</span>
-                      <span className="text-sm text-gray-400 truncate">— {r.project_name}</span>
-                    </div>
-                    <span className="text-xs text-gray-400 ml-3 whitespace-nowrap tabular-nums">
-                      {formatDate(r.release_date)}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {nextWeek.length > 0 && (
-            <div>
-              <p className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-2">Next Week</p>
-              <div className="space-y-1.5">
-                {nextWeek.map((r, idx) => (
-                  <div key={idx} className="flex items-center justify-between py-1.5">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <span className="w-1.5 h-1.5 rounded-full bg-gray-300 flex-shrink-0" />
-                      <span className="text-sm text-gray-900 font-medium truncate">{r.artist_name}</span>
-                      <span className="text-sm text-gray-400 truncate">— {r.project_name}</span>
-                    </div>
-                    <span className="text-xs text-gray-400 ml-3 whitespace-nowrap tabular-nums">
-                      {formatDate(r.release_date)}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {thisWeek.length === 0 && nextWeek.length === 0 && (
-            <p className="text-sm text-gray-400 py-6 text-center">No releases in the next two weeks</p>
-          )}
-        </div>}
-
-        {/* Notifications */}
-        <div className="card p-5 hover:shadow-md transition-shadow flex flex-col">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-sm font-semibold text-gray-900">Notifications</h2>
-            {notifications.length > 0 && (
-              <button
-                onClick={() => setNotifications([])}
-                className="text-[10px] font-semibold text-gray-400 hover:text-gray-600 transition-colors"
-              >
-                Clear all
-              </button>
-            )}
-          </div>
-          <div className="space-y-2 flex-1 overflow-y-auto max-h-80">
-            {notifications.length === 0 ? (
-              <p className="text-sm text-gray-400 py-6 text-center">All clear — no alerts</p>
-            ) : (
-              notifications.map((notif, idx) => (
-                <div
-                  key={idx}
-                  className={`p-2.5 rounded-lg ${getSeverityStyle(notif.severity)} flex gap-2.5 items-start`}
-                >
-                  <div className="flex-shrink-0 mt-0.5">{getSeverityIcon(notif.severity)}</div>
-                  <div className="min-w-0">
-                    <p className="text-xs font-semibold text-gray-700">{notif.type}</p>
-                    <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">{notif.message}</p>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-      </div>
 
       {/* Flag rollups (Missing Genre, Duplicate Releases, Duplicate Artists)
           moved to the dedicated /duplicates Flags page so the home dashboard

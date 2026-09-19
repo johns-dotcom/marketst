@@ -63,11 +63,27 @@ Authoritative project guide: **`boom-dashboard/CLAUDE.md`** — read it before m
   stat cards (Total Artists/Releases/Team) and the dead Flask
   `/api/dashboard-summary` fetch are gone. Release-shaped panels (Latest
   Releases, charts, Upcoming) render only for someone who can open Releases.
-  Harnesses: `cd client && npm run home-dom` (36, four scenarios: admin · anr ·
-  empty · down) and `server/scripts/home-loop-fixture.cjs` (20, delta-based,
-  needs a server on :3011). Both verified to fail when a predicate is dropped.
-  `mywork-dom.vite.config.mjs` now takes `AUTH_STUB` so a harness can bring a
-  configurable canView.
+  **Home, second pass (2026-09-18, John: "improve the home page"):** order is
+  Loop → Start (quick actions) → Next 7 days + Recent activity → Latest
+  releases → charts. **When every present loop section is zero and no task is
+  open, the six tiles collapse to ONE line** (`data-loop-clear`, naming each
+  clear source); a failed loop read (null) never collapses. **Quick actions**
+  (Add invoice `/bk/add`, Add release `/releases?add=1`, New deal `/deals?new=1`
+  — DealPipeline reads `?new=1`) each render only under `canView`. **Next 7
+  days** reads the calendar feed (`GET /calendar`, already typed and
+  permission-gated) and drops events whose page this user cannot open — the
+  same double gate the tiles have. **Recent activity** = `/dashboard/activity`
+  minus the caller's own rows, last 20, `humanizeAction` from
+  `lib/activityText.js` (extracted from ActivityHistory so both say the same
+  thing); the server now returns `[]` unless `/activity` is reachable, and the
+  panel renders only under `canView('/activity')`; the old notification alerts
+  sit as its top rows. **Charts render only when there is data to chart.** The
+  Notifications and Upcoming Releases panels are gone (folded into the two
+  above). Harnesses: `cd client && npm run home-dom` (49, four scenarios: admin
+  · anr · empty · down — `anr` proves a payment due in the calendar stub never
+  reaches the page) and `server/scripts/home-loop-fixture.cjs` (needs a server
+  on :3011). `mywork-dom.vite.config.mjs` takes `AUTH_STUB` so a harness can
+  bring a configurable canView.
 - **The artist budget sheet is the SIMPLE one** (2026-09-18, John: "basic and
   editable … total artist budgets (advance, total marketing) and release budgets
   inside that"). `/artist-budgets/:key` → `ArtistBudgetSimple.jsx`: Advance and

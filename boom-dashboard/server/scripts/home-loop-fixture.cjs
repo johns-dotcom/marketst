@@ -65,6 +65,12 @@ const loop = async (token) => (await call('/dashboard/loop', token)).body?.data;
     check('an A&R User gets releases and NOTHING money-shaped', anrLoop && anrLoop.releases && anrLoop.approvals === null && anrLoop.payments === null && anrLoop.bank === null);
     const noneLoop = await loop(tokenFor(noRows));
     check('a User with no rows gets every section null', noneLoop && Object.values(noneLoop).every((v) => v === null));
+
+    // Recent activity on Home is the Activity page in miniature: gated on /activity.
+    const actAs = async (token) => { const r = await fetch(BASE + '/dashboard/activity', { headers: { authorization: `Bearer ${token}` } }); return { status: r.status, body: await r.json().catch(() => null) }; };
+    const actAdmin = await actAs(T); const actAnr = await actAs(tokenFor(anr));
+    check('the Superadmin gets the activity feed (an array)', actAdmin.status === 200 && Array.isArray(actAdmin.body?.data));
+    check('a User without /activity gets an EMPTY feed, not a 403 and not the rows', actAnr.status === 200 && Array.isArray(actAnr.body?.data) && actAnr.body.data.length === 0, JSON.stringify(actAnr.body).slice(0, 120));
     const unauth = await fetch(BASE + '/dashboard/loop');
     check('no token → 401', unauth.status === 401, unauth.status);
 

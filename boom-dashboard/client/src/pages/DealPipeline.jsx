@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { Plus, X, ChevronRight, Paperclip, GripVertical, Save, Check } from 'lucide-react'
 import api from '../api'
 import { formatDate } from '../utils'
@@ -102,7 +103,10 @@ export default function DealPipeline() {
   const textToSocials = (t) => String(t || '').split('\n').map((l) => l.trim()).filter(Boolean).map((l) => {
     const [platform, ...rest] = l.split(/\s+/); return { platform, handle: rest.join(' ') }
   }).filter((x) => x.platform && x.handle)
-  const [showForm, setShowForm] = useState(false)
+  // ?new=1 (Home's quick action) opens the new-deal form on arrival
+  const [searchParams, setSearchParams] = useSearchParams()
+  const [showForm, setShowForm] = useState(() => searchParams.get('new') === '1')
+  useEffect(() => { if (searchParams.get('new') === '1') setSearchParams({}, { replace: true }) }, []) // eslint-disable-line react-hooks/exhaustive-deps
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [formData, setFormData] = useState({

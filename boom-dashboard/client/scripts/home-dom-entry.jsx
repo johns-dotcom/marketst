@@ -63,7 +63,7 @@ async function main() {
       </ThemeProvider>
     </Catch>
   )
-  for (let i = 0; i < 40 && !host.querySelector('[data-tile]'); i += 1) await sleep(100)
+  for (let i = 0; i < 40 && !host.querySelector('[data-tile], [data-loop-clear]'); i += 1) await sleep(100)
   await sleep(150)
 
   const tiles = [...host.querySelectorAll('[data-tile]')]
@@ -75,7 +75,7 @@ async function main() {
   if (errors.length) say('  ' + errors.join('\n  '))
   assert('the loop was read exactly once', calls.get.filter((u) => u.startsWith('/dashboard/loop')).length === 1)
   assert('the old fan-out to /bk/pending-count is gone', !calls.get.some((u) => u.startsWith('/bk/pending-count')))
-  assert('My tasks renders for everyone', !!byId.tasks)
+  assert('My tasks renders for everyone (unless the whole loop is clear)', !!byId.tasks || !!host.querySelector('[data-loop-clear]'))
 
   if (scenario === 'admin') {
     assert('ADMIN: all four loop tiles render', ['approvals', 'bank', 'payments', 'releases'].every((k) => byId[k]))
@@ -88,6 +88,18 @@ async function main() {
       byId.approvals.getAttribute('href') === '/bk/approvals' && byId.payments.getAttribute('href') === '/bk/payments'
       && byId.bank.getAttribute('href') === '/bk/bank-matching' && byId.releases.getAttribute('href') === '/releases')
     assert('ADMIN: the label-overview stat cards are gone', !/Total Artists|Team Members|Total Releases/.test(body))
+    const qa = host.querySelector('[data-quick-actions]')
+    assert('ADMIN: three quick actions — add invoice, add release, new deal', !!qa && qa.querySelector('[data-action="add-invoice"]')?.getAttribute('href') === '/bk/add' && qa.querySelector('[data-action="add-release"]')?.getAttribute('href') === '/releases?add=1' && qa.querySelector('[data-action="new-deal"]')?.getAttribute('href') === '/deals?new=1')
+    const wk = host.querySelector('[data-week]')
+    const wkTypes = [...wk.querySelectorAll('[data-week-event]')].map((e) => e.getAttribute('data-week-event'))
+    assert('ADMIN: the week lists the task today, the release in 2 days and the payment in 5 — not the renewal in 12 or yesterday', wkTypes.join(',') === 'deadline,release,payment_due' && !/Recording expires|Yesterday thing/.test(textOf(wk)))
+    assert('ADMIN: week events link to their pages', [...wk.querySelectorAll('a')].some((a) => a.getAttribute('href') === '/bk/payments') && [...wk.querySelectorAll('a')].some((a) => a.getAttribute('href') === '/releases'))
+    const act = host.querySelector('[data-activity]')
+    const rows = [...act.querySelectorAll('[data-activity-row]')].map(textOf)
+    assert("ADMIN: recent activity shows the teammate's rows and not mine", rows.length === 2 && rows.every((r) => /^Sam/.test(r)) && !/Added release/.test(textOf(act)))
+    assert('ADMIN: the alert sits above the activity rows', !!act.querySelector('[data-alerts]') && /Release checklist/.test(textOf(act.querySelector('[data-alerts]'))) && act.querySelector('[data-alerts]').compareDocumentPosition(act.querySelector('[data-activity-row]')) & Node.DOCUMENT_POSITION_FOLLOWING)
+    assert('ADMIN: no chart renders while there is nothing to chart', !/Releases per Month|Releases by Genre/.test(body))
+    assert('ADMIN: the old Notifications and Upcoming Releases panels are gone', !/All clear — no alerts|No releases in the next two weeks/.test(body))
     assert('ADMIN: the onboarding tile counts artists mid-onboarding and the steps open', !!byId.onboarding && /2/.test(textOf(byId.onboarding)) && /5 steps open/.test(textOf(byId.onboarding)) && /next: Rosa Vale/.test(textOf(byId.onboarding)))
     assert('ADMIN: it opens the roster narrowed to them', byId.onboarding?.getAttribute('href') === '/artists?onboarding=1')
   }
@@ -95,20 +107,24 @@ async function main() {
     assert('ANR: no money tile renders', !byId.approvals && !byId.payments && !byId.bank)
     assert('ANR: the releases tile renders', !!byId.releases)
     assert('ANR: no dollar figure reaches the page', !/\$\d/.test(body))
-    assert('ANR: release charts still render for someone who can open Releases', /Releases per Month/.test(body))
+    assert('ANR: charts stay hidden with no data', !/Releases per Month/.test(body))
+    assert('ANR: quick actions are gated — release and deal, no invoice', !host.querySelector('[data-action="add-invoice"]') && !!host.querySelector('[data-action="add-release"]') && !!host.querySelector('[data-action="new-deal"]'))
+    assert('ANR: no Recent activity for someone who cannot open /activity', !host.querySelector('[data-activity]'))
+    assert('ANR: the week still renders', !!host.querySelector('[data-week]'))
   }
   if (scenario === 'empty') {
-    assert('EMPTY: approvals says what fills it', /Nothing waiting/.test(textOf(byId.approvals)) && /\/submit/.test(textOf(byId.approvals)))
-    assert('EMPTY: payments says what fills it', /Nothing due in the next 7 days/.test(textOf(byId.payments)))
-    assert('EMPTY: onboarding says what starts it', /Nobody is mid-onboarding/.test(textOf(byId.onboarding)) && /Signed starts it/.test(textOf(byId.onboarding)))
-    assert('EMPTY: bank says no statement has been uploaded', /No statement uploaded yet/.test(textOf(byId.bank)))
-    assert('EMPTY: bank links to Statements, not the review queue', byId.bank.getAttribute('href') === '/bk/statements')
-    assert('EMPTY: releases says how to add one', /Nothing scheduled in the next 30 days/.test(textOf(byId.releases)))
-    assert('EMPTY: no tile shows a bare zero', !tiles.some((t) => /^\s*0\s*$/.test(t.querySelector('p.text-2xl')?.textContent || '')))
+    const clear = host.querySelector('[data-loop-clear]')
+    assert('EMPTY: the six tiles collapse to one line', !!clear && tiles.length === 0)
+    assert('EMPTY: the line names every source that is clear', /All clear/.test(textOf(clear)) && /no open tasks/.test(textOf(clear)) && /nothing awaiting approval/.test(textOf(clear)) && /nothing due this week/.test(textOf(clear)) && /no bank lines to review/.test(textOf(clear)) && /nothing releasing in 30 days/.test(textOf(clear)) && /nobody mid-onboarding/.test(textOf(clear)))
+    assert('EMPTY: the week says what fills it', /Nothing dated in the next week/.test(textOf(host.querySelector('[data-week]'))))
+    assert('EMPTY: activity says what fills it', /Nothing logged yet/.test(textOf(host.querySelector('[data-activity]'))))
+    assert('EMPTY: quick actions still offered', host.querySelectorAll('[data-quick-actions] a').length === 3)
+    assert('EMPTY: no bare zero anywhere in the loop', !/\b0\b/.test(textOf(clear)))
   }
   if (scenario === 'down') {
     assert('DOWN: no loop tile renders when the read failed', !byId.approvals && !byId.payments && !byId.bank && !byId.releases)
-    assert('DOWN: the page still renders the rest', !!byId.tasks && /Notifications/.test(body))
+    assert('DOWN: the page still renders the rest — tasks tile, quick actions, and the week says it could not be read', !!byId.tasks && !!host.querySelector('[data-quick-actions]') && /could not be read/.test(textOf(host.querySelector('[data-week]'))))
+    assert('DOWN: a failed loop never collapses to All clear', !host.querySelector('[data-loop-clear]'))
   }
   say(`rendered bytes: ${host.innerHTML.length}`)
   say('DONE')

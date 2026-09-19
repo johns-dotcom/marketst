@@ -324,6 +324,10 @@ router.get('/notifications', authMiddleware, async (req, res) => {
 // GET /api/dashboard/activity
 router.get('/activity', authMiddleware, async (req, res) => {
   try {
+    // Home's Recent activity is the Activity page in miniature, so it is
+    // gated the same way: somebody who cannot open /activity gets nothing.
+    const reach = await pagesReachable(req.user, ['/activity']);
+    if (!reach.has('/activity')) return res.json({ success: true, data: [] });
     const result = await pool.query(
       `SELECT al.*, u.name as user_name
        FROM activity_log al
