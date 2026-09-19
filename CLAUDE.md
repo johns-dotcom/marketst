@@ -300,6 +300,19 @@ Authoritative project guide: **`boom-dashboard/CLAUDE.md`** — read it before m
   removing is the uploader or an admin. NAV_PAGES is 49 now.
   `server/scripts/brand-fixture.cjs` (12) covers upload, the HTML refusal, the
   byte-identical download, the SVG-as-attachment rule and the delete gate.
+- **Mail plan (2026-09-19, designed, NOT built):** connected Google mailboxes
+  (`mailboxes` with encrypted refresh tokens, `mailbox_purposes`, `mail_log`),
+  connect flow from Settings › Integrations › Mail (shared, admins) and My
+  settings › My mailbox (personal), OAuth callback `/api/mail/oauth/callback`
+  (must be an authorised redirect URI on the GMAIL_CLIENT_ID client), routing
+  BY PURPOSE (Payments · Vendors and creators · Team · Artists · Clients), one
+  `lib/mail.js` `sendMail` replacing the three Gmail send copies
+  (services/email.js, routes/team.js, routes/requests.js), the env sender
+  imported on boot as the first shared mailbox, Reply-To = the human sender
+  when sending from a shared box, revoked tokens surfaced not retried,
+  outbound only. Notification prefs start sending in stage 4 via an
+  in-process scheduler with `mail_jobs`. Four stages in the plan (artifact
+  link in the session; ask for it).
 - **Bank-statement heuristics were tuned on Boom's Bank of America statements.** The own-name lists (`statements.js` stop-words, `funding-pairs.js` account-trailer strip) now say Market Street, but the layout parsers have not seen a Market Street statement yet. Expect the AI fallback to do the work until they do.
 
 ## Commands (run from `boom-dashboard/`)
