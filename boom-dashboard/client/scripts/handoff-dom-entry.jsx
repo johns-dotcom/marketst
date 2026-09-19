@@ -7,7 +7,7 @@
 // carried from one page to the next, which is exactly the thing that breaks
 // silently when a param name or a key function changes.
 //
-// Scenarios (HANDOFF_SCENARIO env): contracts · releases · prompt
+// Scenarios (HANDOFF_SCENARIO env): contracts · releases · prompt · terms
 import React from 'react'
 import { createRoot } from 'react-dom/client'
 import { MemoryRouter, Routes, Route } from 'react-router-dom'
@@ -90,6 +90,22 @@ async function main() {
     assert('it points at the budget sheet by KEY, carrying the spelling',
       !!link && link.getAttribute('href') === '/artist-budgets/rosavale?name=Rosa%20Vale')
     assert('and names the artist', prompt && /Rosa Vale/.test(textOf(prompt)))
+  }
+  if (scenario === 'terms') {
+    // ?deal=5: the terms typed on the deal at Offer land in the contract form
+    const host = mount('/contracts?new=1&artist=Darci&deal=5', <Route path="/contracts" element={<Contracts />} />)
+    for (let i = 0; i < 40 && ![...host.querySelectorAll('input')].some((i) => i.value === '50'); i += 1) await sleep(100)
+    await sleep(100)
+    assert('the page did not throw', errors.length === 0); if (errors.length) say('  ' + errors.join('\n  '))
+    const inputs = [...host.querySelectorAll('input, select, textarea')]
+    const has = (v) => inputs.some((i) => String(i.value) === v)
+    assert('royalty split 50, advance 25000, territory World arrive from the deal', has('50') && has('25000') && has('World'))
+    assert('the deal type maps to the contract vocabulary (Master License → Licensing)', has('Licensing'))
+    const today = new Date(); const iso = (x) => x.toISOString().slice(0, 10)
+    const exp = new Date(today); exp.setMonth(exp.getMonth() + 24)
+    assert('signed today, expiring 24 months out', has(iso(today)) && has(iso(exp)))
+    assert('release commitment and options are noted', inputs.some((i) => /3 releases committed · 1 option period · From deal #5/.test(String(i.value))))
+    assert('GET /deals/5 was the source', calls.get.includes('/deals/5'))
   }
   if (scenario === 'prompt') {
     const host = document.createElement('div'); document.body.appendChild(host)

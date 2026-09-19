@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Search, ChevronRight, ChevronDown, ArrowLeft, Music, Disc3, Activity, FileText, Briefcase, X, Link2, Plus, Trash2, ExternalLink, Loader, Pencil, Paperclip, ArrowUpDown, RefreshCw, Download, Users, Tag, Check, Archive } from 'lucide-react'
 import api from '../api'
 import { formatDate } from '../utils'
@@ -285,6 +285,17 @@ export default function Artists() {
   // before it can do anything else, so this is the one create form the page has.
   const [showAddArtist, setShowAddArtist] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
+  // Onboarding — which artists are signed and not yet complete, by id, from
+  // GET /artists/onboarding (the checklist's own answers). ?onboarding=1
+  // (the Home tile's link) narrows the roster to them.
+  const [onboarding, setOnboarding] = useState({})
+  const [searchParams] = useSearchParams()
+  const [onboardingOnly, setOnboardingOnly] = useState(() => searchParams.get('onboarding') === '1')
+  useEffect(() => {
+    api.get('/artists/onboarding')
+      .then((r) => setOnboarding(Object.fromEntries((r.data?.data || []).map((o) => [o.artist_id, o]))))
+      .catch(() => setOnboarding({}))
+  }, [])
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
@@ -528,6 +539,9 @@ export default function Artists() {
     if (activeOnly) {
       result = result.filter(a => a.has_recent_release === true)
     }
+    if (onboardingOnly) {
+      result = result.filter(a => !!onboarding[a.id])
+    }
 
     return [...result].sort((a, b) => {
       if (sortBy === 'name-asc') return a.name.localeCompare(b.name)
@@ -536,7 +550,7 @@ export default function Artists() {
       if (sortBy === 'releases-asc') return (a.total_releases || 0) - (b.total_releases || 0)
       return 0
     })
-  }, [artists, genreFilter, releaseFilter, activeOnly, sortBy])
+  }, [artists, genreFilter, releaseFilter, activeOnly, sortBy, onboardingOnly, onboarding])
 
   // Archived bucket — separate list, doesn't honor genre / release filters
   // since those mainly govern the active workflow view. Sorted by name.
@@ -921,6 +935,12 @@ export default function Artists() {
             <RefreshCw size={14} className={syncing ? 'animate-spin' : ''} />
           </button>
           {syncMsg && <span className="text-xs text-gray-400">{syncMsg}</span>}
+          {Object.keys(onboarding).length > 0 && (
+            <button type="button" onClick={() => setOnboardingOnly((v) => !v)} data-onboarding-filter aria-pressed={onboardingOnly}
+              className={`text-[11px] font-semibold px-2.5 py-1.5 rounded-lg border transition-colors ${onboardingOnly ? 'bg-amber-50 border-amber-300 text-amber-800' : 'bg-white border-gray-200 text-gray-500 hover:border-gray-300'}`}>
+              Onboarding · {Object.keys(onboarding).length}
+            </button>
+          )}
           <div className="relative w-64">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={14} />
             <input
@@ -1112,7 +1132,7 @@ export default function Artists() {
         )
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-          {filtered.map((artist) => renderArtistCard(artist, { isArchived: false, onArchive: toggleArchive, onView: handleViewArtist, genreColor, artistInitials }))}
+          {filtered.map((artist) => renderArtistCard(artist, { isArchived: false, onArchive: toggleArchive, onView: handleViewArtist, genreColor, artistInitials, onboarding: onboarding[artist.id] }))}
         </div>
       )}
 
@@ -1149,7 +1169,7 @@ export default function Artists() {
 // toggle in opposite states. The button is a sibling inside the
 // wrapping <button onClick={view}>, so we stopPropagation on the
 // archive click to avoid navigating into the artist detail.
-function renderArtistCard(artist, { isArchived, onArchive, onView, genreColor, artistInitials }) {
+function renderArtistCard(artist, { isArchived, onArchive, onView, genreColor, artistInitials, onboarding }) {
   const initials = artistInitials(artist.name)
   const releaseCount = artist.total_releases || 0
   return (
@@ -1185,6 +1205,12 @@ function renderArtistCard(artist, { isArchived, onArchive, onView, genreColor, a
             <span className="text-[11px] text-gray-400 tabular-nums">
               {releaseCount} {releaseCount === 1 ? 'release' : 'releases'}
             </span>
+            {onboarding && !onboarding.complete && (
+              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200 tabular-nums" data-onboarding-chip
+                title={onboarding.steps.filter((x) => !x.done).map((x) => x.label).join(' · ')}>
+                Onboarding {onboarding.total - onboarding.open} of {onboarding.total}
+              </span>
+            )}
           </div>
         </div>
         <ChevronRight size={14} className="text-gray-300 group-hover:text-gray-500 group-hover:translate-x-0.5 flex-shrink-0 transition-all" />

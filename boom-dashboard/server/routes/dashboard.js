@@ -2,6 +2,7 @@ const express = require('express');
 const pool = require('../db');
 const authMiddleware = require('../middleware/auth');
 const { pagesReachable } = require('../middleware/pagePermission');
+const { openOnboardings } = require('../lib/onboarding');
 const { usdOf } = require('../lib/usd');
 const { expectedNext } = require('../lib/statement-integrity');
 
@@ -363,6 +364,7 @@ const LOOP_PAGES = {
   payments:  '/bk/payments',
   bank:      '/bk/bank-matching',
   releases:  '/releases',
+  onboarding: '/artists',
 };
 const round2 = (n) => Math.round(Number(n || 0) * 100) / 100;
 const sumUsd = (rows) => round2(rows.reduce((t, r) => t + (usdOf(r.amount, r.currency, r.fx_rate_to_usd) || 0), 0));
@@ -370,7 +372,7 @@ const sumUsd = (rows) => round2(rows.reduce((t, r) => t + (usdOf(r.amount, r.cur
 router.get('/loop', authMiddleware, async (req, res) => {
   try {
     const reach = await pagesReachable(req.user, Object.values(LOOP_PAGES));
-    const data = { approvals: null, payments: null, bank: null, releases: null };
+    const data = { approvals: null, payments: null, bank: null, releases: null, onboarding: null };
     const jobs = [];
 
     // Awaiting approval — the same predicate as /bk/pending-count and the
@@ -475,6 +477,18 @@ router.get('/loop', authMiddleware, async (req, res) => {
         under_half: rows.filter((r) => Number(r.items_completed) / 14 < 0.5).length,
         next: next ? { id: next.id, project_name: next.project_name, artist_name: next.artist_name, release_date: next.release_day } : null,
         to: LOOP_PAGES.releases,
+      };
+    })());
+
+    // Onboarding — artists signed and not yet complete, and how many steps
+    // are open between them (lib/onboarding, the checklist's own answers).
+    if (reach.has(LOOP_PAGES.onboarding)) jobs.push((async () => {
+      const rows = await openOnboardings();
+      data.onboarding = {
+        count: rows.length,
+        steps_open: rows.reduce((t, r) => t + r.open, 0),
+        next: rows[0] ? { id: rows[0].artist_id, name: rows[0].name, open: rows[0].open } : null,
+        to: `${LOOP_PAGES.onboarding}?onboarding=1`,
       };
     })());
 

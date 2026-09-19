@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { Link } from 'react-router-dom'
-import { ChevronLeft, ChevronRight, Plus, X, Music, FileText, CheckSquare, Calendar as CalendarIcon, Disc3, Trash2, CreditCard, RefreshCw, ArrowUpRight, Lock } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Plus, X, Music, FileText, CheckSquare, Calendar as CalendarIcon, Disc3, Trash2, CreditCard, RefreshCw, ArrowUpRight, Lock, PenLine } from 'lucide-react'
 import api from '../api'
 import useHotkeys from '../hooks/useHotkeys'
 import Skeleton from '../components/Skeleton'
@@ -15,12 +15,14 @@ const EVENT_STYLES = {
   dsp_live:         { bg: 'bg-purple-50',  border: 'border-purple-200', dot: 'bg-purple-500',  text: 'text-purple-700',  label: 'DSP Live' },
   dsp_submitted:    { bg: 'bg-indigo-50',  border: 'border-indigo-200', dot: 'bg-indigo-400',  text: 'text-indigo-600',  label: 'DSP Submitted' },
   manual:           { bg: 'bg-gray-50',    border: 'border-rule',   dot: 'bg-gray-500',    text: 'text-gray-700',    label: 'Event' },
+  signed:           { bg: 'bg-emerald-50', border: 'border-emerald-200', dot: 'bg-emerald-600', text: 'text-emerald-800', label: 'Signed' },
 }
 
 const EVENT_ICONS = {
   release: Music,
   contract_expiry: RefreshCw,
   payment_due: CreditCard,
+  signed: PenLine,
   contract_signed: FileText,
   deadline: CheckSquare,
   dsp_live: Disc3,
@@ -43,6 +45,7 @@ const FILTER_GROUPS = [
   { key: 'renewal',  label: 'Renewals',       dot: 'bg-red-500',    source: 'renewals',  what: 'contract expiry dates' },
   { key: 'contract', label: 'Contracts signed', dot: 'bg-emerald-500', source: 'contracts', what: 'signing dates' },
   { key: 'dsp',      label: 'DSP',            dot: 'bg-purple-500', source: 'releases',  what: 'DSP submissions and go-lives' },
+  { key: 'signed',   label: 'Signings',       dot: 'bg-emerald-600', source: null,       what: 'the day an artist was signed' },
   { key: 'manual',   label: 'Events',         dot: 'bg-gray-500',   source: null,        what: 'events added here' },
 ]
 export const groupOf = (type) => (

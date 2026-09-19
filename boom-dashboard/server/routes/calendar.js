@@ -109,7 +109,7 @@ router.get('/', authMiddleware, async (req, res) => {
          ORDER BY e.scheduled_payment_date
       `) : none,
       safeQuery(`
-        SELECT id, title, event_date AS date, event_type, description, color
+        SELECT id, title, event_date AS date, event_type, description, color, link
         FROM calendar_events
         ORDER BY event_date
       `),
@@ -184,8 +184,9 @@ router.get('/', authMiddleware, async (req, res) => {
     for (const e of manual.rows) {
       events.push({
         id: `event-${e.id}`, type: e.event_type || 'manual', title: e.title,
-        subtitle: e.description || null, date: d(e.date), color: e.color || null,
-        sourceId: e.id, deletable: true,
+        // a signing marker's description is a machine tag (deal:12), not a caption
+        subtitle: e.event_type === 'signed' ? null : (e.description || null), date: d(e.date), color: e.color || null,
+        sourceId: e.id, deletable: e.event_type !== 'signed', to: e.link || null,
       })
     }
 

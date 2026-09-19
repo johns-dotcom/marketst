@@ -12,23 +12,7 @@ import {
   Pie,
   Cell
 } from 'recharts'
-import {
-  AlertCircle,
-  AlertTriangle,
-  Info,
-  CalendarDays,
-  ChevronRight,
-  Filter,
-  X,
-  CheckSquare,
-  ExternalLink,
-  Music2,
-  RefreshCw,
-  Inbox,
-  CreditCard,
-  Landmark,
-  Disc3,
-} from 'lucide-react'
+import { AlertCircle, AlertTriangle, Info, CalendarDays, ChevronRight, Filter, X, CheckSquare, ExternalLink, Music2, RefreshCw, Inbox, CreditCard, Landmark, Disc3, UserPlus } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import api from '../api'
 import { formatDate, isPastLocal, daysUntilLocal } from '../utils'
@@ -362,7 +346,7 @@ export default function Dashboard() {
           reports read from that. One tile per step, each opening the page
           that resolves it, each rendered only if the server returned the
           section AND this user can open the destination. */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
         <LoopTile
           to="/my-work" icon={CheckSquare} label="My tasks" testId="tasks"
           value={myTasks?.total || 0}
@@ -393,6 +377,16 @@ export default function Dashboard() {
             empty={loop.bank.accounts?.length
               ? (loop.bank.overdue_accounts?.length ? bankSubline(loop.bank) : 'Every bank line is answered. Upload the next statement when it arrives.')
               : 'No statement uploaded yet. Bank › Statements takes the PDF.'}
+          />
+        )}
+        {loop?.onboarding && canView('/artists') && (
+          <LoopTile
+            to={loop.onboarding.to} icon={UserPlus} label="Onboarding" testId="onboarding" tone="text-emerald-600"
+            value={loop.onboarding.count}
+            sub={loop.onboarding.count
+              ? `${loop.onboarding.steps_open} step${loop.onboarding.steps_open === 1 ? '' : 's'} open${loop.onboarding.next ? ` · next: ${loop.onboarding.next.name}` : ''}`
+              : null}
+            empty="Nobody is mid-onboarding. A deal moved to Signed starts it."
           />
         )}
         {loop?.releases && canView('/releases') && (

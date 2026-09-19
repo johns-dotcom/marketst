@@ -496,6 +496,35 @@ const runMigrations = async () => {
     .catch(err => console.error('artists.archived_at migration failed:', err.message));
   await pool.query(`ALTER TABLE artists ADD COLUMN IF NOT EXISTS archived_by INT REFERENCES users(id) ON DELETE SET NULL`)
     .catch(err => console.error('artists.archived_by migration failed:', err.message));
+
+  // ── Signing an artist (2026-09-18) ──────────────────────────────────────
+  // Terms and contact typed on the DEAL at Offer; signing copies them onto
+  // the roster row and creates the advance as an approved invoice. The first
+  // six deal columns already exist on every database that ran Boom's code
+  // (they were added by hand there); listed here so a fresh database gets them.
+  for (const col of [
+    `priority VARCHAR(20) DEFAULT 'Medium'`, `deal_type VARCHAR(50)`, `last_contact_date DATE`,
+    `next_followup_date DATE`, `spotify_monthly_listeners INTEGER`, `offer_amount NUMERIC(14,2)`,
+    `advance NUMERIC(14,2)`, `royalty_split NUMERIC(6,2)`, `term_months INTEGER`, `territory TEXT`,
+    `num_releases INTEGER`, `option_periods INTEGER`,
+    `artist_email TEXT`, `artist_phone TEXT`, `manager_name TEXT`, `manager_email TEXT`,
+    `socials JSONB`, `spotify_url TEXT`,
+    `signed_artist_id INTEGER REFERENCES artists(id) ON DELETE SET NULL`, `signed_at TIMESTAMPTZ`,
+    `advance_expense_id INTEGER`,
+  ]) {
+    await pool.query(`ALTER TABLE deals ADD COLUMN IF NOT EXISTS ${col}`)
+      .catch(err => console.error(`deals.${col.split(' ')[0]} migration failed:`, err.message));
+  }
+  for (const col of [
+    `email TEXT`, `phone TEXT`, `manager_name TEXT`, `manager_email TEXT`, `socials JSONB`, `spotify_url TEXT`,
+    `signed_at TIMESTAMPTZ`, `onboarded_at TIMESTAMPTZ`, `signed_deal_id INTEGER`,
+  ]) {
+    await pool.query(`ALTER TABLE artists ADD COLUMN IF NOT EXISTS ${col}`)
+      .catch(err => console.error(`artists.${col.split(' ')[0]} migration failed:`, err.message));
+  }
+  // A manual calendar event may point at a page (the "signed" marker → the profile).
+  await pool.query(`ALTER TABLE calendar_events ADD COLUMN IF NOT EXISTS link TEXT`)
+    .catch(err => console.error('calendar_events.link migration failed:', err.message));
   // Sanity check — verify the column actually exists post-migration so a
   // future deploy log makes it obvious when something silently regressed.
   {

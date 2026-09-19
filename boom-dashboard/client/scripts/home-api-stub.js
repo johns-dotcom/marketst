@@ -18,16 +18,19 @@ const LOOP = {
                  accounts: [{ account: 'bofa', statements: 3, overdue: true, days_since: 41, expected_by: '2026-09-05', cadence_days: 31, last_period_end: '2026-08-08' }],
                  overdue_accounts: ['bofa'] },
     releases:  { count: 3, under_half: 1, next: { id: 9, project_name: 'Night Drive', artist_name: 'Rosa Vale', release_date: '2026-09-25' }, to: '/releases' },
+    onboarding: { count: 2, steps_open: 5, next: { id: 12, name: 'Rosa Vale', open: 3 }, to: '/artists?onboarding=1' },
   },
   anr: {
     approvals: null, payments: null, bank: null,
     releases:  { count: 3, under_half: 1, next: { id: 9, project_name: 'Night Drive', artist_name: 'Rosa Vale', release_date: '2026-09-25' }, to: '/releases' },
+    onboarding: { count: 2, steps_open: 5, next: { id: 12, name: 'Rosa Vale', open: 3 }, to: '/artists?onboarding=1' },
   },
   empty: {
     approvals: { count: 0, usd: 0, oldest_days: null, to: '/bk/approvals' },
     payments:  { count: 0, usd: 0, rush: 0, overdue: 0, to: '/bk/payments' },
     bank:      { open: 0, open_usd: 0, accounts: [], overdue_accounts: [], to: '/bk/statements' },
     releases:  { count: 0, under_half: 0, next: null, to: '/releases' },
+    onboarding: { count: 0, steps_open: 0, next: null, to: '/artists?onboarding=1' },
   },
 }
 

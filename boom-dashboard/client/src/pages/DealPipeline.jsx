@@ -74,15 +74,34 @@ export default function DealPipeline() {
   // prompt opens the contract form with the artist filled in (and offers to
   // put them on the roster if the deal named someone not yet on it).
   const [nextStep, showNextStep, clearNextStep] = useNextStep()
-  const promptSigned = (deal) => {
+  // The server has already run the signing (roster row, advance invoice,
+  // calendar marker) inside the stage change; this prompt SAYS what happened
+  // and hands over to the contract, prefilled from the deal's terms.
+  const promptSigned = (deal, signing) => {
     if (!deal?.artist_name) return
+    const did = []
+    if (signing?.created?.artist) did.push('added to the roster')
+    else if (signing?.artist) did.push('matched to the roster')
+    if (signing?.created?.advance) did.push('advance invoice created (Net 30)')
+    else if (signing?.advance_expense_id) did.push('advance invoice already on Payments')
+    else if (!(Number(deal.advance) > 0)) did.push('no advance on this deal')
+    const body = signing?.error
+      ? `${signing.error} Then the contract: the form opens with the artist and the terms filled in.`
+      : `${did.length ? did.map((d, i) => (i === 0 ? d.charAt(0).toUpperCase() + d.slice(1) : d)).join(', ') + '. ' : ''}Next is the contract — the form opens with the artist and the deal's terms filled in.`
     showNextStep({
       title: `${deal.artist_name} is signed`,
-      body: 'Next is the contract. The form opens with the artist filled in; if they are not on the roster yet, it adds them.',
+      body,
       to: `/contracts?new=1&artist=${encodeURIComponent(deal.artist_name)}&deal=${deal.id}`,
       label: 'Create the contract',
     })
   }
+  const TERM_KEYS = ['advance', 'royalty_split', 'term_months', 'territory', 'num_releases', 'option_periods']
+  const CONTACT_KEYS = ['artist_email', 'artist_phone', 'manager_name', 'manager_email', 'spotify_url']
+  // socials travel as [{platform, handle}]; edited here as one "platform handle" per line
+  const socialsToText = (v) => (Array.isArray(v) ? v.map((x) => `${x.platform} ${x.handle}`).join('\n') : '')
+  const textToSocials = (t) => String(t || '').split('\n').map((l) => l.trim()).filter(Boolean).map((l) => {
+    const [platform, ...rest] = l.split(/\s+/); return { platform, handle: rest.join(' ') }
+  }).filter((x) => x.platform && x.handle)
   const [showForm, setShowForm] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -113,6 +132,8 @@ export default function DealPipeline() {
       spotify_monthly_listeners: selectedDeal.spotify_monthly_listeners ?? '',
       deal_type:                 selectedDeal.deal_type || '',
       offer_amount:              selectedDeal.offer_amount ?? '',
+      ...Object.fromEntries([...TERM_KEYS, ...CONTACT_KEYS].map((k) => [k, selectedDeal[k] ?? ''])),
+      socials_text:              socialsToText(selectedDeal.socials),
     })
     setEditStatus('')
   }, [selectedDeal?.id])
@@ -130,9 +151,13 @@ export default function DealPipeline() {
         spotify_monthly_listeners: listeners === '' || listeners == null ? null : Number(listeners),
         deal_type:                 editForm.deal_type || null,
         offer_amount:              offer === '' || offer == null ? null : Number(offer),
+        // terms + contact: '' clears (the server writes what is present)
+        ...Object.fromEntries(TERM_KEYS.map((k) => [k, editForm[k] === '' || editForm[k] == null ? '' : (k === 'territory' ? editForm[k] : Number(editForm[k]))])),
+        ...Object.fromEntries(CONTACT_KEYS.map((k) => [k, editForm[k] ?? ''])),
+        socials:                   textToSocials(editForm.socials_text),
       }
       const response = await api.put(`/deals/${selectedDeal.id}`, payload)
-      if (payload.stage === 'Signed' && selectedDeal.stage !== 'Signed') promptSigned(response.data.data)
+      if (response.data.signing) promptSigned(response.data.data, response.data.signing)
       const updated = response.data.data
       setDeals(prev => prev.map(d => d.id === updated.id ? updated : d))
       setSelectedDeal(updated)
@@ -203,7 +228,7 @@ export default function DealPipeline() {
       // Functional update — the closure's `deals` predates the optimistic
       // drop update, so rapid drags could visually snap a card back.
       setDeals(prev => prev.map(d => d.id === dealId ? response.data.data : d))
-      if (newStage === 'Signed') promptSigned(response.data.data)
+      if (newStage === 'Signed') promptSigned(response.data.data, response.data.signing)
     } catch (err) {
       console.error('Failed to update deal:', err)
     }
@@ -549,6 +574,43 @@ export default function DealPipeline() {
                     className="mt-1"
                   />
                 </label>
+              </div>
+
+              {/* Terms and contact — typed at Offer, read by signing: the
+                  contract form, the roster row and the advance invoice all
+                  come from these. */}
+              <div className="pt-2" data-deal-terms>
+                <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-2">Terms · typed at Offer</p>
+                <div className="grid grid-cols-2 gap-2.5">
+                  <label className="block"><span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Advance</span>
+                    <div className="relative mt-1"><span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400 pointer-events-none">$</span>
+                      <Input type="number" step="0.01" min="0" placeholder="0" value={editForm.advance ?? ''} onChange={e => setEditForm(f => ({ ...f, advance: e.target.value }))} className="pl-7" data-term="advance" /></div></label>
+                  <label className="block"><span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Artist royalty %</span>
+                    <Input type="number" step="0.5" min="0" max="100" placeholder="e.g. 50" value={editForm.royalty_split ?? ''} onChange={e => setEditForm(f => ({ ...f, royalty_split: e.target.value }))} className="mt-1" data-term="royalty_split" /></label>
+                  <label className="block"><span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Term (months)</span>
+                    <Input type="number" step="1" min="0" placeholder="e.g. 24" value={editForm.term_months ?? ''} onChange={e => setEditForm(f => ({ ...f, term_months: e.target.value }))} className="mt-1" data-term="term_months" /></label>
+                  <label className="block"><span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Territory</span>
+                    <Input placeholder="World" value={editForm.territory ?? ''} onChange={e => setEditForm(f => ({ ...f, territory: e.target.value }))} className="mt-1" data-term="territory" /></label>
+                  <label className="block"><span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Releases committed</span>
+                    <Input type="number" step="1" min="0" placeholder="e.g. 3" value={editForm.num_releases ?? ''} onChange={e => setEditForm(f => ({ ...f, num_releases: e.target.value }))} className="mt-1" data-term="num_releases" /></label>
+                  <label className="block"><span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Option periods</span>
+                    <Input type="number" step="1" min="0" placeholder="0" value={editForm.option_periods ?? ''} onChange={e => setEditForm(f => ({ ...f, option_periods: e.target.value }))} className="mt-1" data-term="option_periods" /></label>
+                </div>
+                <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mt-4 mb-2">Contact · goes onto the roster at signing</p>
+                <div className="grid grid-cols-2 gap-2.5">
+                  <label className="block"><span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Artist email</span>
+                    <Input type="email" placeholder="artist@email.com" value={editForm.artist_email ?? ''} onChange={e => setEditForm(f => ({ ...f, artist_email: e.target.value }))} className="mt-1" data-term="artist_email" /></label>
+                  <label className="block"><span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Artist phone</span>
+                    <Input placeholder="+1 …" value={editForm.artist_phone ?? ''} onChange={e => setEditForm(f => ({ ...f, artist_phone: e.target.value }))} className="mt-1" /></label>
+                  <label className="block"><span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Manager</span>
+                    <Input placeholder="Name" value={editForm.manager_name ?? ''} onChange={e => setEditForm(f => ({ ...f, manager_name: e.target.value }))} className="mt-1" /></label>
+                  <label className="block"><span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Manager email</span>
+                    <Input type="email" placeholder="manager@email.com" value={editForm.manager_email ?? ''} onChange={e => setEditForm(f => ({ ...f, manager_email: e.target.value }))} className="mt-1" /></label>
+                  <label className="block col-span-2"><span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Spotify artist link</span>
+                    <Input placeholder="https://open.spotify.com/artist/…" value={editForm.spotify_url ?? ''} onChange={e => setEditForm(f => ({ ...f, spotify_url: e.target.value }))} className="mt-1" /></label>
+                  <label className="block col-span-2"><span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Socials · one per line, "platform handle"</span>
+                    <textarea rows="2" placeholder={'instagram @rosavale\ntiktok @rosa.vale'} value={editForm.socials_text ?? ''} onChange={e => setEditForm(f => ({ ...f, socials_text: e.target.value }))} className="input-base w-full mt-1 text-sm" data-term="socials" /></label>
+                </div>
               </div>
 
               <div className="flex justify-end pt-1">

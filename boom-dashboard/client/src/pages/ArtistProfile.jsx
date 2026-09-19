@@ -5,6 +5,7 @@ import api from '../api'
 import { formatDate, daysUntilLocal, isPastLocal, artistBucket } from '../utils'
 import Skeleton from '../components/Skeleton'
 import Breadcrumb from '../components/Breadcrumb'
+import OnboardingPanel from '../components/OnboardingPanel'
 import FilesPanel from '../components/FilesPanel'
 import { useAuth } from '../context/AuthContext'
 import { Button, Input, Select, Textarea } from '../components/ui'
@@ -605,6 +606,9 @@ export default function ArtistProfile() {
           )}
         </div>
       </div>
+
+      {/* Onboarding — for an artist signed through the pipeline; collapses when complete */}
+      <OnboardingPanel artistId={Number(id)} onArtistChanged={fetchArtist} />
 
       {/* Stat cards */}
       <div className="grid grid-cols-2 gap-3">

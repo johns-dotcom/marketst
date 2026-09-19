@@ -8,6 +8,7 @@ let artists = [{ id: 1, name: 'Darci', genre: 'Pop' }, { id: 2, name: 'Oxis', ge
 const api = {
   get(url) {
     calls.get.push(url)
+    if (url === '/deals/5') return ok({ id: 5, artist_name: 'Rosa Vale', deal_type: 'Master License', advance: 25000, royalty_split: 50, term_months: 24, territory: 'World', num_releases: 3, option_periods: 1 })
     if (url.startsWith('/artists')) return ok(artists)
     if (url.startsWith('/contracts/missing')) return ok([])
     if (url.startsWith('/contracts/expiring')) return ok([])

@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 /**
- * The hand-offs between pages, driven under jsdom. See handoff-dom-entry.jsx.
+ * The signing checklist on the profile and the roster, under jsdom. See onboarding-dom-entry.jsx.
  *
  *     mkdir -p /tmp/domtest && cd /tmp/domtest && npm init -y && npm i jsdom
- *     cd client && npm run handoff-dom
+ *     cd client && npm run onboarding-dom
  *
- * Fully stubbed. Scenarios: contracts · releases · prompt · terms.
+ * Fully stubbed. Scenarios: open · complete · noemail · roster.
  */
 import { execFileSync } from 'node:child_process'
 import { existsSync } from 'node:fs'
@@ -16,15 +16,15 @@ const CLIENT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const JSDOM_PATH = process.env.JSDOM_PATH || 'file:///tmp/domtest/node_modules/jsdom/lib/api.js'
 if (!existsSync(fileURLToPath(JSDOM_PATH))) { console.error(`no jsdom at ${JSDOM_PATH}`); process.exit(2) }
 execFileSync('npx', ['vite', 'build', '-c', 'scripts/mywork-dom.vite.config.mjs'], {
-  cwd: CLIENT, env: { ...process.env, ENTRY: 'scripts/handoff-dom-entry.jsx', API_STUB: 'scripts/handoff-api-stub.js' }, stdio: ['ignore', 'ignore', 'pipe'],
+  cwd: CLIENT, env: { ...process.env, ENTRY: 'scripts/onboarding-dom-entry.jsx', API_STUB: 'scripts/onboarding-api-stub.js', AUTH_STUB: 'scripts/home-dom-auth-stub.js' }, stdio: ['ignore', 'ignore', 'pipe'],
 })
-const scenarios = process.env.HANDOFF_SCENARIO ? [process.env.HANDOFF_SCENARIO] : ['contracts', 'releases', 'prompt', 'terms']
+const scenarios = process.env.ONB_SCENARIO ? [process.env.ONB_SCENARIO] : ['open', 'complete', 'noemail', 'roster']
 let all = ''
 for (const sc of scenarios) {
   let log = ''
   try {
-    log = execFileSync('node', ['scripts/mywork-dom-check.mjs', '.domsmoke/out/handoff-dom-entry.js'], {
-      cwd: CLIENT, env: { ...process.env, JSDOM_PATH, WAIT_FOR_DONE: '1', WAIT_MS: '30000', PAGE_URL: 'http://localhost/', HANDOFF_SCENARIO: sc },
+    log = execFileSync('node', ['scripts/mywork-dom-check.mjs', '.domsmoke/out/onboarding-dom-entry.js'], {
+      cwd: CLIENT, env: { ...process.env, JSDOM_PATH, WAIT_FOR_DONE: '1', WAIT_MS: '30000', PAGE_URL: 'http://localhost/', ONB_SCENARIO: sc },
       encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'],
     })
   } catch (err) { log = (err.stdout || '') + (err.stderr || '') }

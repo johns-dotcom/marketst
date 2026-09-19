@@ -144,15 +144,52 @@ Authoritative project guide: **`boom-dashboard/CLAUDE.md`** — read it before m
   `server/scripts/calendar-fixture.cjs` (18, seeds both a Superadmin's and a
   `/releases`-only User's view). `AdminRoute` on `/renewals` is a `canView`
   gate, so a User granted the page reaches it from a renewal event.
-- **Signing plan (2026-09-18, designed, NOT built):**
-  https://claude.ai/code/artifact/c4388ce4-710c-48d4-8128-81f37bfbf826 — Deal →
-  Signed is the trigger; terms + contact typed on the deal at Offer; signing
-  upserts the roster row, creates the advance as an approved Net-30 invoice
-  (recoupable, reviewed) and a calendar marker; a five-step checklist on the
-  profile computed from the tables (contract on file · payment details + W-9 ·
-  advance paid · budget set · first release), collapsing to "Onboarded on";
-  roster chip, Home tile; payment details via the vendor form link or a typed-in
-  admin form. Four build stages listed in the plan.
+- **Signing an artist (2026-09-18, built):**
+  https://claude.ai/code/artifact/c4388ce4-710c-48d4-8128-81f37bfbf826 is the
+  design. **Terms and contact live on the DEAL** (advance, royalty_split,
+  term_months, territory, num_releases, option_periods, artist_email,
+  artist_phone, manager_name, manager_email, socials JSONB, spotify_url —
+  edited in the deal's detail panel, `PUT /deals/:id` writes what is PRESENT so
+  `''` clears). **`signDeal()` in routes/deals.js is what "Signed" does**, in
+  one transaction, idempotent, run from the PUT stage transition (only when
+  `stage` was in the body), from POST-created-Signed, and from
+  `POST /deals/:id/sign`: roster row created or matched by `artistBucketKey`
+  (fills only empty contact fields, stamps `signed_at`/`signed_deal_id`); the
+  advance as an approved Unpaid Net-30 `Advance` expense payable to the artist
+  (`vendor_email` = artist email, `recoupable` + `recoup_reviewed` TRUE,
+  `entry_source 'signing'`; `recoup_reviewed_by` is an INTEGER id while
+  `approved_by`/`created_by` are TEXT names — pass both); a `calendar_events`
+  row of type `signed` (description `deal:<id>` is the idempotency tag, `link`
+  → the profile; the feed marks it non-deletable). The deal remembers all three
+  (`signed_artist_id`, `signed_at`, `advance_expense_id`). Response carries
+  `signing: {artist, advance_expense_id, created}` and the pipeline's prompt
+  SAYS what happened before handing to `/contracts?new=1&artist=&deal=`, which
+  now prefills the contract from `GET /deals/:id` (type mapped to the form's
+  vocabulary, expiry = today + term_months, blank fields only).
+  **The checklist is computed, never stored** — `lib/onboarding.js`
+  `onboardingFor(artistId)`: contract (Active + a file), payment (a
+  `vendor_payment_details` row for the artist's email AND `HAS_W9_SQL` on the
+  payee), advance (its expense Paid, or no advance → done), budget (both simple
+  lines typed), release (one with a date). `onboarded_at` is stamped on first
+  completion, never cleared. Surfaces: `components/OnboardingPanel.jsx` at the
+  top of the profile (renders only for `signed_at`; collapses to "Onboarded on
+  …"), `GET /artists/onboarding` → roster chip "Onboarding 2 of 5" + an
+  Onboarding filter (`?onboarding=1`), Home loop `onboarding` section gated on
+  `/artists`. **Payment details:** "Copy the form link" / mailto (the public
+  vendor form — NOT prefilled; that form is sandbox-managed) or **Type in**
+  (`POST /artists/:id/payment-details`, Admin/Superadmin/Approver, same
+  `validatePaymentFields` + encrypted upsert the vendor form uses, one
+  `bk_audit_log` row, never echoes a number; 503 without `PAYMENT_DETAILS_KEY`).
+  `PUT /artists/:id/contact` edits email/phone/manager/socials/spotify.
+  Migrations are the `for (const col of …)` loops after `artists.archived_by`
+  in index.js — they run AFTER the server starts listening, so a fixture that
+  fires on `/health` can beat them on a fresh database. Harnesses:
+  `server/scripts/signing-fixture.cjs` (41: terms, sign, idempotent, no-advance,
+  matched roster row, checklist ticking from data), `npm run onboarding-dom`
+  (32: panel, type-in POST shape, no-email path, roster chip + filter),
+  `handoff-dom` scenario `terms` (contract prefill), `home-dom` (onboarding
+  tile). Left open, on purpose: payee spelling on the advance (roster name
+  today), term as months not dates, planned marketing not on the deal.
 - **Bank-statement heuristics were tuned on Boom's Bank of America statements.** The own-name lists (`statements.js` stop-words, `funding-pairs.js` account-trailer strip) now say Market Street, but the layout parsers have not seen a Market Street statement yet. Expect the AI fallback to do the work until they do.
 
 ## Commands (run from `boom-dashboard/`)

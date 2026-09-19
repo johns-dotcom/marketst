@@ -11,6 +11,8 @@ import PageHeader from '../components/PageHeader'
 import SearchableSelect from '../components/SearchableSelect'
 import NextStepPrompt, { useNextStep } from '../components/NextStepPrompt'
 
+// A deal's type, in the contract form's vocabulary (only where the two agree).
+const CONTRACT_TYPES_FROM_DEAL = { '360 Deal': 'Recording', 'Master License': 'Licensing', 'Single License': 'Licensing', 'Distribution': 'Distribution', 'Publishing': 'Publishing' }
 const BLANK_CONTRACT = { artist_id: '', type: '', status: 'Active', date_signed: '', expiration_date: '', royalty_split: '', advance: '', territory: '', notes: '', financial_terms: [] }
 
 export default function Contracts() {
@@ -89,12 +91,39 @@ export default function Contracts() {
   const [wantedArtist, setWantedArtist] = useState(() => searchParams.get('artist') || '')
   const [addingArtist, setAddingArtist] = useState(false)
   const [nextStep, showNextStep, clearNextStep] = useNextStep()
+  // ?deal=ID: the terms typed on the deal at Offer become the contract's
+  // fields, so nothing is retyped at signing. Dates: signed today, expiring
+  // term_months later when a term was given. Filled only where the form is
+  // still blank — a value the person already typed wins.
+  const [dealId] = useState(() => searchParams.get('deal') || '')
   useEffect(() => {
     if (searchParams.get('new') === '1') {
       setShowNewContract(true)
       setSearchParams({}, { replace: true })
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!dealId) return
+    let alive = true
+    api.get(`/deals/${dealId}`).then((r) => {
+      const d = r.data?.data; if (!alive || !d) return
+      const today = new Date(); const iso = (x) => x.toISOString().slice(0, 10)
+      const signed = iso(today)
+      let expires = ''
+      if (Number(d.term_months) > 0) { const e = new Date(today); e.setMonth(e.getMonth() + Number(d.term_months)); expires = iso(e) }
+      setNewContractForm((f) => ({
+        ...f,
+        type: f.type || (d.deal_type && CONTRACT_TYPES_FROM_DEAL[d.deal_type]) || f.type,
+        royalty_split: f.royalty_split || (d.royalty_split != null ? String(d.royalty_split) : ''),
+        advance: f.advance || (d.advance != null && Number(d.advance) > 0 ? String(d.advance) : ''),
+        territory: f.territory || d.territory || '',
+        date_signed: f.date_signed || signed,
+        expiration_date: f.expiration_date || expires,
+        notes: f.notes || [d.num_releases ? `${d.num_releases} release${Number(d.num_releases) === 1 ? '' : 's'} committed` : null, d.option_periods ? `${d.option_periods} option period${Number(d.option_periods) === 1 ? '' : 's'}` : null, `From deal #${d.id}`].filter(Boolean).join(' · '),
+      }))
+    }).catch(() => {})
+    return () => { alive = false }
+  }, [dealId])
   useEffect(() => {
     if (!wantedArtist || !artists.length) return
     const match = artists.find(a => a.name.toLowerCase().trim() === wantedArtist.toLowerCase().trim())

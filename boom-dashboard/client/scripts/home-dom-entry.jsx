@@ -88,6 +88,8 @@ async function main() {
       byId.approvals.getAttribute('href') === '/bk/approvals' && byId.payments.getAttribute('href') === '/bk/payments'
       && byId.bank.getAttribute('href') === '/bk/bank-matching' && byId.releases.getAttribute('href') === '/releases')
     assert('ADMIN: the label-overview stat cards are gone', !/Total Artists|Team Members|Total Releases/.test(body))
+    assert('ADMIN: the onboarding tile counts artists mid-onboarding and the steps open', !!byId.onboarding && /2/.test(textOf(byId.onboarding)) && /5 steps open/.test(textOf(byId.onboarding)) && /next: Rosa Vale/.test(textOf(byId.onboarding)))
+    assert('ADMIN: it opens the roster narrowed to them', byId.onboarding?.getAttribute('href') === '/artists?onboarding=1')
   }
   if (scenario === 'anr') {
     assert('ANR: no money tile renders', !byId.approvals && !byId.payments && !byId.bank)
@@ -98,6 +100,7 @@ async function main() {
   if (scenario === 'empty') {
     assert('EMPTY: approvals says what fills it', /Nothing waiting/.test(textOf(byId.approvals)) && /\/submit/.test(textOf(byId.approvals)))
     assert('EMPTY: payments says what fills it', /Nothing due in the next 7 days/.test(textOf(byId.payments)))
+    assert('EMPTY: onboarding says what starts it', /Nobody is mid-onboarding/.test(textOf(byId.onboarding)) && /Signed starts it/.test(textOf(byId.onboarding)))
     assert('EMPTY: bank says no statement has been uploaded', /No statement uploaded yet/.test(textOf(byId.bank)))
     assert('EMPTY: bank links to Statements, not the review queue', byId.bank.getAttribute('href') === '/bk/statements')
     assert('EMPTY: releases says how to add one', /Nothing scheduled in the next 30 days/.test(textOf(byId.releases)))

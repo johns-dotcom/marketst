@@ -4,6 +4,9 @@ const path = require('path');
 const fs = require('fs');
 const pool = require('../db');
 const authMiddleware = require('../middleware/auth');
+const { onboardingFor, openOnboardings } = require('../lib/onboarding');
+const { validatePaymentFields, last4: payLast4 } = require('../lib/payment-fields');
+const paymentCrypto = require('../lib/payment-crypto');
 const { uploadFile, deleteFile } = require('../lib/r2');
 const { clearForeignKeyRefs } = require('../lib/fkSweep');
 
@@ -427,6 +430,18 @@ pool.query(`ALTER TABLE artists ADD COLUMN IF NOT EXISTS image_url TEXT`)
 // the roster row to link back to the profile. Matched on artistBucketKey —
 // the same folding every money surface uses — so "rosa vale " finds Rosa Vale.
 // Registered before /:id, or "resolve" would be read as an id.
+// GET /api/artists/onboarding — every artist signed and not yet onboarded,
+// with their open steps. Roster chips and the Home tile read this.
+router.get('/onboarding', authMiddleware, async (req, res) => {
+  try {
+    const rows = await openOnboardings();
+    res.json({ success: true, data: rows });
+  } catch (error) {
+    console.error('Onboarding list error:', error);
+    res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+});
+
 router.get('/resolve', authMiddleware, async (req, res) => {
   try {
     const { artistBucketKey } = require('../lib/artist-key');
@@ -1369,6 +1384,111 @@ router.delete('/:id/devlog/:entryId', authMiddleware, async (req, res) => {
     res.json({ success: true });
   } catch (error) {
     console.error('Delete devlog entry error:', error);
+    res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+});
+
+// ── Onboarding (2026-09-18) ───────────────────────────────────────────────
+// GET /api/artists/:id/onboarding — the five steps, computed (lib/onboarding)
+router.get('/:id(\\d+)/onboarding', authMiddleware, async (req, res) => {
+  try {
+    const o = await onboardingFor(req.params.id);
+    if (!o) return res.status(404).json({ success: false, error: 'Artist not found' });
+    res.json({ success: true, data: o });
+  } catch (error) {
+    console.error('Onboarding error:', error);
+    res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+});
+
+// PUT /api/artists/:id/contact — email, phone, manager, socials, Spotify link
+router.put('/:id(\\d+)/contact', authMiddleware, async (req, res) => {
+  try {
+    const b = req.body || {};
+    const str = (v) => (v === undefined ? undefined : (v === null ? null : (String(v).trim() || null)));
+    const email = str(b.email), mgrEmail = str(b.manager_email);
+    const isEmail = (v) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(v || ''));
+    if (email && !isEmail(email)) return res.status(400).json({ success: false, error: 'Email is not an email address' });
+    if (mgrEmail && !isEmail(mgrEmail)) return res.status(400).json({ success: false, error: 'Manager email is not an email address' });
+    let socials;
+    if (b.socials !== undefined) {
+      socials = Array.isArray(b.socials)
+        ? JSON.stringify(b.socials.map((x) => ({ platform: str(x?.platform), handle: str(x?.handle) })).filter((x) => x.platform && x.handle))
+        : null;
+    }
+    const { rows: [a] } = await pool.query(
+      `UPDATE artists SET
+         email         = CASE WHEN $2::boolean THEN $3 ELSE email END,
+         phone         = CASE WHEN $4::boolean THEN $5 ELSE phone END,
+         manager_name  = CASE WHEN $6::boolean THEN $7 ELSE manager_name END,
+         manager_email = CASE WHEN $8::boolean THEN $9 ELSE manager_email END,
+         socials       = CASE WHEN $10::boolean THEN $11::jsonb ELSE socials END,
+         spotify_url   = CASE WHEN $12::boolean THEN $13 ELSE spotify_url END
+       WHERE id = $1 RETURNING id, name, email, phone, manager_name, manager_email, socials, spotify_url, signed_at, onboarded_at`,
+      [req.params.id,
+       b.email !== undefined, email ?? null,
+       b.phone !== undefined, str(b.phone) ?? null,
+       b.manager_name !== undefined, str(b.manager_name) ?? null,
+       b.manager_email !== undefined, mgrEmail ?? null,
+       socials !== undefined, socials ?? null,
+       b.spotify_url !== undefined, str(b.spotify_url) ?? null]);
+    if (!a) return res.status(404).json({ success: false, error: 'Artist not found' });
+    res.json({ success: true, data: a });
+  } catch (error) {
+    console.error('Artist contact error:', error);
+    res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+});
+
+// Payment details typed in by the team. Same validators and the same encrypted
+// store the public vendor form writes (vendor_payment_details, keyed on the
+// artist's email), so the checklist and the Payments queue read one record.
+// Only the roles that may already decrypt vendor details may write here, and
+// every write leaves a bk_audit_log row. The response never echoes a number.
+const PAY_ROLES = new Set(['Admin', 'Superadmin', 'Approver']);
+router.post('/:id(\\d+)/payment-details', authMiddleware, async (req, res) => {
+  try {
+    if (!PAY_ROLES.has(req.user?.role)) return res.status(403).json({ success: false, error: 'Only bookkeeping roles can enter payment details' });
+    const { rows: [a] } = await pool.query('SELECT id, name, email FROM artists WHERE id = $1', [req.params.id]);
+    if (!a) return res.status(404).json({ success: false, error: 'Artist not found' });
+    if (!a.email) return res.status(400).json({ success: false, error: "Add the artist's email first — payment details are filed by email" });
+    if (!paymentCrypto.isConfigured()) return res.status(503).json({ success: false, error: 'Payment details cannot be stored: encryption key not configured' });
+    const b = req.body || {};
+    const method = String(b.payment_method || b.method || '').trim();
+    const check = validatePaymentFields(method, b);
+    if (!check.ok) return res.status(400).json({ success: false, error: check.errors.join(' '), errors: check.errors });
+    const n = check.normalized;
+    // last4 is dropped for PayPal — the tail of an email identifies nothing (see the snapshot rule)
+    const l4 = method === 'PayPal' ? null : payLast4(method, n);
+    await pool.query(`
+      INSERT INTO vendor_payment_details
+        (vendor_email, vendor_name, method, account_enc, routing_enc, iban_enc,
+         paypal_handle, account_last4, holder_name, bank_address, account_type,
+         bank_name, beneficiary_address, intermediary_bank, wire_scope, updated_at)
+      VALUES (LOWER($1),$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,NOW())
+      ON CONFLICT (vendor_email) DO UPDATE SET
+        vendor_name = EXCLUDED.vendor_name, method = EXCLUDED.method,
+        account_enc = EXCLUDED.account_enc, routing_enc = EXCLUDED.routing_enc,
+        iban_enc = EXCLUDED.iban_enc, paypal_handle = EXCLUDED.paypal_handle,
+        account_last4 = EXCLUDED.account_last4, holder_name = EXCLUDED.holder_name,
+        bank_address = EXCLUDED.bank_address, account_type = EXCLUDED.account_type,
+        bank_name = EXCLUDED.bank_name, beneficiary_address = EXCLUDED.beneficiary_address,
+        intermediary_bank = EXCLUDED.intermediary_bank, wire_scope = EXCLUDED.wire_scope, updated_at = NOW()`,
+      [a.email, a.name, method,
+       n.account_number ? paymentCrypto.encrypt(n.account_number) : null,
+       n.routing_number ? paymentCrypto.encrypt(n.routing_number) : null,
+       n.iban_swift ? paymentCrypto.encrypt(n.iban_swift) : null,
+       n.paypal || null, l4, n.holder_name || null,
+       n.bank_address || null, n.account_type || null, n.bank_name || null,
+       n.beneficiary_address || null, n.intermediary_bank || null, n.wire_scope || null]);
+    await pool.query(
+      `INSERT INTO bk_audit_log (user_name, action, entry_id, entry_payee, field, old_value, new_value, details)
+       VALUES ($1, 'artist_payment_details_typed', NULL, $2, 'payment_details', NULL, $3, $4)`,
+      [req.user.name || req.user.email, a.name, method, `typed on the artist profile (artist #${a.id}); last4 ${l4 || '—'}`]
+    ).catch(() => {});
+    res.json({ success: true, data: { on_file: true, method, last4: l4, holder_name: n.holder_name || null } });
+  } catch (error) {
+    console.error('Artist payment details error:', error);
     res.status(500).json({ success: false, error: 'Internal server error' });
   }
 });
