@@ -110,7 +110,10 @@ export const TOURS = [
   {
     id: 'my-work', title: 'My Work', path: '/my-work', version: '2026-09-19',
     steps: [
-      { target: '[data-tour="my-work"]', title: 'Your tasks', body: 'What is assigned to you, by due date. Drag to reorder, mark done, or assign something to a teammate with @.' },
+      { target: '[data-tour="my-work-add"]', title: 'Add a task', body: 'Type it and press Enter. @ assigns it to a teammate; the chips set priority, category and due date. Press n anywhere on this page to jump here.' },
+      { target: '[data-tour="my-work-list"]', title: 'Your list, by when', body: 'Overdue, today, this week, later, no date. Click a row to edit it in place — status, priority, due date, notes, who it is for. The circle marks it done.' },
+      { target: '[data-tour="my-work-week"]', title: 'This week, mine', body: 'From the team calendar, kept to what involves you: your task deadlines, your releases, and the money dates you can open.' },
+      { target: '[data-tour="my-work-waiting"]', title: 'Waiting on you', body: 'Only things you can unblock: invoices for your approval, mentions, invites you sent that nobody used, the statement cutoff. It disappears when there is nothing.' },
     ],
   },
 ]

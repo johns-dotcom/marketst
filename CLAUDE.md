@@ -363,6 +363,24 @@ Authoritative project guide: **`boom-dashboard/CLAUDE.md`** — read it before m
   in Layout): one click replays this page's tour, the chevron lists them all;
   picking another page's tour navigates there first. A tour that finds none
   of its anchors closes WITHOUT recording completion.
+- **My Work, rebuilt (2026-09-19, John: "improve the look").** `pages/MyWork.jsx`
+  is ~300 lines replacing a 1,400-line two-pane page (its `MyWorkRail`,
+  `components/mywork/TaskList`, `TaskDetail`, `useAutosave` are deleted).
+  Plain "My Work" header with a summary line (Home greets). ONE list, grouped
+  Overdue · Today · This week · Later · No date, rows expanding IN PLACE to
+  edit description, notes, status, priority, category, due date and assignee
+  (`PUT /team/tasks/:id`, `PUT /team/tasks/:id/assign`); done tasks folded
+  behind a count. An inline composer (`n` focuses it; `@` filters the team,
+  picking assigns; `POST /team/tasks`). **This week, mine** = the calendar
+  feed's next 7 days filtered to my task deadlines, releases assigned to me
+  (`/team/my-work` releases), and payment/renewal dates I can open.
+  **Waiting on you** (right rail, hidden when empty) holds only what this
+  person can unblock: approvals awaiting (loop), unread mentions, invites they
+  sent that are unused (`invites_pending`, new on `/team/my-work`), the
+  statement cutoff (20th, within 7 days), tours updated since taken. Dropped
+  on purpose: drag-reorder, pins, per-task calendar view, group-by
+  switcher, the My Releases tab (the agenda carries my releases). Harness:
+  `npm run mywork-dom` (21, full · empty). The my-work tour has four steps.
 - **Bank-statement heuristics were tuned on Boom's Bank of America statements.** The own-name lists (`statements.js` stop-words, `funding-pairs.js` account-trailer strip) now say Market Street, but the layout parsers have not seen a Market Street statement yet. Expect the AI fallback to do the work until they do.
 
 ## Commands (run from `boom-dashboard/`)

@@ -291,12 +291,22 @@ router.get('/my-work', authMiddleware, async (req, res) => {
       }
     } catch {}
 
+    // Invites this person sent that nobody has used yet — a thing only they can chase.
+    let invites_pending = [];
+    try {
+      const { rows } = await pool.query(
+        `SELECT i.id, i.expires_at, u.id AS user_id, u.name, u.email FROM user_invites i JOIN users u ON u.id = i.user_id
+          WHERE i.created_by = $1 AND i.used_at IS NULL AND u.password_hash IS NULL ORDER BY i.created_at DESC`, [userId]);
+      invites_pending = rows;
+    } catch { /* table may not exist on an old database */ }
+
     res.json({
       success: true,
       data: {
         releases,
         upcoming,
         tasks,
+        invites_pending,
         activity: activityResult.rows,
       }
     });

@@ -1,165 +1,75 @@
-// Mount My Work in a real DOM so EFFECTS RUN and the data branches execute.
-//
-// `npm run smoke` renders with renderToString, where effects never fire — so the
-// page renders in its LOADING state and every branch that needs data goes
-// unexecuted. That is why a white page can survive a green smoke run. This mounts
-// for real against a stubbed api, waits for the fetch to resolve, and reports
-// whatever actually throws.
+// My Work — the one-list page, under jsdom.
+// Scenarios (MW_SCENARIO env): full · empty
 import React from 'react'
 import { createRoot } from 'react-dom/client'
+import { MemoryRouter, Routes, Route } from 'react-router-dom'
 import MyWork from '../src/pages/MyWork'
-import { calls } from './mywork-dom-api-stub.js'
-import { MemoryRouter } from 'react-router-dom'
-// The REAL provider stack, as main.jsx supplies and scripts/smoke-render.mjs
-// mirrors. Without ThemeProvider, EmailPreviewModal throws
-// "Cannot destructure property 'theme' of useTheme(...)" the moment the
-// assignment preview is raised — the error boundary then renders null and the
-// whole page disappears, which read as "assigning wiped the list".
+import { calls } from './mywork-api-stub.js'
 import { ThemeProvider } from '../src/context/ThemeContext'
 import { ToastProvider } from '../src/context/ToastContext'
-import { FxRatesProvider } from '../src/context/FxRatesContext'
-import { BoomRepsProvider } from '../src/context/BoomRepsContext'
-import { CategoriesProvider } from '../src/context/CategoriesContext'
 
 const errors = []
 window.addEventListener('error', (e) => errors.push('window.error: ' + e.message))
-const origError = console.error
-console.error = (...a) => { errors.push('console.error: ' + a.map(String).join(' ').slice(0, 400)) }
-
+console.error = (...a) => { errors.push('console.error: ' + a.map(String).join(' ').slice(0, 300)) }
 class Catch extends React.Component {
   constructor(p) { super(p); this.state = { err: null } }
   static getDerivedStateFromError(err) { return { err } }
-  componentDidCatch(err, info) {
-    errors.push('THROWN: ' + (err && err.message))
-    errors.push('STACK: ' + String((err && err.stack) || '').split('\n').slice(0, 6).join(' | '))
-  }
+  componentDidCatch(err) { errors.push('THROWN: ' + (err && err.message)) }
   render() { return this.state.err ? null : this.props.children }
 }
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
+const say = (...a) => console.log(...a)
+const assert = (label, cond) => say(`  ${label} -> ${!!cond}`)
+const textOf = (el) => (el ? el.textContent.replace(/\s+/g, ' ').trim() : '')
+const click = (el) => el && el.dispatchEvent(new window.MouseEvent('click', { bubbles: true, cancelable: true }))
+const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set
+const type = (el, text) => { setter.call(el, text); el.dispatchEvent(new window.Event('input', { bubbles: true })) }
+const scenario = (typeof process !== 'undefined' && process.env.MW_SCENARIO) || 'full'
+globalThis.__MW_SCENARIO__ = scenario
 
-const root = createRoot(document.getElementById('root'))
-root.render(
-  <MemoryRouter initialEntries={['/my-work']}>
-    <ThemeProvider>
-      <ToastProvider>
-        <FxRatesProvider>
-          <BoomRepsProvider>
-            <CategoriesProvider>
-              <Catch><MyWork /></Catch>
-            </CategoriesProvider>
-          </BoomRepsProvider>
-        </FxRatesProvider>
-      </ToastProvider>
-    </ThemeProvider>
-  </MemoryRouter>
-)
-
-// Wrapped rather than top-level await: the build target has no TLA.
-// ── Does typing in the notes pane actually work? ──────────────────────────────
-// John, 2026-08-27: "the notes typing feature doesn't work, it lags every
-// letter." Two causes, both asserted here: the textarea had no local state (so
-// it rendered the SERVER's copy back on every keystroke), and each debounced
-// write called fetchData(), which sets loading=true and swapped the whole pane
-// for a skeleton. This types into it for real and checks what comes back.
-function typeInto(el, text) {
-  // React tracks the DOM node's value; set it through the descriptor so the
-  // synthetic onChange sees the new value rather than being deduped away.
-  const setter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value').set
-  for (const ch of text) {
-    setter.call(el, el.value + ch)
-    el.dispatchEvent(new window.Event('input', { bubbles: true }))
+async function main() {
+  say(`SCENARIO ${scenario}`)
+  const host = document.createElement('div'); document.body.appendChild(host)
+  createRoot(host).render(<Catch><ThemeProvider><ToastProvider><MemoryRouter initialEntries={['/my-work']}><Routes><Route path="/my-work" element={<MyWork />} /></Routes></MemoryRouter></ToastProvider></ThemeProvider></Catch>)
+  for (let i = 0; i < 50 && !host.querySelector('[data-task-list]'); i += 1) await sleep(100)
+  await sleep(200)
+  assert('the page rendered', errors.length === 0 && !!host.querySelector('[data-task-list]'))
+  if (errors.length) say('  ' + errors.join('\n  '))
+  assert('the header is My Work, not a greeting', textOf(host.querySelector('h1')) === 'My Work')
+  if (scenario === 'empty') {
+    assert('the summary says 0 open', /0 open/.test(textOf(host)))
+    assert('the list shows the empty state', /Nothing open/.test(textOf(host.querySelector('[data-task-list]'))))
+    const w = host.querySelector('[data-waiting]')
+    assert('Waiting on you is hidden when there is nothing (the statement cutoff may stand alone within 7 days of the 20th)', !w || (w.querySelectorAll('[data-waiting-item]').length === 1 && /Statement cutoff/.test(textOf(w))))
+    say('DONE'); globalThis.__DONE__ = true; return
   }
+  assert('the summary counts open, due today and overdue', /4 open · 1 due today · 1 overdue/.test(textOf(host)))
+  const buckets = [...host.querySelectorAll('[data-bucket]')].map((b) => b.getAttribute('data-bucket'))
+  assert('open tasks are grouped Overdue · Today · This week · No date', buckets.join(',') === 'overdue,today,week,nodate')
+  assert('a task assigned by someone else says who', /from Sam/.test(textOf(host.querySelector('[data-task="1"]'))))
+  assert('done tasks are folded behind a count', /1 done/.test(textOf(host.querySelector('[data-toggle-done]'))) && !host.querySelector('[data-task="5"]'))
+  click(host.querySelector('[data-task="3"] [data-task-open]')); await sleep(100)
+  assert('clicking a row expands it in place', host.querySelector('[data-task="3"]')?.getAttribute('data-expanded') === '1' && !!host.querySelector('[data-task="3"] [data-task-detail]'))
+  const sel = host.querySelector('[data-task="3"] [data-task-detail] select'); sel.value = 'In Progress'; sel.dispatchEvent(new window.Event('change', { bubbles: true })); await sleep(100)
+  assert('changing status PUTs the task', calls.put.some((c) => c.url === '/team/tasks/3' && c.body.status === 'In Progress'))
+  click(host.querySelector('[data-task="2"] [data-task-toggle]')); await sleep(100)
+  assert('the circle marks a task done', calls.put.some((c) => c.url === '/team/tasks/2' && c.body.status === 'Done'))
+  type(host.querySelector('[data-composer-input]'), 'Call the studio @'); await sleep(30)
+  type(host.querySelector('[data-composer-input]'), 'Call the studio @sam'); await sleep(50)
+  assert('@ opens the team menu filtered by what follows', /Sam Chen/.test(textOf(host.querySelector('[data-mention-menu]'))) && !/Rosa/.test(textOf(host.querySelector('[data-mention-menu]'))))
+  host.querySelector('[data-mention-menu] button').dispatchEvent(new window.MouseEvent('mousedown', { bubbles: true, cancelable: true })); await sleep(50)
+  assert('picking assigns the task and strips the @', /Sam Chen/.test(textOf(host.querySelector('[data-composer-assignee]'))) && host.querySelector('[data-composer-input]').value === 'Call the studio')
+  host.querySelector('[data-composer]').dispatchEvent(new window.Event('submit', { bubbles: true, cancelable: true })); await sleep(200)
+  const post = calls.post.find((c) => c.url === '/team/tasks')
+  assert('Add POSTs the task for Sam', !!post && post.body.user_id === 2 && post.body.description === 'Call the studio')
+  const agenda = host.querySelector('[data-agenda]')
+  const types = [...agenda.querySelectorAll('[data-agenda-event]')].map((e) => e.getAttribute('data-agenda-event'))
+  assert("This week, mine: my deadline, MY release, the payment due — not Sam's task, not the other release", types.join(',') === 'deadline,release,payment_due' && !/Not mine|Sam's task/.test(textOf(agenda)))
+  const waiting = host.querySelector('[data-waiting]')
+  assert('Waiting on you: approvals, the mention, the unused invite', !!waiting && /3 invoices awaiting approval/.test(textOf(waiting)) && /1 unread mention/.test(textOf(waiting)) && /1 invite you sent/.test(textOf(waiting)) && /Rosa Lind/.test(textOf(waiting)))
+  assert('each item links to its page', [...waiting.querySelectorAll('a')].map((a) => a.getAttribute('href')).includes('/bk/approvals'))
+  assert('nothing threw', errors.length === 0)
+  if (errors.length) say('  ' + errors.join('\n  '))
+  say('DONE'); globalThis.__DONE__ = true
 }
-
-const SCENARIO = process.env.SCENARIO || 'typing'
-setTimeout(() => {
-  console.log('SCENARIO:', SCENARIO)
-  const ta = SCENARIO === 'typing' ? document.querySelector('textarea') : null
-  const getsBefore = calls.get.length
-  if (SCENARIO !== 'typing') { /* skipped */ } else if (!ta) {
-    console.log('TYPING: no textarea found — the pane did not render')
-  } else {
-    // The task opens with a note already in it, so the expected result is that
-    // note PLUS what was typed — asserting against the typed text alone reported
-    // a failure that was only in the test.
-    const before = ta.value
-    typeInto(ta, 'hello notes')
-    console.log('TYPING: value ->', JSON.stringify(ta.value))
-    console.log('TYPING: every character landed, in order ->', ta.value === before + 'hello notes')
-    console.log('TYPING: api.get calls during typing ->', calls.get.length - getsBefore, '(must be 0 — a refetch renders the skeleton)')
-  }
-  // ── Does "New Task" do anything? ────────────────────────────────────────────
-  // John, 2026-08-27: "the new task button doesnt work". It called
-  // setShowAddTask(true), and the form that flag gated was deleted in the
-  // two-pane rebuild — `showAddTask` had exactly one use, its own declaration.
-  const newBtn = SCENARIO === 'newtask' ? [...document.querySelectorAll('button')]
-    .find((b) => /New Task|Adding/i.test(b.textContent || '')) : null
-  if (SCENARIO === 'newtask') console.log('NEW TASK: button found ->', !!newBtn)
-  if (newBtn) {
-    const postsBefore = calls.post.length
-    newBtn.dispatchEvent(new window.MouseEvent('click', { bubbles: true }))
-    setTimeout(() => {
-      const posts = calls.post.filter((c) => c.url.includes('/team/tasks'))
-      console.log('NEW TASK: POST /team/tasks calls ->', posts.length - postsBefore)
-      console.log('NEW TASK: body ->', JSON.stringify(posts[posts.length - 1]?.body || null))
-      // The created row must be SELECTED — the detail pane is where you type.
-      const ta = document.querySelector('textarea')
-      const rows = document.querySelectorAll('li')
-      console.log('NEW TASK: rows in the list now ->', rows.length)
-      console.log('NEW TASK: detail pane present ->', !!ta)
-    }, 600)
-  }
-  // ── @mention: hand a task to somebody ───────────────────────────────────────
-  // John asked for this back after the rebuild dropped it. It used to live in the
-  // add-task form's description; it now lives on the detail pane's title.
-  const title = SCENARIO === 'mention' ? document.querySelector('input[placeholder^="Untitled"]') : null
-  if (SCENARIO === 'mention') console.log('MENTION: title input found ->', !!title)
-  if (title) {
-    const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set
-    console.log('MENTION: rows BEFORE ->', document.querySelectorAll('li').length)
-    setter.call(title, 'call @dy')
-    title.dispatchEvent(new window.Event('input', { bubbles: true }))
-    setTimeout(() => {
-      const menu = [...document.querySelectorAll('button')].filter((b) => /Dylan/.test(b.textContent || ''))
-      console.log('MENTION: roster menu offers Dylan ->', menu.length > 0)
-      if (menu.length) {
-        const putsBefore = calls.put.length
-        menu[0].dispatchEvent(new window.MouseEvent('click', { bubbles: true }))
-        setTimeout(() => {
-          const assigns = calls.put.filter((c) => /\/assign$/.test(c.url))
-          console.log('MENTION: PUT …/assign calls ->', assigns.length)
-          console.log('MENTION: body ->', JSON.stringify(assigns[0]?.body || null))
-          console.log('MENTION: title had the @dy stripped ->', JSON.stringify(title.value))
-          const rows = document.querySelectorAll('li')
-          // Exactly ONE row should go: the task that moved owner. The list is
-          // scoped WHERE user_id, so leaving it on screen would show a task the
-          // next refresh makes vanish.
-          console.log('MENTION: rows left in the list ->', rows.length, '(started at 8 — one handed over)')
-          const body = document.body.innerHTML
-          console.log('MENTION: notification preview raised ->', /Send task assignment notification/.test(body))
-          console.log('MENTION: any modal text? ->', /assignment|notification|Assignee/i.test(body))
-          console.log('MENTION: list empty-state text? ->', /No tasks here|Nothing matches/.test(body))
-        }, 500)
-      }
-    }, 250)
-  }
-  const html = document.getElementById('root').innerHTML
-  console.error = origError
-  console.log('rendered bytes:', html.length)
-  // Errors are reported by finish() below — this used to print here, BEFORE the
-  // interaction scenarios had run, so a throw during a click was invisible.
-  console.log('grip handles rendered ->', (html.match(/lucide-grip-vertical/g) || []).length)
-  globalThis.__REPORTED__ = true
-}, 1500)
-
-function finish() {
-  console.error = origError
-  if (errors.length) {
-    console.log('\n--- errors ---')
-    for (const e of [...new Set(errors)]) console.log(e)
-  } else {
-    console.log('no errors captured')
-  }
-  globalThis.__DONE__ = true
-}
-// Runs after every scenario's own timers have had their turn.
-setTimeout(finish, 3600)
+main()

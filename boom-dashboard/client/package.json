@@ -29,7 +29,8 @@
     "onboarding-dom": "node scripts/onboarding-dom-run.mjs",
     "settings-dom": "node scripts/settings-dom-run.mjs",
     "tour-dom": "node scripts/tour-dom-run.mjs",
-    "tours-fixture": "node scripts/tours-fixture.mjs"
+    "tours-fixture": "node scripts/tours-fixture.mjs",
+    "mywork-dom": "node scripts/mywork-dom-run.mjs"
   },
   "dependencies": {
     "@react-oauth/google": "^0.13.4",
