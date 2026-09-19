@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, Link } from 'react-router-dom'
 import { Trash2, Download, Plus, Loader, FileText, Eye, X, Pencil, AlertCircle } from 'lucide-react'
 import { jsPDF } from 'jspdf'
 import api from '../api'
@@ -369,7 +369,9 @@ export default function CreateNDA() {
         await api.put(`/ndas/${editing.id}`, payload)
         setEditing(null)
       } else {
-        await api.post('/ndas', payload)
+        const created = await api.post('/ndas', payload)
+        setAttachedNote('')
+        attachToArtist({ ...payload, ...(created?.data?.data || {}) })
       }
       setForm(freshBlankForm(activeTemplate))
       setBodyDirty(false)
@@ -393,7 +395,9 @@ export default function CreateNDA() {
   // Render the NDA to a multi-page PDF via jsPDF. Mirrors CreateInvoice's
   // handleDownload — selectable / searchable text, helvetica, automatic
   // page break when y exceeds the bottom margin.
-  const handleDownload = (nda) => {
+  // buildNdaPdf returns the document and its filename; handleDownload saves
+  // it, and the roster attach below uploads it — one rendering, two exits.
+  const buildNdaPdf = (nda) => {
     const doc = new jsPDF({ unit: 'pt', format: 'letter' })
     const W = doc.internal.pageSize.getWidth()
     const H = doc.internal.pageSize.getHeight()
@@ -492,7 +496,31 @@ export default function CreateNDA() {
     // activeTemplate) so a Standard NDA downloaded while the user is
     // browsing a different tab still reads as MarketStreet-NDA-…
     const prefix = ndaTemplate.filenamePrefix || 'NDA'
-    doc.save(`MarketStreet-${prefix}-${safeRecip}-${dateTag}.pdf`)
+    return { doc, filename: `MarketStreet-${prefix}-${safeRecip}-${dateTag}.pdf` }
+  }
+  const handleDownload = (nda) => { const { doc, filename } = buildNdaPdf(nda); doc.save(filename) }
+
+  // A generated NDA belongs on the artist it names. When the recipient is a
+  // roster artist (GET /artists/resolve folds spelling), the PDF is uploaded to
+  // that artist's Documents — best-effort: the NDA record is already saved, so
+  // a failed attach is a sentence, not a failed save.
+  const [attachedNote, setAttachedNote] = useState('')
+  const attachToArtist = async (nda) => {
+    const name = String(nda.recipient_name || '').trim()
+    if (!name) return
+    try {
+      const r = await api.get('/artists/resolve', { params: { name } })
+      const artist = r.data?.data
+      if (!artist?.id) return
+      const { doc, filename } = buildNdaPdf(nda)
+      const fd = new FormData()
+      fd.append('file', doc.output('blob'), filename)
+      fd.append('label', 'Generated NDA')
+      await api.post(`/artists/${artist.id}/files`, fd, { headers: { 'Content-Type': 'multipart/form-data' } })
+      setAttachedNote({ text: `Saved a copy to ${artist.name}'s Documents.`, to: `/artists/${artist.id}?tab=documents` })
+    } catch (err) {
+      console.warn('NDA attach to artist skipped:', err?.message || err)
+    }
   }
 
   // Render the NDA to a real .docx via the `docx` package (dynamically
@@ -837,6 +865,11 @@ export default function CreateNDA() {
               <div className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
                 {saveError}
               </div>
+            )}
+            {attachedNote && (
+              <p className="text-[12px] text-emerald-700 mt-2" data-attached-note>
+                {attachedNote.text} <Link to={attachedNote.to} className="underline">Open</Link>
+              </p>
             )}
             <button
               type="submit"

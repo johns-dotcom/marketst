@@ -23,7 +23,8 @@
     "approval-dom": "node scripts/approval-deck-dom-run.mjs",
     "home-dom": "node scripts/home-dom-run.mjs",
     "budgetsimple-dom": "node scripts/budgetsimple-dom-run.mjs",
-    "handoff-dom": "node scripts/handoff-dom-run.mjs"
+    "handoff-dom": "node scripts/handoff-dom-run.mjs",
+    "hub-dom": "node scripts/hub-dom-run.mjs"
   },
   "dependencies": {
     "@react-oauth/google": "^0.13.4",

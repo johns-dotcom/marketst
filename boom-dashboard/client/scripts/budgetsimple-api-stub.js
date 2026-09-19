@@ -11,6 +11,7 @@ const line = (budget, spent, open = 0) => ({
 export const STATE = {
   artist_key: 'rosavale',
   artist: 'Rosa Vale',
+  artist_id: 12,   // on the roster, so the breadcrumb links to the profile
   advance: line(25000, 25000),
   marketing: {
     ...line(40000, 18200, 3000),

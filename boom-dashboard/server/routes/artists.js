@@ -421,6 +421,28 @@ pool.query(`ALTER TABLE artists ADD COLUMN IF NOT EXISTS image_url TEXT`)
   .catch(e => console.error('image_url migration error:', e));
 
 // GET /api/artists/:id
+// GET /api/artists/resolve?name=Rosa%20Vale → { id, name } or 404.
+//
+// Pages keyed by artist NAME (the budget sheet, Recoupments, Campaigns) need
+// the roster row to link back to the profile. Matched on artistBucketKey —
+// the same folding every money surface uses — so "rosa vale " finds Rosa Vale.
+// Registered before /:id, or "resolve" would be read as an id.
+router.get('/resolve', authMiddleware, async (req, res) => {
+  try {
+    const { artistBucketKey } = require('../lib/artist-key');
+    const key = artistBucketKey(req.query.name);
+    if (!key) return res.status(400).json({ success: false, error: 'name required' });
+    const { rows } = await pool.query(
+      `SELECT id, name FROM artists WHERE (archived = false OR archived IS NULL)`);
+    const hit = rows.find((r) => artistBucketKey(r.name) === key);
+    if (!hit) return res.status(404).json({ success: false, error: 'not on the roster' });
+    res.json({ success: true, data: { id: hit.id, name: hit.name, artist_key: key } });
+  } catch (err) {
+    console.error('GET /api/artists/resolve:', err);
+    res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+});
+
 router.get('/:id', authMiddleware, async (req, res) => {
   try {
     const artistResult = await pool.query('SELECT * FROM artists WHERE id = $1', [req.params.id]);
@@ -595,9 +617,11 @@ router.post('/:id/files', authMiddleware, upload.single('file'), async (req, res
     const r2Key = `entity_files/artist/${req.params.id}/${storedFilename}`;
     await uploadFile(r2Key, req.file.buffer, req.file.mimetype);
     const result = await pool.query(
-      `INSERT INTO entity_files (entity_type, entity_id, filename, original_name, file_size, uploaded_by, r2_key, mime_type)
-       VALUES ('artist', $1, $2, $3, $4, $5, $6, $7) RETURNING *`,
-      [req.params.id, storedFilename, req.file.originalname, req.file.size, req.user?.id || null, r2Key, req.file.mimetype]
+      `INSERT INTO entity_files (entity_type, entity_id, filename, original_name, file_size, uploaded_by, r2_key, mime_type, label)
+       VALUES ('artist', $1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
+      // label: optional, what put the file here ("Generated NDA") — read by the Documents tab.
+      [req.params.id, storedFilename, req.file.originalname, req.file.size, req.user?.id || null, r2Key, req.file.mimetype,
+       typeof req.body?.label === 'string' && req.body.label.trim() ? req.body.label.trim().slice(0, 128) : null]
     );
     res.status(201).json({ success: true, data: result.rows[0] });
   } catch (error) {

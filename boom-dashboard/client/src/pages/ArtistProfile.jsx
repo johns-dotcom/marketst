@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react'
-import { useParams, Link } from 'react-router-dom'
-import { Music, FileText, ExternalLink, Users, Disc3, Globe2, Loader, Plus, Trash2, Link2, Archive, Activity } from 'lucide-react'
+import { useParams, Link, useSearchParams } from 'react-router-dom'
+import { Music, FileText, ExternalLink, Users, Disc3, Globe2, Loader, Plus, Trash2, Link2, Archive, Activity, Wallet, PiggyBank, Megaphone, ArrowRight } from 'lucide-react'
 import api from '../api'
-import { formatDate, daysUntilLocal, isPastLocal } from '../utils'
+import { formatDate, daysUntilLocal, isPastLocal, artistBucket } from '../utils'
 import Skeleton from '../components/Skeleton'
 import Breadcrumb from '../components/Breadcrumb'
 import FilesPanel from '../components/FilesPanel'
@@ -374,6 +374,8 @@ function DevLogTab({ artistId, user, isAdmin, entries, setEntries }) {
 
 // ── Main ArtistProfile ────────────────────────────────────────────────────
 
+const usd0 = (v) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(Number(v) || 0)
+
 export default function ArtistProfile() {
   const { id } = useParams()
   const { user, canView } = useAuth()
@@ -381,11 +383,22 @@ export default function ArtistProfile() {
   const [data, setData] = useState(null)
   const [devlog, setDevlog] = useState([])
   const [loading, setLoading] = useState(true)
-  const [tab, setTab] = useState('overview')
+  // ?tab= opens the profile on a given tab — how the NDA page's "Saved a copy
+  // to X's Documents" link and any hub deep-link land where they say.
+  const [searchParams] = useSearchParams()
+  const [tab, setTab] = useState(() => {
+    const t = searchParams.get('tab')
+    return t && /^[a-z]+$/.test(t) ? t : 'overview'
+  })
   // Live document count for the Documents tab label. FilesPanel fires
   // onCountChange after its fetch + every upload / delete; we mirror that
   // here so the "Documents (N)" label stays in sync without a refetch.
   const [docCount, setDocCount] = useState(null)
+  // The hub tabs (2026-09-18): the artist's money surfaces, read-only here,
+  // each with the way to the full page. Fetched when the tab opens, not with
+  // the profile — a bookkeeper's question, not every visitor's.
+  const [sheet, setSheet] = useState(null)        // /artist-budgets/:key/simple
+  const [campaign, setCampaign] = useState(null)  // this artist's card from /artist-campaigns
   const [showLinkForm, setShowLinkForm] = useState(false)
   const [linkForm, setLinkForm] = useState({ platform: 'Spotify', url: '', label: '' })
   const [archivingId, setArchivingId] = useState(null)
@@ -452,6 +465,30 @@ export default function ArtistProfile() {
     }
   }
 
+  // Hooks above the early returns (smoke's HOOK_AFTER_RETURN rule): these
+  // no-op until the tab is opened, and artistKey is '' while data is null.
+  const artistKey = artistBucket(data?.name)
+  useEffect(() => {
+    if (tab !== 'budget' || !artistKey || sheet) return undefined
+    let alive = true
+    api.get(`/artist-budgets/${encodeURIComponent(artistKey)}/simple`)
+      .then((r) => { if (alive) setSheet(r.data?.data || false) })
+      .catch(() => { if (alive) setSheet(false) })
+    return () => { alive = false }
+  }, [tab, artistKey, sheet])
+  useEffect(() => {
+    if (tab !== 'campaigns' || !artistKey || campaign) return undefined
+    let alive = true
+    api.get('/artist-campaigns')
+      .then((r) => {
+        const rows = r.data?.data?.artists || r.data?.data || []
+        const mine = Array.isArray(rows) ? rows.find((x) => x.artist_key === artistKey) : null
+        if (alive) setCampaign(mine || false)
+      })
+      .catch(() => { if (alive) setCampaign(false) })
+    return () => { alive = false }
+  }, [tab, artistKey, campaign])
+
   if (loading) {
     return <Skeleton.ArtistProfile />
   }
@@ -516,6 +553,12 @@ export default function ArtistProfile() {
     // grant doesn't see the tab here either. Default-unrestricted
     // Users see it (contracts are no longer sensitive-by-default).
     ...(canView('/contracts') ? [{ id: 'contracts', label: `Contracts (${contracts.length})` }] : []),
+    // The hub: the artist's money surfaces, each read-only here with the way
+    // to its page. Gated exactly as the pages are, so a tab never opens onto
+    // a page the person would be bounced from.
+    ...(canView('/artist-budgets') ? [{ id: 'budget', label: 'Budget' }] : []),
+    ...(canView('/recoupments') ? [{ id: 'recoupments', label: 'Recoupments' }] : []),
+    ...(canView('/artist-campaigns') ? [{ id: 'campaigns', label: 'Campaigns' }] : []),
     // Documents — non-contract artist files (riders, IDs, photos, etc.)
     // backed by entity_files/entity_type='artist'. Count shows ?
     // until FilesPanel reports back via onCountChange.
@@ -1039,6 +1082,86 @@ export default function ArtistProfile() {
           IDs, photos, demos, etc.) backed by entity_files. Same drag-
           and-drop FilesPanel that contracts use, just scoped to the
           artist entity instead. */}
+      {/* Budget — the simple sheet's lines, read-only, and the way to the sheet */}
+      {tab === 'budget' && canView('/artist-budgets') && (
+        <div className="card p-5" data-tab="budget">
+          <div className="flex items-start justify-between gap-3 mb-3">
+            <div>
+              <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-2"><Wallet size={15} className="text-gray-400" /> Budget</h3>
+              <p className="text-[11px] text-gray-500 mt-0.5">Advance and marketing totals, the releases under marketing, and what the ledger has paid against each.</p>
+            </div>
+            <Link to={`/artist-budgets/${encodeURIComponent(artistKey)}?name=${encodeURIComponent(data.name)}`}
+              className="btn-primary text-[12px] px-3 py-1.5 inline-flex items-center gap-1.5 whitespace-nowrap" data-open="budget">
+              Open the sheet <ArrowRight size={12} />
+            </Link>
+          </div>
+          {sheet === null && <p className="text-sm text-gray-400 py-6 text-center">Loading…</p>}
+          {sheet === false && <p className="text-sm text-gray-400 py-6 text-center">The budget sheet is not available to your account.</p>}
+          {sheet && (
+            <table className="w-full text-[13px]">
+              <thead><tr className="text-[10px] font-bold uppercase tracking-wider text-gray-400 border-b border-divider">
+                <th className="text-left py-1.5">&nbsp;</th><th className="text-right py-1.5 w-32">Budget</th><th className="text-right py-1.5 w-32">Spent</th><th className="text-right py-1.5 w-32">Left</th>
+              </tr></thead>
+              <tbody className="tabular-nums">
+                <tr className="border-b border-divider"><td className="py-2 font-semibold text-ink">Advance</td><td className="text-right">{sheet.advance.budget ? usd0(sheet.advance.budget) : '—'}</td><td className="text-right">{sheet.advance.spent ? usd0(sheet.advance.spent) : '—'}</td><td className={`text-right ${sheet.advance.left < 0 ? 'text-rose-600' : ''}`}>{sheet.advance.budget ? usd0(sheet.advance.left) : '—'}</td></tr>
+                <tr className="border-b border-divider bg-gray-50/60"><td className="py-2 font-semibold text-ink">Total marketing</td><td className="text-right">{sheet.marketing.budget ? usd0(sheet.marketing.budget) : '—'}</td><td className="text-right">{sheet.marketing.spent ? usd0(sheet.marketing.spent) : '—'}</td><td className={`text-right ${sheet.marketing.left < 0 ? 'text-rose-600' : ''}`}>{sheet.marketing.budget ? usd0(sheet.marketing.left) : '—'}</td></tr>
+                {sheet.marketing.releases.map((r) => (
+                  <tr key={r.release_id} className="border-b border-divider"><td className="py-1.5 pl-5 text-gray-700">{r.title}</td><td className="text-right">{r.budget ? usd0(r.budget) : '—'}</td><td className="text-right">{r.spent ? usd0(r.spent) : '—'}</td><td className={`text-right ${r.left < 0 ? 'text-rose-600' : ''}`}>{r.budget ? usd0(r.left) : '—'}</td></tr>
+                ))}
+                <tr className="border-b border-divider"><td className="py-2 text-gray-600">Other spend</td><td className="text-right text-gray-400">—</td><td className="text-right">{sheet.other.spent ? usd0(sheet.other.spent) : '—'}</td><td className="text-right text-gray-400">—</td></tr>
+                <tr className="font-bold"><td className="py-2">Total</td><td className="text-right">{sheet.totals.budget ? usd0(sheet.totals.budget) : '—'}</td><td className="text-right">{sheet.totals.spent ? usd0(sheet.totals.spent) : '—'}</td><td className={`text-right ${sheet.totals.left < 0 ? 'text-rose-600' : ''}`}>{sheet.totals.budget ? usd0(sheet.totals.left) : '—'}</td></tr>
+              </tbody>
+            </table>
+          )}
+          {sheet && !sheet.totals.sheet && !sheet.totals.spent && (
+            <p className="text-[12px] text-gray-500 mt-3 text-center">Nothing budgeted or spent yet. Open the sheet and type the advance and the marketing total.</p>
+          )}
+        </div>
+      )}
+
+      {/* Recoupments — what this artist owes back, on the page built to prove it */}
+      {tab === 'recoupments' && canView('/recoupments') && (
+        <div className="card p-5" data-tab="recoupments">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-2"><PiggyBank size={15} className="text-gray-400" /> Recoupments</h3>
+              <p className="text-[11px] text-gray-500 mt-0.5 max-w-lg">
+                Every recoupable cost on {data.name}, in the four bank states — confirmed on a statement, paid but not yet confirmed, paid with no bank line, unpaid — and which have been uploaded for recoupment. The full page carries the upload controls.
+              </p>
+            </div>
+            <Link to={`/recoupments/${encodeURIComponent(data.name)}`}
+              className="btn-primary text-[12px] px-3 py-1.5 inline-flex items-center gap-1.5 whitespace-nowrap" data-open="recoupments">
+              Open on Recoupments <ArrowRight size={12} />
+            </Link>
+          </div>
+        </div>
+      )}
+
+      {/* Campaigns — settled and committed marketing, from the campaigns page's own rollup */}
+      {tab === 'campaigns' && canView('/artist-campaigns') && (
+        <div className="card p-5" data-tab="campaigns">
+          <div className="flex items-start justify-between gap-3 mb-3">
+            <div>
+              <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-2"><Megaphone size={15} className="text-gray-400" /> Campaigns</h3>
+              <p className="text-[11px] text-gray-500 mt-0.5">Marketing and advertising on {data.name}: what the bank has settled, and what is committed on invoices not yet paid.</p>
+            </div>
+            <Link to={`/artist-campaigns/${encodeURIComponent(data.name)}`}
+              className="btn-primary text-[12px] px-3 py-1.5 inline-flex items-center gap-1.5 whitespace-nowrap" data-open="campaigns">
+              Open on Campaigns <ArrowRight size={12} />
+            </Link>
+          </div>
+          {campaign === null && <p className="text-sm text-gray-400 py-4 text-center">Loading…</p>}
+          {campaign === false && <p className="text-[12px] text-gray-500 py-4 text-center">No campaign spend on {data.name} yet. It appears here as marketing invoices are approved and statements matched.</p>}
+          {campaign && (
+            <div className="grid grid-cols-3 gap-3 tabular-nums">
+              <div><p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Settled</p><p className="text-[15px] font-bold text-ink">{usd0(campaign.settled)}</p></div>
+              <div><p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Committed</p><p className="text-[15px] font-bold text-ink">{usd0(campaign.committed)}</p><p className="text-[10px] text-gray-400">{campaign.committed_count || 0} invoice{campaign.committed_count === 1 ? '' : 's'}</p></div>
+              <div><p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Planned</p><p className="text-[15px] font-bold text-ink">{campaign.planned_budget ? usd0(campaign.planned_budget) : '—'}</p></div>
+            </div>
+          )}
+        </div>
+      )}
+
       {tab === 'documents' && (
         <div className="card overflow-hidden">
           <div className="px-4 py-3 border-b border-divider">

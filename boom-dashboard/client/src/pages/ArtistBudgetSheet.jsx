@@ -51,6 +51,7 @@ import {
 import api from '../api'
 import PageHeader from '../components/PageHeader'
 import Skeleton from '../components/Skeleton'
+import Breadcrumb from '../components/Breadcrumb'
 import PayeeLink from '../components/PayeeLink'
 import BankEvidenceDot from '../components/BankEvidenceDot'
 import { useToast } from '../context/ToastContext'
@@ -449,10 +450,17 @@ export default function ArtistBudgetSheet() {
   if (!data) return null
   const t = data.totals
 
+  const shownName = data.artist === artistKey && openedAs ? openedAs : data.artist
   return (
     <div className="space-y-5">
+      <Breadcrumb items={[
+        { label: 'Artists', path: '/artists' },
+        data.artist_id ? { label: shownName, path: `/artists/${data.artist_id}` } : { label: shownName },
+        { label: 'Budget', path: `/artist-budgets/${encodeURIComponent(artistKey)}${openedAs ? `?name=${encodeURIComponent(openedAs)}` : ''}` },
+        { label: 'Full breakdown' },
+      ]} />
       <PageHeader
-        title={data.artist === artistKey && openedAs ? openedAs : data.artist}
+        title={shownName}
         subtitle="The full breakdown: every expense category as its own row, with spend matched to it. The simple sheet (Advance, Total marketing, releases) is the everyday view."
         actions={(
           <>

@@ -16,6 +16,8 @@ import BankEvidenceDot from '../components/BankEvidenceDot'
 import { useFxRates } from '../context/FxRatesContext'
 import { useToast } from '../context/ToastContext'
 import EmptyState from '../components/EmptyState'
+import Breadcrumb from '../components/Breadcrumb'
+import useArtistLink from '../hooks/useArtistLink'
 
 function fmt(v, currency = 'USD') {
   if (!v && v !== 0) return new Intl.NumberFormat('en-US', { style: 'currency', currency: currency || 'USD' }).format(0)
@@ -140,6 +142,9 @@ export default function Recoupments() {
   // just that artist's songs/labels/items. Same component handles both so
   // the editing handlers, modals, and bulk actions live in one place.
   const { artistName: rawArtistParam } = useParams()
+  // The profile this artist page belongs to, for the breadcrumb. Null while
+  // resolving or off-roster; the name then renders as text.
+  const artistLink = useArtistLink(rawArtistParam ? decodeURIComponent(rawArtistParam) : '')
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
   const routeArtist = rawArtistParam ? decodeURIComponent(rawArtistParam) : ''
@@ -2080,6 +2085,12 @@ export default function Recoupments() {
             <Plus size={13} /> Add Expense
           </button>
         </div>
+      )}
+      {isDetail && (
+        <Breadcrumb items={[
+          { label: 'Recoupments', path: '/recoupments' },
+          artistLink ? { label: detailArtist, path: `/artists/${artistLink.id}` } : { label: detailArtist },
+        ]} />
       )}
       <PageHeader
         title={isDetail ? detailArtist : 'Recoupments'}

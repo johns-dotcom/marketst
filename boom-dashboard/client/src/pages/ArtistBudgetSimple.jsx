@@ -26,6 +26,7 @@ import { ArrowLeft, Table2, AlertTriangle, Loader } from 'lucide-react'
 import api from '../api'
 import PageHeader from '../components/PageHeader'
 import Skeleton from '../components/Skeleton'
+import Breadcrumb from '../components/Breadcrumb'
 import { useToast } from '../context/ToastContext'
 import { formatDate } from '../utils'
 
@@ -151,6 +152,11 @@ export default function ArtistBudgetSimple() {
 
   return (
     <div className="space-y-5" data-simple-sheet>
+      <Breadcrumb items={[
+        { label: 'Artists', path: '/artists' },
+        data.artist_id ? { label: title, path: `/artists/${data.artist_id}` } : { label: title },
+        { label: 'Budget' },
+      ]} />
       <PageHeader
         title={title}
         subtitle="Two totals and the releases under them. Type a budget in a cell; it saves when you leave it."

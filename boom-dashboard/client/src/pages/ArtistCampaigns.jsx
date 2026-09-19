@@ -26,6 +26,8 @@ import { useToast } from '../context/ToastContext'
 import { useAuth } from '../context/AuthContext'
 import { useFxRates } from '../context/FxRatesContext'
 import EmptyState from '../components/EmptyState'
+import Breadcrumb from '../components/Breadcrumb'
+import useArtistLink from '../hooks/useArtistLink'
 
 // ── Currency helpers ────────────────────────────────────────────────────────
 // influencer_campaigns.total_budget is unscoped (no currency column), so the
@@ -151,6 +153,8 @@ export default function ArtistCampaigns() {
   //   /artist-campaigns/:artistName                → artist detail
   //   /artist-campaigns/:artistName/:songName      → song subpage
   const { artistName: artistParam, songName: songParam } = useParams()
+  // The profile this artist page belongs to, for the breadcrumb.
+  const artistLink = useArtistLink(artistParam)
   const navigate = useNavigate()
   const toast = useToast()
   const chatLocation = useLocation()
@@ -2996,7 +3000,11 @@ export default function ArtistCampaigns() {
   if (!detail) {
     return (
       <div className="space-y-4">
-        <BackLink to="/artist-campaigns" label="All artists" />
+        <Breadcrumb items={[
+          { label: 'Campaigns', path: '/artist-campaigns' },
+          artistLink ? { label: routeArtist, path: `/artists/${artistLink.id}` } : { label: routeArtist },
+          ...(songParam ? [{ label: decodeURIComponent(songParam) }] : []),
+        ]} />
         <PageHeader title={routeArtist} />
         <div className="card p-12 text-center">
           <p className="text-sm text-gray-400">No data for {routeArtist}.</p>

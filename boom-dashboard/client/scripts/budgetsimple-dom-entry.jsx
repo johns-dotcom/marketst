@@ -85,6 +85,9 @@ async function main() {
     assert('Total adds the lines: 65,000 · 44,450 · 20,550', /\$65,000/.test(textOf(row('[data-line="total"]'))) && /\$44,450/.test(textOf(row('[data-line="total"]'))) && /\$20,550/.test(textOf(row('[data-line="total"]'))))
     assert('Full breakdown links to the detail grid', row('[data-action="full-breakdown"]')?.getAttribute('href') === '/artist-budgets/rosavale/detail')
     assert('exactly four editable cells: advance, marketing, two releases', host.querySelectorAll('input').length === 4)
+    const crumb = host.querySelector('nav')
+    assert('a breadcrumb reads Artists › Rosa Vale › Budget', !!crumb && /Artists.*Rosa Vale.*Budget/.test(textOf(crumb)))
+    assert('and the artist crumb links to the profile by roster id', !!crumb && [...crumb.querySelectorAll('a')].some((a) => a.getAttribute('href') === '/artists/12' && /Rosa Vale/.test(textOf(a))))
 
     say('\nTHE WRITE PATH')
     const adv = row('[data-line="advance"] input')
@@ -117,6 +120,8 @@ async function main() {
   }
 
   if (scenario === 'empty') {
+    const crumb0 = host.querySelector('nav')
+    assert('off the roster, the breadcrumb still names the artist but has no profile link', !!crumb0 && /New Kid/.test(textOf(crumb0)) && ![...crumb0.querySelectorAll('a')].some((a) => /New Kid/.test(textOf(a))))
     say('\nTHE EMPTY SHEET')
     assert('the opened-with name titles a sheet the server could only name by key', /New Kid/.test(body()) && !/newkid/.test(textOf(host.querySelector('h1') || host)))
     assert('it says what to do', /Type the advance and the marketing total below/.test(body()))

@@ -103,6 +103,27 @@ Authoritative project guide: **`boom-dashboard/CLAUDE.md`** — read it before m
   Payments; first mark-paid per visit prompts Statements (Payments also carries a
   standing "Upload statements on Bank" link); reconciling a month prompts
   Reports. `npm run handoff-dom` (17) covers the URL contracts end to end.
+  **Phase C shipped (2026-09-18):** the artist profile is the hub. Three more
+  tabs — **Budget** (the simple sheet's lines, read-only, "Open the sheet" by
+  KEY carrying `?name=`), **Recoupments** (the four bank states explained, link
+  by NAME), **Campaigns** (this artist's card off `/artist-campaigns`, link by
+  NAME) — each gated by the same `canView` as the page behind it, each fetched
+  only when opened. `GET /artists/resolve?name=` folds a spelling to the roster
+  row (`artistBucketKey`, placeholders 400, unknown 404) and
+  `hooks/useArtistLink.js` caches it per name, so the name-keyed pages —
+  budget sheet (simple + `/detail`), Recoupments artist page, Campaigns artist
+  and song pages — carry a **Breadcrumb** whose artist crumb links to the
+  profile when the artist is on the roster and reads as text when not. Budget
+  payloads carry `artist_id` for the same reason. A generated NDA is saved to
+  the recipient's artist Documents when the recipient resolves to a roster
+  artist (`POST /artists/:id/files` now takes a `label`); waivers and
+  clearances already attached server-side. Harness `npm run hub-dom` (37, three
+  scenarios incl. the gated one); `budgetsimple-dom` grew the breadcrumb checks;
+  `artist-budget-name-fixture.cjs` (14) covers resolve + `artist_id`. Trap hit
+  twice this phase: a hook placed below the profile's `if (loading) return`
+  (smoke's HOOK_AFTER_RETURN caught it), and a stub answering `[]` for
+  `/artists/*` making an empty list truthy — the hook now accepts only an
+  object with an id.
 - **Bank-statement heuristics were tuned on Boom's Bank of America statements.** The own-name lists (`statements.js` stop-words, `funding-pairs.js` account-trailer strip) now say Market Street, but the layout parsers have not seen a Market Street statement yet. Expect the AI fallback to do the work until they do.
 
 ## Commands (run from `boom-dashboard/`)

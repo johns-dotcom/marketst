@@ -196,6 +196,18 @@ async function rosterNamesByKey() {
   return m;
 }
 
+/** The roster row's id by artist key — so a sheet can link back to the profile. */
+async function rosterIdsByKey() {
+  const { rows } = await pool.query(
+    `SELECT id, name FROM artists WHERE (archived = false OR archived IS NULL)`);
+  const m = new Map();
+  for (const r of rows) {
+    const k = artistBucketKey(r.name);
+    if (k && !m.has(k)) m.set(k, r.id);
+  }
+  return m;
+}
+
 function bestSpelling(counts) {
   return [...counts.entries()]
     .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))[0]?.[0] || null;
@@ -569,6 +581,7 @@ async function buildSheet(key) {
     return {
       artist_key: key,
       artist: bestSpelling(spellings) || (await rosterNamesByKey()).get(key) || key,
+      artist_id: (await rosterIdsByKey()).get(key) || null,
       sections,
       releases,
       unassigned_release: unassigned,
@@ -932,6 +945,7 @@ async function buildSimple(key) {
   return {
     artist_key: key,
     artist: bestSpelling(spellings) || roster.get(key) || key,
+    artist_id: (await rosterIdsByKey()).get(key) || null,
     advance: A,
     marketing: { ...M, allocated, unallocated: r2(M.budget - allocated),
       over_allocated: M.budget > 0 && allocated > M.budget, releases, unassigned: U },

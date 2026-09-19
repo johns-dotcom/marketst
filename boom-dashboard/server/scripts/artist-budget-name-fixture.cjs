@@ -65,6 +65,17 @@ const api = async (method, path, token, body) => {
 
     const sheet1 = await api('GET', `/artist-budgets/${KEY}`, token);
     check('the sheet still carries the roster spelling once a budget exists', sheet1.body?.data?.artist === NAME);
+    check('the sheet carries the roster id, so its breadcrumb can link to the profile', sheet1.body?.data?.artist_id === a.id, sheet1.body?.data?.artist_id);
+    const simple = await api('GET', `/artist-budgets/${KEY}/simple`, token);
+    check('the simple sheet carries the roster id too', simple.body?.data?.artist_id === a.id);
+
+    // GET /artists/resolve — a NAME to the roster row, folded like every money surface folds
+    const res1 = await api('GET', `/artists/resolve?name=${encodeURIComponent('  fixture ROSA vale ')}`, token);
+    check('/artists/resolve folds spelling and whitespace to the roster row', res1.status === 200 && res1.body?.data?.id === a.id && res1.body?.data?.name === NAME, JSON.stringify(res1.body));
+    const res2 = await api('GET', `/artists/resolve?name=${encodeURIComponent('Nobody Called This')}`, token);
+    check('an unknown name is a 404, not a guess', res2.status === 404);
+    const res3 = await api('GET', `/artists/resolve?name=N%2FA`, token);
+    check('a placeholder is refused (400)', res3.status === 400);
 
     // An off-roster name with no rows: the server has nothing to name it by.
     const off = await api('GET', `/artist-budgets/${OFF_KEY}`, token);
