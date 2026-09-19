@@ -311,8 +311,8 @@ Authoritative project guide: **`boom-dashboard/CLAUDE.md`** — read it before m
   imported on boot as the first shared mailbox, Reply-To = the human sender
   when sending from a shared box, revoked tokens surfaced not retried,
   outbound only. Notification prefs start sending in stage 4 via an
-  in-process scheduler with `mail_jobs`. Four stages in the plan (artifact
-  link in the session; ask for it).
+  in-process scheduler with `mail_jobs`. Four stages in the plan:
+  https://claude.ai/code/artifact/c64c206d-780f-4a15-9ea7-e7f63e0f2ce5
 - **Bank-statement heuristics were tuned on Boom's Bank of America statements.** The own-name lists (`statements.js` stop-words, `funding-pairs.js` account-trailer strip) now say Market Street, but the layout parsers have not seen a Market Street statement yet. Expect the AI fallback to do the work until they do.
 
 ## Commands (run from `boom-dashboard/`)
