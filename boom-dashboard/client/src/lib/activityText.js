@@ -68,5 +68,13 @@ export function humanizeAction(row) {
     return action
   }
 
+  // A raw "METHOD /api/path" nobody mapped: say what it did to what, rather
+  // than the word "Activity" 1,229 times.
+  const raw = action.match(/^(GET|POST|PUT|PATCH|DELETE)\s+\/api\/([^\s?]+)/)
+  if (raw) {
+    const verb = { GET: 'Viewed', POST: 'Added to', PUT: 'Updated', PATCH: 'Updated', DELETE: 'Removed from' }[raw[1]]
+    const what = raw[2].split('/').filter((seg) => seg && !/^\d+$/.test(seg)).slice(0, 2).join(' › ').replace(/[-_]/g, ' ')
+    return `${verb} ${what}`
+  }
   return 'Activity'
 }

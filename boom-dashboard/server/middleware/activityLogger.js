@@ -7,6 +7,27 @@ function getActionLabel(method, rawPath) {
   const key = `${method} ${path}`;
 
   const MAP = {
+    // Settings (2026-09-19)
+    'PUT /api/label':                        'Updated Label Settings',
+    'PUT /api/settings/me':                  'Updated Profile',
+    'PUT /api/settings/me/notifications':    'Updated Notification Preferences',
+    'POST /api/settings/users':              'Added Team Member',
+    'PUT /api/settings/users/:id':           'Updated Team Member',
+    'DELETE /api/settings/users/:id':        'Removed Team Member',
+    'POST /api/settings/users/:id/invite':   'Issued Invite Link',
+    'POST /api/settings/users/:id/logout-all': 'Signed Out Team Member Everywhere',
+    'PUT /api/settings/permissions/:id':     'Updated Page Access',
+    'POST /api/auth/change-password':        'Changed Password',
+    'POST /api/auth/logout-all':             'Signed Out Everywhere',
+    'POST /api/deals/:id/sign':              'Signed Deal',
+    'POST /api/artists':                     'Created Artist',
+    'PUT /api/artists/:id/contact':          'Updated Artist Contact',
+    'POST /api/artists/:id/payment-details': 'Entered Artist Payment Details',
+    'POST /api/artists/:id/files':           'Uploaded Artist Document',
+    'POST /api/calendar':                    'Added Calendar Event',
+    'POST /api/ndas':                        'Created NDA',
+    'PUT /api/ndas/:id':                     'Updated NDA',
+
     // Auth
     'POST /api/auth/login':    'Signed In',
     'POST /api/auth/register': 'Registered User',
@@ -140,6 +161,9 @@ function getActionLabel(method, rawPath) {
 
 // Which paths to always skip (too noisy)
 const SKIP_PREFIXES = [
+  // Page-view pings have their own table (analytics); logging the POST as well
+  // filled Activity with 1,229 rows reading "Activity" (2026-09-19).
+  '/api/analytics',
   '/api/auth/me',
   '/api/notifications',
   '/health',
@@ -179,7 +203,13 @@ function activityLogger(req, res, next) {
 
       if (!shouldLog(method, rawPath, label)) return;
 
-      const action = label || `${method} ${rawPath.split('?')[0]}`;
+      // Prefix rules for routes whose middle segment is a name, not an id.
+  const cleanPath = rawPath.split('?')[0];
+  const prefixed = !label && (
+    /^\/api\/artist-budgets\//.test(cleanPath) && ['PUT', 'POST', 'DELETE'].includes(method) ? 'Updated Artist Budget'
+    : /^\/api\/artist-campaigns\//.test(cleanPath) && method !== 'GET' ? 'Updated Artist Campaign'
+    : null);
+  const action = label || prefixed || `${method} ${cleanPath}`;
       const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim()
         || req.socket?.remoteAddress
         || null;

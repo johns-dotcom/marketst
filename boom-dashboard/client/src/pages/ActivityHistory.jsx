@@ -173,6 +173,7 @@ export default function ActivityHistory() {
   const [selectedMethods, setSelectedMethods] = useState([]) // [] = all
   const [department, setDepartment]   = useState('all')
   const [sort, setSort]               = useState('desc')     // 'desc' | 'asc'
+  const [showViews, setShowViews]     = useState(false)     // page views are hidden by default
 
   useHotkeys([
     { key: 's', handler: () => setSort(s => s === 'desc' ? 'asc' : 'desc') },
@@ -203,6 +204,7 @@ export default function ActivityHistory() {
     try {
       const { from, to } = getDateRange()
       const params = {
+        views: showViews ? '1' : '0',
         user_id:    userId,
         category,
         department: department !== 'all' ? department : undefined,
@@ -248,7 +250,7 @@ export default function ActivityHistory() {
   useEffect(() => {
     setPage(1)
     fetchActivity()
-  }, [userId, category, selectedMethods, department, sort, datePreset, customDates, fromDate, toDate]) // eslint-disable-line
+  }, [userId, category, selectedMethods, department, sort, datePreset, customDates, fromDate, toDate, showViews]) // eslint-disable-line
 
   // Page change
   useEffect(() => {
@@ -464,6 +466,10 @@ export default function ActivityHistory() {
           {sort === 'desc' ? <ArrowDown size={12} /> : <ArrowUp size={12} />}
           {sort === 'desc' ? 'Newest' : 'Oldest'}
         </button>
+              <label className="inline-flex items-center gap-1.5 text-xs text-gray-500 ml-2 cursor-pointer select-none" data-show-views>
+                <input type="checkbox" checked={showViews} onChange={(e) => { setShowViews(e.target.checked); setPage(1) }} style={{ accentColor: '#334155' }} />
+                Show page views
+              </label>
 
         {hasFilters && (
           <button

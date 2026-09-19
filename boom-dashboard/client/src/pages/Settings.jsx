@@ -416,61 +416,33 @@ function ArchiveTab() {
 }
 
 // ─── Main Settings Page ───────────────────────────────────────────────────────
-// Two halves (2026-09-19): what is MINE (everyone) and what is the LABEL'S
-// (admins). Tabs that are really other pages — People, Activity, Sandbox —
-// link out rather than re-render them here, so their paths and grants are
-// untouched. ?tab= deep-links a tab.
-const MY_TABS = [
-  { id: 'profile',       label: 'Profile',       icon: UserCircle2 },
-  { id: 'signin',        label: 'Sign-in',       icon: KeyRound },
-  { id: 'notifications', label: 'Notifications', icon: Bell },
-  { id: 'theme',         label: 'Theme',         icon: Sun },
-  { id: 'mynav',         label: 'My Nav',        icon: SlidersHorizontal },
-]
+// The rail (components/SettingsShell.jsx) owns navigation; this renders the
+// tab named by ?tab= and a heading that says what the tab is for.
+const TAB_META = {
+  profile:       ['Profile', 'How your name appears across the app.'],
+  signin:        ['Sign-in', 'Your password and where you are signed in.'],
+  notifications: ['Notifications', 'Which events email you, once Gmail is connected.'],
+  theme:         ['Theme', 'Light, dark, or follow the system.'],
+  mynav:         ['My Nav', 'Which pages appear in your sidebar.'],
+  label:         ['Label', 'What prints on invoices, NDAs and waivers.'],
+  integrations:  ['Integrations', 'What is connected, and what each one powers.'],
+  archive:       ['Archive', 'Archived releases and artists.'],
+}
 export default function Settings() {
   const { user, refreshUser } = useAuth()
   const currentUserRole = user?.role
   const isAdmin = currentUserRole === 'Admin' || currentUserRole === 'Superadmin'
-  const [searchParams, setSearchParams] = useSearchParams()
-  const labelTabs = [
-    ...(isAdmin ? [
-      { id: 'people',       label: 'People',       icon: Users,      to: '/team' },
-      { id: 'label',        label: 'Label',        icon: Building2 },
-      { id: 'integrations', label: 'Integrations', icon: Plug },
-      { id: 'activity',     label: 'Activity',     icon: ScrollText, to: '/activity' },
-      { id: 'sandbox',      label: 'Sandbox',      icon: Send,       to: '/admin/vendor-lab', external: true },
-    ] : []),
-    ...(currentUserRole === 'Superadmin' ? [{ id: 'archive', label: 'Archive', icon: FolderArchive }] : []),
-  ]
-  const all = [...MY_TABS, ...labelTabs]
-  const wanted = searchParams.get('tab')
-  const [tab, setTab] = useState(() => (all.some((t) => t.id === wanted && !t.to) ? wanted : 'profile'))
-  const pick = (t) => { if (t.to) return; setTab(t.id); setSearchParams({ tab: t.id }, { replace: true }) }
-
-  const Strip = ({ title, items }) => (
-    <div className="mb-6" data-settings-section={title}>
-      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1.5">{title}</p>
-      <div className="flex gap-1 flex-wrap border-b border-rule">
-        {items.map((t) => {
-          const Icon = t.icon; const active = tab === t.id
-          const cls = `flex items-center gap-2 px-3.5 py-2.5 text-sm font-semibold border-b-2 -mb-px transition-colors ${active ? 'border-boom-600 text-boom-700' : 'border-transparent text-gray-500 hover:text-gray-800'}`
-          if (t.to && t.external) return <a key={t.id} href={t.to} target="_blank" rel="noreferrer" className={cls} data-tab={t.id}><Icon size={15} strokeWidth={1.5} />{t.label}<ExternalLink size={11} className="text-gray-300" /></a>
-          if (t.to) return <Link key={t.id} to={t.to} className={cls} data-tab={t.id}><Icon size={15} strokeWidth={1.5} />{t.label}<ChevronRight size={12} className="text-gray-300" /></Link>
-          return <button key={t.id} onClick={() => pick(t)} className={cls} data-tab={t.id} aria-selected={active}><Icon size={15} strokeWidth={active ? 2 : 1.5} />{t.label}</button>
-        })}
-      </div>
-    </div>
-  )
-
+  const [searchParams] = useSearchParams()
+  const wanted = searchParams.get('tab') || 'profile'
+  const allowed = new Set(['profile', 'signin', 'notifications', 'theme', 'mynav', ...(isAdmin ? ['label', 'integrations'] : []), ...(currentUserRole === 'Superadmin' ? ['archive'] : [])])
+  const tab = allowed.has(wanted) ? wanted : 'profile'
+  const [title, subtitle] = TAB_META[tab]
   return (
-    <div>
-      <PageHeader
-        title="Settings"
-        subtitle={isAdmin ? "Yours first, then the label's." : 'Your profile, sign-in and preferences.'}
-      />
-      <Strip title="My settings" items={MY_TABS} />
-      {labelTabs.length > 0 && <Strip title="Label settings" items={labelTabs} />}
-
+    <div data-settings-content={tab}>
+      <div className="mb-5">
+        <h1 className="text-xl font-bold text-gray-900 tracking-tight">{title}</h1>
+        <p className="text-sm text-gray-500 mt-0.5">{subtitle}</p>
+      </div>
       {tab === 'profile'       && <ProfileTab onSaved={() => refreshUser && refreshUser()} />}
       {tab === 'signin'        && <SignInTab />}
       {tab === 'notifications' && <NotificationsTab />}
@@ -517,45 +489,93 @@ function LabelTab() {
     } catch (e2) { setErr(e2?.response?.data?.error || 'Could not save') }
     finally { setSaving(false); setTimeout(() => setNote(''), 4000) }
   }
-  const missing = LABEL_FIELDS.flatMap(([, fs]) => fs).filter(([k]) => !form[k] && k !== 'address_line2').length + (row?.ein_set ? 0 : 1) + (row?.bank_account_set ? 0 : 1)
+  const blanks = (fields) => fields.filter(([k]) => !form[k] && k !== 'address_line2').length
+  const secretBlanks = (row?.ein_set ? 0 : 1) + (row?.bank_account_set ? 0 : 1)
+  const missing = LABEL_FIELDS.reduce((t, [, fs]) => t + blanks(fs), 0) + secretBlanks
+  const up = (v) => String(v || '').toUpperCase()
+  const or = (v, dash = '—') => (v ? v : <span className="text-rose-400">{dash}</span>)
   return (
-    <form onSubmit={save} className="max-w-2xl space-y-6" data-tab-label>
-      <div className={`rounded-lg border px-3 py-2 text-xs ${missing ? 'bg-amber-50 border-amber-200 text-amber-800' : 'bg-emerald-50 border-emerald-200 text-emerald-800'}`} data-label-status>
-        {missing ? `${missing} field${missing === 1 ? '' : 's'} still blank. Blank fields print as blank on invoices, NDAs and waivers.` : 'Every field is filled. Invoices, NDAs and waivers print from this record.'}
-      </div>
-      {LABEL_FIELDS.map(([section, fields]) => (
-        <div key={section}>
-          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">{section}</p>
+    <form onSubmit={save} className="lg:grid lg:grid-cols-[minmax(0,1fr)_300px] lg:gap-8" data-tab-label>
+      <div className="space-y-4">
+        <div className={`rounded-lg border px-3 py-2 text-xs ${missing ? 'bg-amber-50 border-amber-200 text-amber-800' : 'bg-emerald-50 border-emerald-200 text-emerald-800'}`} data-label-status>
+          {missing ? `${missing} field${missing === 1 ? '' : 's'} still blank. Blank fields print as blank on invoices, NDAs and waivers.` : 'Every field is filled. Invoices, NDAs and waivers print from this record.'}
+        </div>
+        {LABEL_FIELDS.map(([section, fields]) => {
+          const b = blanks(fields)
+          return (
+            <div key={section} className="card p-4" data-label-section={section}>
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-sm font-semibold text-gray-900">{section}</p>
+                <span className={`text-[11px] font-medium ${b ? 'text-amber-700' : 'text-emerald-700'}`}>{b ? `${b} blank` : 'complete'}</span>
+              </div>
+              <div className="grid sm:grid-cols-2 gap-3">
+                {fields.map(([k, label, hint]) => (
+                  <label key={k} className={`block ${/address|bank_address/.test(k) ? 'sm:col-span-2' : ''}`}>
+                    <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">{label}</span>
+                    <input value={form[k]} onChange={(e) => setForm((f) => ({ ...f, [k]: e.target.value }))} placeholder={hint || ''} className="input-base w-full mt-1" data-label-field={k} />
+                  </label>
+                ))}
+              </div>
+            </div>
+          )
+        })}
+        <div className="card p-4" data-label-section="Numbers">
+          <div className="flex items-center justify-between mb-1">
+            <p className="text-sm font-semibold text-gray-900">Numbers · encrypted</p>
+            <span className={`text-[11px] font-medium ${secretBlanks ? 'text-amber-700' : 'text-emerald-700'}`}>{secretBlanks ? `${secretBlanks} not on file` : 'both on file'}</span>
+          </div>
+          <p className="text-[11px] text-gray-400 mb-3">Stored encrypted. Only the last four digits are shown again; the full numbers print on an invoice through an audited read by a bookkeeping role.{isSuper ? '' : ' Only a Superadmin can change them.'}</p>
           <div className="grid sm:grid-cols-2 gap-3">
-            {fields.map(([k, label, hint]) => (
-              <label key={k} className={`block ${/address|bank_address/.test(k) ? 'sm:col-span-2' : ''}`}>
-                <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{label}</span>
-                <input value={form[k]} onChange={(e) => setForm((f) => ({ ...f, [k]: e.target.value }))} placeholder={hint || ''} className="input-base w-full mt-1" data-label-field={k} />
+            {[['ein', 'EIN', row?.ein_set ? `on file · ending ${row.ein_last4}` : 'not on file'], ['bank_account_number', 'Bank account number', row?.bank_account_set ? `on file · ending ${row.bank_account_last4}` : 'not on file']].map(([k, label, status]) => (
+              <label key={k} className="block">
+                <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">{label} <span className="text-gray-400 normal-case font-normal tracking-normal ml-1" data-secret-status={k}>{status}</span></span>
+                <input value={secrets[k]} onChange={(e) => setSecrets((x) => ({ ...x, [k]: e.target.value }))} placeholder={isSuper ? (row?.[k === 'ein' ? 'ein_set' : 'bank_account_set'] ? 'type to replace' : 'type to set') : 'Superadmin only'} disabled={!isSuper} autoComplete="off" className="input-base w-full mt-1 disabled:opacity-50" data-secret-field={k} />
               </label>
             ))}
           </div>
         </div>
-      ))}
-      <div>
-        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Numbers · encrypted</p>
-        <div className="grid sm:grid-cols-2 gap-3">
-          {[['ein', 'EIN', row?.ein_set ? `on file · ending ${row.ein_last4}` : 'not on file'], ['bank_account_number', 'Bank account number', row?.bank_account_set ? `on file · ending ${row.bank_account_last4}` : 'not on file']].map(([k, label, status]) => (
-            <label key={k} className="block">
-              <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{label} <span className="text-gray-400 normal-case font-normal tracking-normal ml-1" data-secret-status={k}>{status}</span></span>
-              <input value={secrets[k]} onChange={(e) => setSecrets((x) => ({ ...x, [k]: e.target.value }))} placeholder={isSuper ? (row?.[k === 'ein' ? 'ein_set' : 'bank_account_set'] ? 'type to replace' : 'type to set') : 'Superadmin only'} disabled={!isSuper} autoComplete="off" className="input-base w-full mt-1 disabled:opacity-50" data-secret-field={k} />
-            </label>
-          ))}
+        <div className="flex items-center gap-3">
+          <button type="submit" disabled={saving} className="btn-primary text-sm px-4 py-2">{saving ? 'Saving…' : 'Save label details'}</button>
+          {note && <span className="text-xs text-emerald-700" data-note>{note}</span>}
+          {err && <span className="text-xs text-rose-600" data-error>{err}</span>}
         </div>
-        <p className="text-[11px] text-gray-400 mt-1.5">Stored encrypted. Only the last four digits are shown again; the full numbers print on an invoice through an audited read by a bookkeeping role.</p>
       </div>
-      <div className="flex items-center gap-3">
-        <button type="submit" disabled={saving} className="btn-primary text-sm px-4 py-2">{saving ? 'Saving…' : 'Save label details'}</button>
-        {note && <span className="text-xs text-emerald-700" data-note>{note}</span>}
-        {err && <span className="text-xs text-rose-600" data-error>{err}</span>}
-      </div>
+
+      {/* Live preview — what these fields become on the documents */}
+      <aside className="mt-6 lg:mt-0 space-y-4 lg:sticky lg:top-6 lg:self-start" data-label-preview>
+        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">As it prints</p>
+        <div className="card p-4 font-mono text-[11px] leading-relaxed text-gray-800">
+          <p className="text-[9px] font-sans font-bold text-gray-400 uppercase tracking-wider mb-2">Invoice · funds payable to</p>
+          <p>{or(up(form.legal_name || form.display_name), 'LEGAL NAME')}</p>
+          <p>{or(up(form.address_line1), 'ADDRESS')}</p>
+          {form.address_line2 && <p>{up(form.address_line2)}</p>}
+          <p className="mt-2">CONTACT: {or(up(form.contact_name))}</p>
+          <p>PHONE: {or(form.contact_phone)}</p>
+          <p>EMAIL: {or(form.contact_email)}</p>
+          <p className="mt-2 pt-2 border-t border-divider">EIN: {row?.ein_set ? `••-•••${row.ein_last4}` : <span className="text-rose-400">—</span>}</p>
+          <p className="mt-2 pt-2 border-t border-divider">BANK: {or(up(form.bank_name))}</p>
+          <p>ADDRESS: {or(up(form.bank_address))}</p>
+          <p>NAME: {or(up(form.bank_account_name))}</p>
+          <p>TYPE: {or(up(form.bank_account_type))}</p>
+          <p>SWIFT: {or(form.bank_swift)}</p>
+          <p>ROUTING: {or(form.bank_routing_wire)} <span className="text-gray-400">wire</span></p>
+          <p className="pl-[62px]">{or(form.bank_routing_ach)} <span className="text-gray-400">ach</span></p>
+          <p>ACCOUNT: {row?.bank_account_set ? `••••${row.bank_account_last4}` : <span className="text-rose-400">—</span>}</p>
+        </div>
+        <div className="card p-4 text-[12px] leading-relaxed text-gray-800">
+          <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider mb-2">NDA · signature</p>
+          <p className="font-semibold">{or(form.legal_name || form.display_name, 'Legal name')}</p>
+          <p className="text-gray-500">{or([form.address_line1, form.address_line2].filter(Boolean).join(', '), 'address')}</p>
+          <p className="mt-3">By: ____________________</p>
+          <p>{or(form.signatory_name, 'Signatory name')}, {or(form.signatory_title, 'title')}</p>
+          <p className="mt-3 text-[11px] text-gray-500">Payment terms on new invoices: <span className="text-gray-800">{or(form.default_payment_terms)}</span></p>
+        </div>
+        <p className="text-[11px] text-gray-400">Red dashes are blanks. The invoice generator and the NDA form read this record the moment it is saved.</p>
+      </aside>
     </form>
   )
 }
+
 // ─── Integrations — status only; keys live in Railway ───────────────────────
 function IntegrationsTab() {
   const [rows, setRows] = useState(null)

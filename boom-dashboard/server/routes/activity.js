@@ -22,10 +22,16 @@ router.get('/', authMiddleware, async (req, res) => {
       sort = 'desc', // 'asc' | 'desc'
       page = 1,
       limit = 100,
+      views = '0',   // '1' includes page views (Viewed …, GETs, analytics pings)
     } = req.query;
 
     const conditions = [];
     const params = [];
+
+    // Default: only things that CHANGED something. Views are reads.
+    if (views !== '1') {
+      conditions.push(`NOT (a.method = 'GET' OR a.action ILIKE 'Viewed %' OR a.action ILIKE 'Performed Search' OR a.endpoint LIKE '/api/analytics%')`);
+    }
 
     if (user_id && user_id !== 'all') {
       params.push(parseInt(user_id, 10));

@@ -6,6 +6,7 @@ import { createRoot } from 'react-dom/client'
 import { MemoryRouter, Routes, Route } from 'react-router-dom'
 import Settings from '../src/pages/Settings'
 import Team from '../src/pages/Team'
+import SettingsShell from '../src/components/SettingsShell'
 import { calls, BOOKKEEPER_PAGES } from './settings-api-stub.js'
 import { ThemeProvider } from '../src/context/ThemeContext'
 import { ToastProvider } from '../src/context/ToastContext'
@@ -24,7 +25,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 const say = (...a) => console.log(...a)
 const assert = (label, cond) => say(`  ${label} -> ${!!cond}`)
 const textOf = (el) => (el ? el.textContent.replace(/\s+/g, ' ').trim() : '')
-const click = (el) => el && el.dispatchEvent(new window.MouseEvent('click', { bubbles: true }))
+const click = (el) => el && el.dispatchEvent(new window.MouseEvent('click', { bubbles: true, cancelable: true }))
 const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set
 const type = (el, text) => { setter.call(el, text); el.dispatchEvent(new window.Event('input', { bubbles: true })) }
 const scenario = (typeof process !== 'undefined' && process.env.SET_SCENARIO) || 'admin'
@@ -40,7 +41,7 @@ function mount(url, routes) {
 async function main() {
   say(`SCENARIO ${scenario}`)
   if (scenario === 'people') {
-    const host = mount('/team', <Route path="/team" element={<Team />} />)
+    const host = mount('/team', <Route path="/team" element={<SettingsShell><Team /></SettingsShell>} />)
     for (let i = 0; i < 50 && !host.querySelector('[data-directory] tbody tr'); i += 1) await sleep(100)
     await sleep(150)
     assert('People renders the directory for an admin', errors.length === 0 && host.querySelectorAll('[data-directory] tbody tr').length === 3)
@@ -53,9 +54,10 @@ async function main() {
     click(row(3).querySelector('[data-resend-invite]')); await sleep(200)
     assert('resend POSTs /settings/users/3/invite', calls.post.some((c) => c.url === '/settings/users/3/invite'))
     assert('the header offers Add a person and the page is titled People', !!host.querySelector('[data-invite]') && /People/.test(textOf(host.querySelector('h1'))))
+    assert('the Settings rail is on screen with People lit — no drop out of Settings', !!host.querySelector('[data-settings-shell]') && host.querySelector('[data-tab="people"]')?.getAttribute('aria-current') === 'page')
     say('DONE'); globalThis.__DONE__ = true; return
   }
-  const host = mount('/settings', <Route path="/settings" element={<Settings />} />)
+  const host = mount('/settings', <Route path="/settings" element={<SettingsShell><Settings /></SettingsShell>} />)
   for (let i = 0; i < 50 && !host.querySelector('[data-tab-profile]'); i += 1) await sleep(100)
   await sleep(150)
   assert('Settings renders on Profile', errors.length === 0 && !!host.querySelector('[data-tab-profile]'))
@@ -67,8 +69,9 @@ async function main() {
     assert('with five tabs', tabs.join(',') === 'profile,signin,notifications,theme,mynav')
     say('DONE'); globalThis.__DONE__ = true; return
   }
-  assert('two sections: My settings and Label settings', sections.join(',') === 'My settings,Label settings')
-  assert('the label half has People, Label, Integrations, Activity, Sandbox, Archive', ['people', 'label', 'integrations', 'activity', 'sandbox', 'archive'].every((t) => tabs.includes(t)))
+  assert('the rail has two groups: My settings and Label settings', sections.join(',') === 'My settings,Label settings')
+  assert('the rail is a single left column, not stacked strips', !!host.querySelector('[data-settings-shell] aside') && host.querySelectorAll('[data-settings-shell] nav').length === 2)
+  assert('the label group has People, Label, Integrations, Activity, Admin docs, Sandbox, Archive', ['people', 'label', 'integrations', 'activity', 'admin', 'sandbox', 'archive'].every((t) => tabs.includes(t)))
   assert('People and Activity are links to their own pages (paths unchanged)', host.querySelector('[data-tab="people"]')?.getAttribute('href') === '/team' && host.querySelector('[data-tab="activity"]')?.getAttribute('href') === '/activity')
   assert('Sandbox opens in a new window', host.querySelector('[data-tab="sandbox"]')?.getAttribute('href') === '/admin/vendor-lab' && host.querySelector('[data-tab="sandbox"]')?.getAttribute('target') === '_blank')
   assert('no Users or Permissions tab remains', !tabs.includes('users') && !tabs.includes('permissions'))
@@ -98,6 +101,11 @@ async function main() {
   click(host.querySelector('[data-tab="label"]')); await sleep(200)
   const lb = host.querySelector('[data-tab-label]')
   assert('the Label tab loads the record into fields', lb?.querySelector('[data-label-field="legal_name"]')?.value === 'Market Street Records LLC')
+  assert('sections are cards with their own blank counts', host.querySelectorAll('[data-label-section]').length === 6 && /complete/.test(textOf(host.querySelector('[data-label-section="Identity"]'))) && /blank/.test(textOf(host.querySelector('[data-label-section="Address"]'))))
+  const pv = host.querySelector('[data-label-preview]')
+  assert('the live preview prints the legal name in caps and dashes for blanks', /MARKET STREET RECORDS LLC/.test(textOf(pv)) && /EIN: ••-•••6789/.test(textOf(pv)) && pv.querySelectorAll('.text-rose-400').length > 0)
+  type(lb.querySelector('[data-label-field="bank_name"]'), 'Chase'); await sleep(50)
+  assert('typing updates the preview as you go', /BANK: CHASE/.test(textOf(pv)))
   assert('secrets show status, not values: EIN ending 6789, account not on file', /ending 6789/.test(textOf(lb.querySelector('[data-secret-status="ein"]'))) && /not on file/.test(textOf(lb.querySelector('[data-secret-status="bank_account_number"]'))))
   assert('the status line counts the blanks', /still blank/.test(textOf(lb.querySelector('[data-label-status]'))))
   type(lb.querySelector('[data-secret-field="bank_account_number"]'), '000123456789')

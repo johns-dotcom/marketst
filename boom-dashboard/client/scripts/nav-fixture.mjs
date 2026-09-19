@@ -116,8 +116,11 @@ for (const f of families) {
   if (f.key === 'banking') continue
   for (const c of f.children) {
     if (c.external || c.hidden) continue
-    const re = new RegExp('<Route path="' + esc(c.path) + '"\\s+element=\\{[^\\n]*?<TabbedShell family="' + f.key + '">')
-    ok(re.test(app), `${c.path.padEnd(28)} renders inside <TabbedShell family="${f.key}">`)
+    // The settings family draws a rail (components/SettingsShell.jsx) instead
+    // of a tab bar since 2026-09-19 — same wrapper idea, same untouched paths.
+    const shell = f.key === 'settings' ? '<SettingsShell>' : '<TabbedShell family="' + f.key + '">'
+    const re = new RegExp('<Route path="' + esc(c.path) + '"\\s+element=\\{[^\\n]*?' + esc(shell))
+    ok(re.test(app), `${c.path.padEnd(28)} renders inside ${shell}`)
   }
 }
 // /recoupments/2025 is a routed orphan John asked to leave alone. It is a path

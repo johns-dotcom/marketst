@@ -11,6 +11,7 @@ import BkCreators from './pages/BkCreators'
 import Bk1099 from './pages/Bk1099'
 import Login from './pages/Login'
 import SetPassword from './pages/SetPassword'
+import SettingsShell from './components/SettingsShell'
 import Dashboard from './pages/Dashboard'
 import Releases from './pages/Releases'
 import Artists from './pages/Artists'
@@ -182,8 +183,8 @@ function AppContent() {
         <Route path="/artists" element={<Artists />} />
         <Route path="/artists/:id" element={<ArtistProfile />} />
         <Route path="/deals" element={<TabbedShell family="contracts"><DealPipeline /></TabbedShell>} />
-        <Route path="/team" element={<TabbedShell family="settings"><Team /></TabbedShell>} />
-        <Route path="/team/:id" element={<TeamMember />} />
+        <Route path="/team" element={<SettingsShell><Team /></SettingsShell>} />
+        <Route path="/team/:id" element={<SettingsShell><TeamMember /></SettingsShell>} />
         <Route path="/my-work" element={<MyWork />} />
         {/* '/messages' is on the BASE_WHITELIST (lib/pageAccess.js + its server
             mirror), so ProtectedRoute lets every role through. Membership in a
@@ -209,10 +210,10 @@ function AppContent() {
         <Route path="/create-label-waiver" element={<TabbedShell family="documents"><CreateLabelWaiver /></TabbedShell>} />
         <Route path="/create-artist-clearance" element={<TabbedShell family="documents"><ArtistClearance /></TabbedShell>} />
         <Route path="/calendar" element={<Calendar />} />
-        <Route path="/activity" element={<TabbedShell family="settings"><ActivityHistory /></TabbedShell>} />
+        <Route path="/activity" element={<SettingsShell><ActivityHistory /></SettingsShell>} />
         <Route path="/analytics" element={<StrictAdminRoute><Analytics /></StrictAdminRoute>} />
-        <Route path="/admin" element={<StrictAdminRoute><TabbedShell family="settings"><AdminDocs /></TabbedShell></StrictAdminRoute>} />
-        <Route path="/settings" element={<TabbedShell family="settings"><Settings /></TabbedShell>} />
+        <Route path="/admin" element={<StrictAdminRoute><SettingsShell><AdminDocs /></SettingsShell></StrictAdminRoute>} />
+        <Route path="/settings" element={<SettingsShell><Settings /></SettingsShell>} />
         {/* Bookkeeping routes — iframe-embedded Flask app */}
         <Route path="/bk/ledger"    element={<TabbedShell family="invoices"><BkLedger /></TabbedShell>} />
         {/* The other half of the ledger. Same component: 2,326 of the 3,692
