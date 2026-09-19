@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
-import { Outlet, Link, useLocation, Navigate } from 'react-router-dom'
+import { Outlet, Link, useLocation, Navigate, useNavigate } from 'react-router-dom'
 import { NAV_GROUPS, tabFamilyFor } from '../navConfig'
 import { useSocket } from '../context/SocketContext'
 import {
@@ -18,6 +18,7 @@ import {
   Settings,
   Upload,
   BookOpen,
+  Footprints,
   Building2,
   Menu,
   Copy,
@@ -30,7 +31,7 @@ import { useTheme } from '../context/ThemeContext'
 import GlobalSearch from './GlobalSearch'
 import EmailPreviewModal from './EmailPreviewModal'
 import KeyboardShortcutsHelp from './KeyboardShortcutsHelp'
-import { TourProvider } from './Tour'
+import { TourProvider, useTour } from './Tour'
 import BottomNav from './BottomNav'
 import FAB from './FAB'
 import NotificationBell from './NotificationBell'
@@ -363,6 +364,64 @@ function ViewAsDropdown() {
 // The tour engine wraps the whole shell so any page's anchors are in reach.
 export default function Layout() {
   return <TourProvider><LayoutInner /></TourProvider>
+}
+
+// The Walkthrough button: one click starts this page's tour; the chevron
+// opens the full list so any tour can be replayed. Sits beside the manual.
+function WalkthroughButton() {
+  const { tours, startTour, pageTour, isDone, doneVersion } = useTour()
+  const navigate = useNavigate()
+  const location = useLocation()
+  const [open, setOpen] = useState(false)
+  // A tour for another page: go there first, then start it once it has rendered.
+  const go = (t) => {
+    setOpen(false)
+    const here = t.match ? t.match.test(location.pathname) : location.pathname === t.path
+    if (here || t.id === 'welcome') { startTour(t.id); return }
+    navigate(t.path)
+    setTimeout(() => startTour(t.id), 700)
+  }
+  const ref = useRef(null)
+  useEffect(() => {
+    if (!open) return undefined
+    const onDoc = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false) }
+    const onKey = (e) => { if (e.key === 'Escape') setOpen(false) }
+    document.addEventListener('mousedown', onDoc); document.addEventListener('keydown', onKey)
+    return () => { document.removeEventListener('mousedown', onDoc); document.removeEventListener('keydown', onKey) }
+  }, [open])
+  if (!tours.length) return null
+  const primary = pageTour || tours.find((t) => t.id === 'welcome') || tours[0]
+  const label = (t) => `${t.title}${isDone(t) ? '' : doneVersion(t.id) ? ' · updated' : ' · new'}`
+  return (
+    <div className="relative hidden sm:block" ref={ref} data-walkthrough>
+      <div className="inline-flex rounded-lg border border-gray-200 overflow-hidden text-gray-500 hover:border-gray-300">
+        <button onClick={() => startTour(primary.id)} title={pageTour ? `Walk through ${pageTour.title}` : 'Replay the welcome walkthrough'} data-walkthrough-start
+          className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 hover:text-gray-700 hover:bg-gray-50 transition-all">
+          <Footprints size={13} /> Walkthrough
+        </button>
+        <button onClick={() => setOpen((v) => !v)} aria-expanded={open} aria-label="All walkthroughs" data-walkthrough-menu
+          className="inline-flex items-center px-1.5 border-l border-gray-200 hover:text-gray-700 hover:bg-gray-50 transition-all">
+          <ChevronDown size={12} />
+        </button>
+      </div>
+      {open && (
+        <div className="absolute right-0 mt-1.5 w-64 bg-card border border-rule rounded-xl shadow-lg z-50 py-1.5" role="menu" data-walkthrough-list>
+          <p className="px-3 pt-1 pb-1.5 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Walkthroughs</p>
+          {pageTour && (
+            <button onClick={() => go(pageTour)} role="menuitem" className="w-full text-left px-3 py-1.5 text-xs font-semibold text-gray-900 hover:bg-gray-50">
+              This page · {label(pageTour)}
+            </button>
+          )}
+          {tours.filter((t) => t.id !== pageTour?.id).map((t) => (
+            <button key={t.id} onClick={() => go(t)} role="menuitem" className="w-full text-left px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-50">
+              {label(t)}
+            </button>
+          ))}
+          <p className="px-3 pt-1.5 pb-1 text-[10px] text-gray-400 border-t border-divider mt-1">Picking another page's tour takes you there first. “Updated” means the page changed since you last took it.</p>
+        </div>
+      )}
+    </div>
+  )
 }
 
 function LayoutInner() {
@@ -911,6 +970,8 @@ function LayoutInner() {
           >
             <Keyboard size={13} />
           </button>
+          {/* Walkthrough — replay the tours (next to the manual, for a refresher) */}
+          <WalkthroughButton />
           {/* User manual button */}
           <button
             onClick={() => window.open('/manual', '_blank', 'noopener')}

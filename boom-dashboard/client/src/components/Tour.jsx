@@ -39,9 +39,12 @@ export function TourProvider({ children }) {
     setActive({ tour: t, index: 0 })
     return true
   }, [])
+  // completed: true = Done, false = Skip, null = nothing was on screen to show
+  // (a tour started for a page you are not on) — closed without recording,
+  // so it still offers itself the first time that page is opened.
   const finish = useCallback(async (completed) => {
     const t = active?.tour; setActive(null)
-    if (!t) return
+    if (!t || completed === null) return
     try {
       const r = await api.put('/settings/me/tours', { id: t.id, version: t.version, skipped: !completed })
       setDone(r.data?.data || { ...(done || {}), [t.id]: { version: t.version } })
@@ -83,7 +86,7 @@ function TourOverlay({ tour, index, setIndex, onFinish }) {
   // step never shows an empty spotlight.
   const present = useMemo(() => steps.map((s) => visible(document.querySelector(s.target))), [steps, tick]) // eslint-disable-line react-hooks/exhaustive-deps
   const order = present.map((ok, i) => (ok ? i : -1)).filter((i) => i >= 0)
-  useEffect(() => { if (order.length === 0) onFinish(false) }, [order.length]) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (order.length === 0) onFinish(null) }, [order.length]) // eslint-disable-line react-hooks/exhaustive-deps
   const pos = Math.max(0, order.indexOf(index))
   const stepIdx = order[pos] ?? 0
   const step = steps[stepIdx]

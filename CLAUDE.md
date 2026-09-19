@@ -358,7 +358,11 @@ Authoritative project guide: **`boom-dashboard/CLAUDE.md`** — read it before m
   `npm run tours-fixture` (`client/scripts/tours-fixture.mjs`) fails when a
   tour names a page not in the nav or a selector no page renders — run it with
   nav-fixture before pushing. `npm run tour-dom` drives the engine (fresh ·
-  done). Adding a page: add its tour, or the page has no first-open help.
+  done). Adding a page: add its tour, or the page has no first-open help. The
+  header has a **Walkthrough** button beside the manual (`WalkthroughButton`
+  in Layout): one click replays this page's tour, the chevron lists them all;
+  picking another page's tour navigates there first. A tour that finds none
+  of its anchors closes WITHOUT recording completion.
 - **Bank-statement heuristics were tuned on Boom's Bank of America statements.** The own-name lists (`statements.js` stop-words, `funding-pairs.js` account-trailer strip) now say Market Street, but the layout parsers have not seen a Market Street statement yet. Expect the AI fallback to do the work until they do.
 
 ## Commands (run from `boom-dashboard/`)
