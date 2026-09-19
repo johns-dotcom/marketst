@@ -2,29 +2,29 @@ import { useState, useEffect, useRef } from 'react'
 import { Trash2, Download, Plus, Loader, FileText, Eye, Table2, LayoutGrid, X, Pencil } from 'lucide-react'
 import { jsPDF } from 'jspdf'
 import api from '../api'
+import { Link } from 'react-router-dom'
 import useHotkeys from '../hooks/useHotkeys'
 import Skeleton from '../components/Skeleton'
 import { CURRENCIES } from '../constants'
 
-// TODO(marketst): replace every placeholder below with Market Street's real
-// remittance details before issuing an invoice. These print on the PDF.
+// The remittance block, filled from Settings › Label (GET /label/remittance,
+// the decrypted, audited read) when the page mounts. Blank until then, and
+// blank where the label has not been filled in — never a placeholder string.
 const BOOM_INFO = {
-  company: 'MARKET STREET',
-  address: ['STREET ADDRESS', 'CITY STATE ZIP USA'],
-  contact: 'JOHN SKEAD',
-  phone: '',
-  email: 'john@deanst.co',
-  ein: 'XX-XXXXXXX',
-  bank: {
-    name: 'BANK NAME',
-    address: ['BANK ADDRESS'],
-    accountName: 'MARKET STREET',
-    type: 'CHECKING',
-    swift: 'SWIFT (for funds sent in USD)',
-    routingWire: 'ROUTING (WIRE)',
-    routingAch: 'ROUTING (ACH)',
-    account: 'ACCOUNT NUMBER',
-  },
+  company: '', address: [], contact: '', phone: '', email: '', ein: '',
+  bank: { name: '', address: ['', ''], accountName: '', type: '', swift: '', routingWire: '', routingAch: '', account: '' },
+}
+const up = (v) => String(v || '').toUpperCase()
+function applyLabel(l) {
+  if (!l) return
+  BOOM_INFO.company = up(l.legal_name || l.display_name)
+  BOOM_INFO.address = [l.address_line1, l.address_line2].filter(Boolean).map(up)
+  BOOM_INFO.contact = up(l.contact_name); BOOM_INFO.phone = l.contact_phone || ''; BOOM_INFO.email = l.contact_email || ''
+  BOOM_INFO.ein = l.ein || ''
+  BOOM_INFO.bank = {
+    name: up(l.bank_name), address: [l.bank_address || '', ''], accountName: up(l.bank_account_name), type: up(l.bank_account_type),
+    swift: l.bank_swift || '', routingWire: l.bank_routing_wire || '', routingAch: l.bank_routing_ach || '', account: l.bank_account_number || '',
+  }
 }
 
 function padInvoiceNumber(num) {
@@ -151,7 +151,7 @@ function InvoicePreview({ invoice, compact }) {
 
             <div className="mt-4 pt-4 border-t border-rule">
               <p>BANK: {BOOM_INFO.bank.name}</p>
-              <p>ADDRESS: {BOOM_INFO.bank.address[0]}, {BOOM_INFO.bank.address[1]}</p>
+              <p>ADDRESS: {BOOM_INFO.bank.address.filter(Boolean).join(', ')}</p>
               <p>NAME: {BOOM_INFO.bank.accountName}</p>
               <p>TYPE: {BOOM_INFO.bank.type}</p>
               <p>SWIFT: {BOOM_INFO.bank.swift}</p>
@@ -223,6 +223,16 @@ export default function CreateInvoice() {
   // arithmetic on the other side of a timezone.
   const [form, setForm] = useState({ bill_to: '', bill_to_address: '', currency: 'USD', payment_terms: 'Net 30', due_date: '', invoice_date: '' })
   const [termOptions, setTermOptions] = useState([])
+  const [labelLoaded, setLabelLoaded] = useState(false)
+  const [labelGaps, setLabelGaps] = useState(0)
+  useEffect(() => {
+    api.get('/label/remittance').then((r) => {
+      applyLabel(r.data?.data)
+      const l = r.data?.data || {}
+      setLabelGaps(['legal_name', 'address_line1', 'contact_email', 'ein', 'bank_name', 'bank_account_name', 'bank_routing_ach', 'bank_account_number'].filter((k) => !l[k]).length)
+      setLabelLoaded(true)
+    }).catch(() => setLabelLoaded(true))
+  }, [])
   const [due, setDue] = useState({ due_by: null, due_date: null, invoice_date: null, error: null })
   useEffect(() => {
     api.get('/invoices/terms')
@@ -470,7 +480,7 @@ export default function CreateInvoice() {
     yR += 8
     doc.line(rightX, yR, W - M, yR); yR += LH
     text(`BANK: ${BOOM_INFO.bank.name}`, rightX, yR); yR += LH
-    text(`ADDRESS: ${BOOM_INFO.bank.address[0]}, ${BOOM_INFO.bank.address[1]}`, rightX, yR); yR += LH
+    text(`ADDRESS: ${BOOM_INFO.bank.address.filter(Boolean).join(', ')}`, rightX, yR); yR += LH
     text(`NAME: ${BOOM_INFO.bank.accountName}`, rightX, yR); yR += LH
     text(`TYPE: ${BOOM_INFO.bank.type}`,         rightX, yR); yR += LH
     text(`SWIFT: ${BOOM_INFO.bank.swift}`,       rightX, yR); yR += LH
@@ -540,6 +550,11 @@ export default function CreateInvoice() {
   if (loading) {
     return (
       <div className="space-y-6">
+      {labelLoaded && labelGaps > 0 && (
+        <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800" data-label-gaps>
+          {labelGaps} remittance field{labelGaps === 1 ? '' : 's'} blank on this label — the PDF prints blanks there. <Link to="/settings?tab=label" className="underline font-semibold">Fill them under Settings › Label</Link>.
+        </div>
+      )}
         <Skeleton.Block h="h-24" />
         <Skeleton.Block h="h-64" />
       </div>

@@ -6,11 +6,22 @@
 // Market Street defaults — pre-fill the Owner side so most NDAs only
 // require the recipient's info + an effective date. Same values that
 // used to live at the top of CreateNDA.jsx.
+// Filled from Settings › Label at runtime (applyLabelDefaults, called by
+// CreateNDA when the label loads). Blank until then — never a placeholder
+// that could print on a real NDA.
 export const BOOM_DEFAULTS = {
   owner_name: 'Market Street',
-  owner_address: 'TODO: Market Street address', // TODO(marketst): real address — prints on every NDA
-  signatory_name: 'John Skead',
-  signatory_title: 'Managing Member',
+  owner_address: '',
+  signatory_name: '',
+  signatory_title: '',
+}
+export function applyLabelDefaults(l) {
+  if (!l) return BOOM_DEFAULTS
+  BOOM_DEFAULTS.owner_name = l.legal_name || l.display_name || 'Market Street'
+  BOOM_DEFAULTS.owner_address = [l.address_line1, l.address_line2].filter(Boolean).join(', ')
+  BOOM_DEFAULTS.signatory_name = l.signatory_name || ''
+  BOOM_DEFAULTS.signatory_title = l.signatory_title || ''
+  return BOOM_DEFAULTS
 }
 
 // Roman numerals for section headers. Sections are renumbered

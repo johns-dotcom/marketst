@@ -34,6 +34,7 @@ import BottomNav from './BottomNav'
 import FAB from './FAB'
 import NotificationBell from './NotificationBell'
 import api from '../api'
+import useLabel, { labelAddressLines } from '../hooks/useLabel'
 
 const PAGE_LABELS = {
   '/':                   'Home',
@@ -359,6 +360,7 @@ function ViewAsDropdown() {
 
 export default function Layout() {
   const { user, logout, impersonating, exitImpersonation, canView } = useAuth()
+  const labelInfo = useLabel()
   const { on } = useSocket()
   const { theme, setTheme } = useTheme()
   const location = useLocation()
@@ -811,12 +813,8 @@ export default function Layout() {
                 (CreateInvoice BOOM_INFO). */}
             <button
               onClick={() => {
-                // TODO(marketst): real billing address — keep in sync with CreateInvoice BOOM_INFO.
-                const address = [
-                  'MARKET STREET',
-                  'STREET ADDRESS',
-                  'CITY STATE ZIP USA',
-                ].join('\n')
+                // From Settings › Label — the same record the invoice prints.
+                const address = labelAddressLines(labelInfo).map((l) => l.toUpperCase()).join('\n') || 'MARKET STREET'
                 navigator.clipboard.writeText(address).then(() => {
                   setCopiedBilling(true)
                   setTimeout(() => setCopiedBilling(false), 2000)

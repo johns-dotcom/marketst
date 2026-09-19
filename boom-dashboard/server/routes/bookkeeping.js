@@ -7316,9 +7316,9 @@ router.post('/payments/send-approval-email', async (req, res) => {
         </tr>` : ''}
       `;
     }).join('');
-    // TODO(marketst): the three recipient options all route to the seeded
-    // account until Market Street has named approvers.
-    const recipientLabel = 'John';
+    // The summary goes to whoever the sender picked; greet the team rather
+    // than a hard-coded name.
+    const recipientLabel = 'team';
     // Render message body: if the caller provided custom text, escape it and
     // convert blank lines → paragraphs, single newlines → <br>. Otherwise use
     // the default two-line greeting+intro.

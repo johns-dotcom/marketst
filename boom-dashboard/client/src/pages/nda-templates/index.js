@@ -37,7 +37,7 @@ export function getTemplate(id) {
 
 // Re-export shared helpers so consumers can import everything from
 // './nda-templates' as one namespace.
-export { BOOM_DEFAULTS, ROMAN, formatEffectiveDate, escapeRegex, getHeadingLevel, BASE_FIELDS, BASE_BODY_FIELDS, defaultRenderSignature } from './shared'
+export { BOOM_DEFAULTS, applyLabelDefaults, ROMAN, formatEffectiveDate, escapeRegex, getHeadingLevel, BASE_FIELDS, BASE_BODY_FIELDS, defaultRenderSignature } from './shared'
 
 // Convenience — returns the template's own renderSignature when it
 // declared one, otherwise the shared default. Consumers should always

@@ -2045,8 +2045,7 @@ export default function BkPayments() {
   ).size
 
   const defaultApprovalMessage = (recipients) => {
-    const name = 'John' // TODO(marketst): named approvers once the team exists
-    return `Hey ${name},\n\nHere are some pending invoices for your approval. Summary is attached as an excel with pdfs for each invoice. Let me know if you have any questions.`
+    return `Hey team,\n\nHere are some pending invoices for your approval. Summary is attached as an excel with pdfs for each invoice. Let me know if you have any questions.`
   }
 
   // Default subject mirrors the server fallback: "<n> line items for approval

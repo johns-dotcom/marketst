@@ -9,6 +9,7 @@ const artistsRoutes = require('./routes/artists');
 const teamRoutes = require('./routes/team');
 const contractsRoutes = require('./routes/contracts');
 const dealsRoutes = require('./routes/deals');
+const labelRoutes = require('./routes/label');
 const dashboardRoutes = require('./routes/dashboard');
 const searchRoutes = require('./routes/search');
 const dspRoutes = require('./routes/dsp');
@@ -236,6 +237,7 @@ app.use('/api/contracts/scan', aiLimiter, uploadLimiter);
 app.use('/api/contracts', contractsRoutes);
 app.use('/api/admin-docs', adminDocsRoutes);
 app.use('/api/deals', dealsRoutes);
+app.use('/api/label', labelRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/search', searchRoutes);
 app.use('/api/dsp', dspRoutes);
@@ -1462,6 +1464,26 @@ await pool.query(`ALTER TABLE expenses ADD COLUMN IF NOT EXISTS ai_scan JSONB`).
 
   // Google SSO: password_hash is no longer required
   await pool.query(`ALTER TABLE users ALTER COLUMN password_hash DROP NOT NULL`);
+
+  // The label's own details (2026-09-19) — one row, what prints on invoices,
+  // NDAs and waivers. EIN and the bank account number are encrypted with the
+  // same key as vendor payment details; only their last four are ever read
+  // back except by the audited remittance read in routes/label.js.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS label_settings (
+      id INTEGER PRIMARY KEY DEFAULT 1 CHECK (id = 1),
+      legal_name TEXT, display_name TEXT,
+      address_line1 TEXT, address_line2 TEXT,
+      contact_name TEXT, contact_email TEXT, contact_phone TEXT,
+      ein_enc TEXT, ein_last4 TEXT,
+      bank_name TEXT, bank_address TEXT, bank_account_name TEXT, bank_account_type TEXT,
+      bank_routing_ach TEXT, bank_routing_wire TEXT, bank_swift TEXT,
+      bank_account_enc TEXT, bank_account_last4 TEXT,
+      signatory_name TEXT, signatory_title TEXT,
+      default_payment_terms TEXT DEFAULT 'Net 30',
+      updated_at TIMESTAMPTZ DEFAULT NOW(), updated_by INTEGER REFERENCES users(id) ON DELETE SET NULL
+    )`).catch(err => console.error('label_settings migration failed:', err.message));
+  await pool.query(`INSERT INTO label_settings (id, display_name, legal_name) VALUES (1, 'Market Street', 'Market Street') ON CONFLICT (id) DO NOTHING`).catch(() => {});
 
   // My settings (2026-09-19): profile fields and notification preferences.
   for (const col of [`title TEXT`, `phone TEXT`, `notification_prefs JSONB`]) {

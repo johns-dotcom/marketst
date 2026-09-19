@@ -3,16 +3,14 @@ import { Trash2, Download, Plus, Loader, Eye, X, Pencil } from 'lucide-react'
 import { jsPDF } from 'jspdf'
 import api from '../api'
 import Skeleton from '../components/Skeleton'
+import useLabel from '../hooks/useLabel'
 
 // Market Street defaults — pre-fill the standing values so most waivers
 // only require the deal-specific fields (artist names, song, label,
 // release date, royalty %). The COO defaults match the template's
 // signature block; override per-document if needed.
-const BOOM_DEFAULTS = {
-  signatory_name: 'John Skead',
-  signatory_title: 'Managing Member',
-  contact_email: 'john@deanst.co',
-}
+// Filled from Settings › Label when the page loads; blank until then.
+const BOOM_DEFAULTS = { signatory_name: '', signatory_title: '', contact_email: '' }
 
 const BLANK_FORM = {
   effective_date: '',
@@ -127,6 +125,20 @@ export default function CreateLabelWaiver() {
   const [loading, setLoading] = useState(true)
   const [creating, setCreating] = useState(false)
   const [form, setForm] = useState(freshBlankForm)
+  const label = useLabel()
+  useEffect(() => {
+    if (!label) return
+    const before = { ...BOOM_DEFAULTS }
+    BOOM_DEFAULTS.signatory_name = label.signatory_name || ''
+    BOOM_DEFAULTS.signatory_title = label.signatory_title || ''
+    BOOM_DEFAULTS.contact_email = label.contact_email || ''
+    setForm((f) => ({
+      ...f,
+      signatory_name: (!f.signatory_name || f.signatory_name === before.signatory_name) ? BOOM_DEFAULTS.signatory_name : f.signatory_name,
+      signatory_title: (!f.signatory_title || f.signatory_title === before.signatory_title) ? BOOM_DEFAULTS.signatory_title : f.signatory_title,
+      contact_email: (!f.contact_email || f.contact_email === before.contact_email) ? BOOM_DEFAULTS.contact_email : f.contact_email,
+    }))
+  }, [label]) // eslint-disable-line react-hooks/exhaustive-deps
   const [editing, setEditing] = useState(null)
   const [previewItem, setPreviewItem] = useState(null)
   // bodyDirty=true after the user has typed into the body textarea —

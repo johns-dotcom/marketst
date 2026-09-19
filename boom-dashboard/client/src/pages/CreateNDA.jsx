@@ -4,9 +4,10 @@ import { Trash2, Download, Plus, Loader, FileText, Eye, X, Pencil, AlertCircle }
 import { jsPDF } from 'jspdf'
 import api from '../api'
 import Skeleton from '../components/Skeleton'
+import useLabel from '../hooks/useLabel'
 import {
   NDA_TEMPLATES, getTemplate, renderSignatureFor,
-  BOOM_DEFAULTS, formatEffectiveDate, escapeRegex, getHeadingLevel,
+  BOOM_DEFAULTS, applyLabelDefaults, formatEffectiveDate, escapeRegex, getHeadingLevel,
   BASE_FIELDS, BASE_BODY_FIELDS,
 } from './nda-templates'
 
@@ -108,6 +109,21 @@ export default function CreateNDA() {
   const [loading, setLoading] = useState(true)
   const [creating, setCreating] = useState(false)
   const [form, setForm] = useState(() => freshBlankForm(activeTemplate))
+  // Owner and signatory come from Settings › Label. When it loads, fill the
+  // fields the person has not typed into yet.
+  const label = useLabel()
+  useEffect(() => {
+    if (!label) return
+    const before = { ...BOOM_DEFAULTS }
+    const d = applyLabelDefaults(label)
+    setForm((f) => ({
+      ...f,
+      owner_name: (!f.owner_name || f.owner_name === before.owner_name) ? d.owner_name : f.owner_name,
+      owner_address: (!f.owner_address || f.owner_address === before.owner_address) ? d.owner_address : f.owner_address,
+      signatory_name: (!f.signatory_name || f.signatory_name === before.signatory_name) ? d.signatory_name : f.signatory_name,
+      signatory_title: (!f.signatory_title || f.signatory_title === before.signatory_title) ? d.signatory_title : f.signatory_title,
+    }))
+  }, [label]) // eslint-disable-line react-hooks/exhaustive-deps
   const [editing, setEditing] = useState(null)
   const [previewItem, setPreviewItem] = useState(null)
   // bodyDirty controls how form-field changes flow into the body:

@@ -3,6 +3,7 @@ import { Users, Plus, Trash2, X, Loader, CheckCircle2, Check, SlidersHorizontal,
 import api from '../api'
 import { NAV_PAGES } from '../navConfig'
 import { Link, useSearchParams } from 'react-router-dom'
+import { refreshLabel } from '../hooks/useLabel'
 import { useAuth } from '../context/AuthContext'
 import { useTheme } from '../context/ThemeContext'
 import PageHeader from '../components/PageHeader'
@@ -475,9 +476,78 @@ export default function Settings() {
   )
 }
 
-// Stage 3 and 5 of the settings plan fill these in.
+// ─── Label — what prints on invoices, NDAs and waivers ──────────────────────
+const LABEL_FIELDS = [
+  ['Identity', [['legal_name', 'Legal name', 'as it appears on contracts and the W-9'], ['display_name', 'Display name', 'how the label is written in emails and headers'], ['default_payment_terms', 'Default payment terms', 'e.g. Net 30']]],
+  ['Address', [['address_line1', 'Address line 1'], ['address_line2', 'Address line 2', 'city, state, ZIP']]],
+  ['Contact', [['contact_name', 'Contact name'], ['contact_email', 'Contact email'], ['contact_phone', 'Contact phone']]],
+  ['Signatory', [['signatory_name', 'Signatory name', 'signs NDAs and waivers'], ['signatory_title', 'Signatory title', 'e.g. Managing Member']]],
+  ['Remittance bank', [['bank_name', 'Bank name'], ['bank_address', 'Bank address'], ['bank_account_name', 'Name on the account'], ['bank_account_type', 'Account type', 'Checking or Savings'], ['bank_routing_ach', 'Routing (ACH)'], ['bank_routing_wire', 'Routing (wire)'], ['bank_swift', 'SWIFT / BIC']]],
+]
 function LabelTab() {
-  return <p className="text-sm text-gray-400" data-tab-label>Label details are coming next: legal name, EIN, address, remittance bank and signatory, replacing the placeholders in the invoice and NDA generators.</p>
+  const { user } = useAuth()
+  const isSuper = user?.role === 'Superadmin'
+  const [row, setRow] = useState(null)
+  const [form, setForm] = useState(null)
+  const [secrets, setSecrets] = useState({ ein: '', bank_account_number: '' })
+  const [saving, setSaving] = useState(false); const [note, setNote] = useState(''); const [err, setErr] = useState('')
+  useEffect(() => {
+    api.get('/label').then((r) => {
+      const d = r.data.data || {}
+      setRow(d)
+      setForm(Object.fromEntries(LABEL_FIELDS.flatMap(([, fs]) => fs.map(([k]) => [k, d[k] || '']))))
+    }).catch(() => setErr('Could not load the label'))
+  }, [])
+  if (!form) return <p className="text-sm text-gray-400">{err || 'Loading…'}</p>
+  const save = async (e) => {
+    e.preventDefault(); setSaving(true); setErr(''); setNote('')
+    try {
+      const body = { ...form }
+      if (isSuper && secrets.ein.trim()) body.ein = secrets.ein.trim()
+      if (isSuper && secrets.bank_account_number.trim()) body.bank_account_number = secrets.bank_account_number.trim()
+      const r = await api.put('/label', body)
+      setRow(r.data.data); setSecrets({ ein: '', bank_account_number: '' }); setNote('Saved. Documents print these from now on.'); refreshLabel()
+    } catch (e2) { setErr(e2?.response?.data?.error || 'Could not save') }
+    finally { setSaving(false); setTimeout(() => setNote(''), 4000) }
+  }
+  const missing = LABEL_FIELDS.flatMap(([, fs]) => fs).filter(([k]) => !form[k] && k !== 'address_line2').length + (row?.ein_set ? 0 : 1) + (row?.bank_account_set ? 0 : 1)
+  return (
+    <form onSubmit={save} className="max-w-2xl space-y-6" data-tab-label>
+      <div className={`rounded-lg border px-3 py-2 text-xs ${missing ? 'bg-amber-50 border-amber-200 text-amber-800' : 'bg-emerald-50 border-emerald-200 text-emerald-800'}`} data-label-status>
+        {missing ? `${missing} field${missing === 1 ? '' : 's'} still blank. Blank fields print as blank on invoices, NDAs and waivers.` : 'Every field is filled. Invoices, NDAs and waivers print from this record.'}
+      </div>
+      {LABEL_FIELDS.map(([section, fields]) => (
+        <div key={section}>
+          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">{section}</p>
+          <div className="grid sm:grid-cols-2 gap-3">
+            {fields.map(([k, label, hint]) => (
+              <label key={k} className={`block ${/address|bank_address/.test(k) ? 'sm:col-span-2' : ''}`}>
+                <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{label}</span>
+                <input value={form[k]} onChange={(e) => setForm((f) => ({ ...f, [k]: e.target.value }))} placeholder={hint || ''} className="input-base w-full mt-1" data-label-field={k} />
+              </label>
+            ))}
+          </div>
+        </div>
+      ))}
+      <div>
+        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Numbers · encrypted</p>
+        <div className="grid sm:grid-cols-2 gap-3">
+          {[['ein', 'EIN', row?.ein_set ? `on file · ending ${row.ein_last4}` : 'not on file'], ['bank_account_number', 'Bank account number', row?.bank_account_set ? `on file · ending ${row.bank_account_last4}` : 'not on file']].map(([k, label, status]) => (
+            <label key={k} className="block">
+              <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{label} <span className="text-gray-400 normal-case font-normal tracking-normal ml-1" data-secret-status={k}>{status}</span></span>
+              <input value={secrets[k]} onChange={(e) => setSecrets((x) => ({ ...x, [k]: e.target.value }))} placeholder={isSuper ? (row?.[k === 'ein' ? 'ein_set' : 'bank_account_set'] ? 'type to replace' : 'type to set') : 'Superadmin only'} disabled={!isSuper} autoComplete="off" className="input-base w-full mt-1 disabled:opacity-50" data-secret-field={k} />
+            </label>
+          ))}
+        </div>
+        <p className="text-[11px] text-gray-400 mt-1.5">Stored encrypted. Only the last four digits are shown again; the full numbers print on an invoice through an audited read by a bookkeeping role.</p>
+      </div>
+      <div className="flex items-center gap-3">
+        <button type="submit" disabled={saving} className="btn-primary text-sm px-4 py-2">{saving ? 'Saving…' : 'Save label details'}</button>
+        {note && <span className="text-xs text-emerald-700" data-note>{note}</span>}
+        {err && <span className="text-xs text-rose-600" data-error>{err}</span>}
+      </div>
+    </form>
+  )
 }
 function IntegrationsTab() {
   return <p className="text-sm text-gray-400" data-tab-integrations>Integration status is coming next.</p>
