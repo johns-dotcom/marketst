@@ -8,6 +8,7 @@ import FilesPanel from '../components/FilesPanel'
 import useHotkeys from '../hooks/useHotkeys'
 import { Button, Input, Select } from '../components/ui'
 import EmptyState from '../components/EmptyState'
+import NextStepPrompt, { useNextStep } from '../components/NextStepPrompt'
 
 const STAGES = ['Scouting', 'Meeting', 'Offer', 'Negotiation', 'Signed', 'Passed']
 const PRIORITIES = ['High', 'Medium', 'Low']
@@ -69,6 +70,19 @@ const STAGE_HEADER = {
 
 export default function DealPipeline() {
   const [deals, setDeals] = useState([])
+  // The hand-off. A deal marked Signed is the moment a contract starts; the
+  // prompt opens the contract form with the artist filled in (and offers to
+  // put them on the roster if the deal named someone not yet on it).
+  const [nextStep, showNextStep, clearNextStep] = useNextStep()
+  const promptSigned = (deal) => {
+    if (!deal?.artist_name) return
+    showNextStep({
+      title: `${deal.artist_name} is signed`,
+      body: 'Next is the contract. The form opens with the artist filled in; if they are not on the roster yet, it adds them.',
+      to: `/contracts?new=1&artist=${encodeURIComponent(deal.artist_name)}&deal=${deal.id}`,
+      label: 'Create the contract',
+    })
+  }
   const [showForm, setShowForm] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -118,6 +132,7 @@ export default function DealPipeline() {
         offer_amount:              offer === '' || offer == null ? null : Number(offer),
       }
       const response = await api.put(`/deals/${selectedDeal.id}`, payload)
+      if (payload.stage === 'Signed' && selectedDeal.stage !== 'Signed') promptSigned(response.data.data)
       const updated = response.data.data
       setDeals(prev => prev.map(d => d.id === updated.id ? updated : d))
       setSelectedDeal(updated)
@@ -188,6 +203,7 @@ export default function DealPipeline() {
       // Functional update — the closure's `deals` predates the optimistic
       // drop update, so rapid drags could visually snap a card back.
       setDeals(prev => prev.map(d => d.id === dealId ? response.data.data : d))
+      if (newStage === 'Signed') promptSigned(response.data.data)
     } catch (err) {
       console.error('Failed to update deal:', err)
     }
@@ -296,6 +312,8 @@ export default function DealPipeline() {
           action={{ label: 'New deal', onClick: () => setShowForm(true) }}
         />
       )}
+
+      <NextStepPrompt prompt={nextStep} onClose={clearNextStep} />
 
       {/* Kanban Board */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">

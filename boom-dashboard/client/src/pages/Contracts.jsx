@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { Search, Upload, File, ArrowLeft, AlertTriangle, UserX, FileX, Clock, ChevronDown, ChevronUp, X, Bell, Plus, Sparkles, CheckCircle2, ExternalLink, Eye, Trash2, PiggyBank, Music2, DollarSign, BarChart3, TrendingUp, ChevronRight } from 'lucide-react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import api from '../api'
 import { formatDate, getFileUrl } from '../utils'
 import FilesPanel from '../components/FilesPanel'
@@ -9,6 +9,7 @@ import Skeleton from '../components/Skeleton'
 import useHotkeys from '../hooks/useHotkeys'
 import PageHeader from '../components/PageHeader'
 import SearchableSelect from '../components/SearchableSelect'
+import NextStepPrompt, { useNextStep } from '../components/NextStepPrompt'
 
 const BLANK_CONTRACT = { artist_id: '', type: '', status: 'Active', date_signed: '', expiration_date: '', royalty_split: '', advance: '', territory: '', notes: '', financial_terms: [] }
 
@@ -81,6 +82,41 @@ export default function Contracts() {
     }
   }
   const [showNewContract, setShowNewContract] = useState(false)
+  // Arriving from a signed deal: /contracts?new=1&artist=Name opens the form
+  // with the artist picked. If the deal named someone not on the roster, the
+  // form offers to add them — a deal is the moment an artist becomes ours.
+  const [searchParams, setSearchParams] = useSearchParams()
+  const [wantedArtist, setWantedArtist] = useState(() => searchParams.get('artist') || '')
+  const [addingArtist, setAddingArtist] = useState(false)
+  const [nextStep, showNextStep, clearNextStep] = useNextStep()
+  useEffect(() => {
+    if (searchParams.get('new') === '1') {
+      setShowNewContract(true)
+      setSearchParams({}, { replace: true })
+    }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!wantedArtist || !artists.length) return
+    const match = artists.find(a => a.name.toLowerCase().trim() === wantedArtist.toLowerCase().trim())
+    if (match) {
+      setNewContractForm(f => f.artist_id ? f : { ...f, artist_id: String(match.id) })
+      setWantedArtist('')
+    }
+  }, [wantedArtist, artists]) // eslint-disable-line react-hooks/exhaustive-deps
+  const addWantedArtist = async () => {
+    setAddingArtist(true)
+    try {
+      const r = await api.post('/artists', { name: wantedArtist.trim() })
+      const a = r.data?.data
+      if (a) {
+        setArtists(prev => [...prev, a])
+        setNewContractForm(f => ({ ...f, artist_id: String(a.id) }))
+      }
+      setWantedArtist('')
+    } catch (err) {
+      alert('Could not add the artist: ' + (err.response?.data?.error || err.message))
+    } finally { setAddingArtist(false) }
+  }
   // Inline edit state for an existing contract's financial_terms ("deals")
   const [editingTerms, setEditingTerms] = useState(false)
   const [termsDraft, setTermsDraft] = useState([])
@@ -277,6 +313,7 @@ export default function Contracts() {
   const saveNewContract = async () => {
     if (!newContractForm.artist_id || !newContractForm.type) return
     setSavingContract(true)
+    const savedArtistName = artists.find(a => String(a.id) === String(newContractForm.artist_id))?.name
     try {
       // Create the contract row first. If file upload fails after this
       // succeeds we surface a clear error rather than rolling back — the
@@ -315,6 +352,14 @@ export default function Contracts() {
 
       setNewContractForm(BLANK_CONTRACT)
       setShowNewContract(false)
+      if (savedArtistName) {
+        showNextStep({
+          title: `Contract saved for ${savedArtistName}`,
+          body: 'Next is their first release. The form opens with the artist filled in.',
+          to: `/releases?add=1&artist=${encodeURIComponent(savedArtistName)}`,
+          label: 'Add a release',
+        })
+      }
       resetScanState()
       await fetchContracts()
       await fetchMissing()
@@ -694,6 +739,7 @@ export default function Contracts() {
       />
 
       {/* New Contract Form */}
+      <NextStepPrompt prompt={nextStep} onClose={clearNextStep} />
       {showNewContract && (
         <div className="card p-5 space-y-4">
           <div className="flex items-center justify-between">
@@ -840,6 +886,14 @@ export default function Contracts() {
                 placeholder="Type to search artists…"
                 style={{ width: '100%', padding: '8px 12px', fontSize: 14, border: '1px solid rgb(var(--color-gray-200))', borderRadius: 8, background: 'var(--color-bg-card)', color: 'var(--color-text)', fontFamily: 'inherit', outline: 'none' }}
               />
+              {wantedArtist && !newContractForm.artist_id && (
+                <p className="mt-1.5 text-[11.5px] text-amber-700" data-roster-gap>
+                  “{wantedArtist}” is not on the roster yet.{' '}
+                  <button type="button" onClick={addWantedArtist} disabled={addingArtist} className="underline font-semibold hover:text-amber-900 disabled:opacity-50">
+                    {addingArtist ? 'Adding…' : `Add ${wantedArtist} to the roster`}
+                  </button>
+                </p>
+              )}
             </div>
             <div>
               <label className="flex items-center text-xs font-medium text-gray-500 mb-1">

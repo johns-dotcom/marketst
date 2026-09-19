@@ -19,6 +19,7 @@ import { CATEGORIES, CURRENCIES, PAYMENT_METHODS, SOCIAL_PLATFORMS } from '../co
 import { useCategories } from '../context/CategoriesContext'
 import { useBoomReps } from '../context/BoomRepsContext'
 import EmptyState from '../components/EmptyState'
+import NextStepPrompt, { useNextStep } from '../components/NextStepPrompt'
 
 const RED = '#334155'
 const GREEN = '#16a34a'
@@ -578,7 +579,20 @@ export default function BkApprovals() {
   // vendor email. APPENDING matters — the deck can approve 24 in a row, and a
   // composer that opened per card would fight the deck, so the queue is drained
   // after it closes.
+  // The hand-off, once per visit: the first approval says where the invoice
+  // went. Every approval after that would be nagging.
+  const [nextStep, showNextStep, clearNextStep] = useNextStep()
+  const [paymentsPrompted, setPaymentsPrompted] = useState(false)
   const handleDeckApproved = (entry, pendingEmail) => {
+    if (!paymentsPrompted) {
+      setPaymentsPrompted(true)
+      showNextStep({
+        title: `${entry?.payee || 'Invoice'} approved`,
+        body: 'It is on Payments now, in due-date order. Nothing else to do here unless you want to pay it today.',
+        to: '/bk/payments',
+        label: 'Open Payments',
+      })
+    }
     setEntries(prev => prev.filter(e => e.id !== entry.id))
     setSelectedIds(prev => { const n = new Set(prev); n.delete(entry.id); return n })
     setShowArtistBreakdown(prev => { const c = { ...prev }; delete c[entry.id]; return c })
@@ -746,6 +760,7 @@ export default function BkApprovals() {
   if (loading) {
     return (
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '24rem' }}>
+      <NextStepPrompt prompt={nextStep} onClose={clearNextStep} />
         <div style={{ textAlign: 'center' }}>
           <Loader style={{ width: 28, height: 28, color: RED, margin: '0 auto 8px', animation: 'spin 0.8s linear infinite' }} />
           <p style={{ color: '#777', fontSize: 14 }}>Loading approvals…</p>

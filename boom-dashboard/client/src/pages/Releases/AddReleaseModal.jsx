@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { X } from 'lucide-react'
 import api from '../../api'
 import { BLANK_RELEASE } from './constants'
@@ -10,10 +10,15 @@ import { BLANK_RELEASE } from './constants'
  * specific state — it just renders <AddReleaseModal show onClose onCreated
  * artists /> and handles the new row via the `onCreated` callback.
  */
-export default function AddReleaseModal({ show, onClose, onCreated, artists }) {
+export default function AddReleaseModal({ show, onClose, onCreated, artists, initialArtistName = '' }) {
   const [form, setForm]     = useState(BLANK_RELEASE)
   const [saving, setSaving] = useState(false)
 
+  // Prefill from a hand-off (a contract just saved for this artist). Only
+  // fills an EMPTY artist field, so a name the user already typed stays.
+  useEffect(() => {
+    if (show && initialArtistName) setForm(f => (f.artist_name ? f : { ...f, artist_name: initialArtistName }))
+  }, [show, initialArtistName])
   if (!show) return null
 
   const update = (k, v) => setForm(prev => ({ ...prev, [k]: v }))
@@ -26,7 +31,7 @@ export default function AddReleaseModal({ show, onClose, onCreated, artists }) {
         ...form,
         artist_name: form.artist_name || null,
       })
-      onCreated(response.data.data)
+      onCreated(response.data.data, form)
       setForm(BLANK_RELEASE)
       onClose()
     } catch {

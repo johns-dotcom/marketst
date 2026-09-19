@@ -9,6 +9,7 @@ import {
   cleanBankPayee, fmtDate, suggestionWhen, displayCaseTitle,
   normTxt, restates,
 } from '../utils/bankDisplay'
+import NextStepPrompt, { useNextStep } from '../components/NextStepPrompt'
 
 // Statements — upload BofA / PayPal statement CSVs and reconcile them against
 // the ledger. Admin/Superadmin only (Approvers don't see bank balances).
@@ -96,6 +97,7 @@ function BucketLine({ label, n, value, share, to, sub, strong }) {
 export default function BkStatements() {
   const { user } = useAuth()
   const navigate = useNavigate()
+  const [nextStep, showNextStep, clearNextStep] = useNextStep()
   // NOTE: the transaction table, its search, filters, selections and the review
   // deck all live on Bank Matching (ccee55a). Their state used to be declared
   // here and had been unused ever since — which is how a click handler survived
@@ -487,6 +489,15 @@ export default function BkStatements() {
       await api.post(`/statements/months/${key}/reconcile`, undo ? { undo: true } : {})
       await fetchMonths()
       fetchFlags()
+      // The hand-off: a reconciled month is a month the P&L can be trusted for.
+      if (!undo) {
+        showNextStep({
+          title: `${key} reconciled`,
+          body: 'Every line on the statement is answered, so the month is ready to read on Reports.',
+          to: '/reports',
+          label: 'Open Reports',
+        })
+      }
     } catch (err) { alert('Failed: ' + (err.response?.data?.error || err.message)) }
   }
 
@@ -742,6 +753,7 @@ export default function BkStatements() {
   if (!isAdminRole) {
     return (
       <div className="p-8 text-center text-gray-500">
+      <NextStepPrompt prompt={nextStep} onClose={clearNextStep} />
         <Landmark size={28} className="mx-auto mb-2 text-gray-300" />
         Statements are visible to Admins only.
       </div>

@@ -35,6 +35,8 @@ import PaymentCard from '../components/mobile/PaymentCard'
 import PaymentSheet from '../components/mobile/PaymentSheet'
 import FilterSheet, { FilterField } from '../components/mobile/FilterSheet'
 import EmptyState from '../components/EmptyState'
+import NextStepPrompt, { useNextStep } from '../components/NextStepPrompt'
+import { Link } from 'react-router-dom'
 
 const RED = '#334155'
 const GREEN = '#16a34a'
@@ -257,6 +259,21 @@ function sortableUsd(e, rates) {
 }
 
 export default function BkPayments() {
+  // The hand-off, once per visit: marking something paid is a claim; the bank
+  // statement is the proof. The first mark-paid says so and points at the
+  // upload; the rest of the session does not repeat it.
+  const [nextStep, showNextStep, clearNextStep] = useNextStep()
+  const [statementPrompted, setStatementPrompted] = useState(false)
+  const promptStatement = () => {
+    if (statementPrompted) return
+    setStatementPrompted(true)
+    showNextStep({
+      title: 'Marked paid',
+      body: 'The bank statement is what proves it left the account. Upload it when it arrives and the line matches this payment on Bank › For review.',
+      to: '/bk/statements',
+      label: 'Open Statements',
+    })
+  }
   const { theme } = useTheme()
   const { rates: fxRates } = useFxRates()
   const BOOM_REPS = useBoomReps()
@@ -1216,6 +1233,7 @@ export default function BkPayments() {
       const inFamily = (e) => e.id === rootId || e.parent_id === rootId
       await api.put(`/bk/payments/${entryId}`, { payment_status: 'Paid', payment_date: today })
       setEntries(prev => prev.map(e => inFamily(e) ? { ...e, payment_status: 'Paid', payment_date: today } : e))
+      promptStatement()
       if (entry?.rush_requested) startRushGracePeriod(entryId)
       showUndo(`Marked ${entry?.payee || 'invoice'} as paid`, async () => {
         await api.put(`/bk/payments/${entryId}`, { payment_status: prevStatus || 'Unpaid', payment_date: prevDate || null, paid_by: prevPaidBy || null })
@@ -1352,6 +1370,7 @@ export default function BkPayments() {
       const prevSnap = { payment_status: entry?.payment_status, payment_date: entry?.payment_date, paid_by: entry?.paid_by }
       await api.put(`/bk/payments/${id}`, { payment_status: 'Paid', payment_date: today })
       setEntries(p => p.map(e => e.id === id ? { ...e, payment_status: 'Paid', payment_date: today } : e))
+      promptStatement()
       if (entry?.rush_requested) startRushGracePeriod(id)
       setSelectedIds(s => { const n = new Set(s); n.delete(id); return n })
       showUndo(`Marked ${entry?.payee || 'invoice'} as paid`, async () => {
@@ -3358,7 +3377,12 @@ export default function BkPayments() {
 
     return (
       <div style={{ minHeight: '100%', background: C.pageBg }} className="px-3 pt-4 pb-28">
+        <NextStepPrompt prompt={nextStep} onClose={clearNextStep} />
         <h1 className="text-xl font-extrabold text-ink mb-0.5">Payments</h1>
+        <p className="text-[11px] text-gray-400 -mt-0.5 mb-1">
+          Marked paid is a claim; the statement is the proof.{' '}
+          <Link to="/bk/statements" className="underline hover:text-ink" data-link="bank">Upload statements on Bank →</Link>
+        </p>
         <p className="text-xs text-gray-500 mb-3">Unpaid + paid in the last 14 days. Older payments live in the ledger.</p>
 
         {/* Quick filter chips */}

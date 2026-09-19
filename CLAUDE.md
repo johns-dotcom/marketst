@@ -93,6 +93,16 @@ Authoritative project guide: **`boom-dashboard/CLAUDE.md`** — read it before m
   Recoupments, Campaigns. The Roster gained **Add artist** (name + genre →
   `POST /artists`, opens the profile) — nothing in the app could create an
   artist by hand before; Boom's roster came from the deleted master-sheet import.
+  **Phase B shipped:** `components/NextStepPrompt.jsx` + `useNextStep()` is the
+  hand-off (a dismissible card with ONE prefilled link — never a redirect).
+  Deal → Signed prompts `/contracts?new=1&artist=&deal=`; Contracts reads it,
+  opens the form with the artist picked, and offers "Add X to the roster" if the
+  deal named someone not on it; saved contract prompts `/releases?add=1&artist=`;
+  Releases reads it and prefills Add release (`initialArtistName`); created
+  release prompts the budget sheet by key; first approval per visit prompts
+  Payments; first mark-paid per visit prompts Statements (Payments also carries a
+  standing "Upload statements on Bank" link); reconciling a month prompts
+  Reports. `npm run handoff-dom` (17) covers the URL contracts end to end.
 - **Bank-statement heuristics were tuned on Boom's Bank of America statements.** The own-name lists (`statements.js` stop-words, `funding-pairs.js` account-trailer strip) now say Market Street, but the layout parsers have not seen a Market Street statement yet. Expect the AI fallback to do the work until they do.
 
 ## Commands (run from `boom-dashboard/`)

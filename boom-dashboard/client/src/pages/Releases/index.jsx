@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef } from 'react'
 import { flushSync } from 'react-dom'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { Search, X, Plus, Pencil, Save, Calendar, List, User, Archive, Trash2, Clock, Library } from 'lucide-react'
 import api from '../../api'
-import { formatDate, daysUntilLocal } from '../../utils'
+import { formatDate, daysUntilLocal, artistBucket } from '../../utils'
 import PageHeader from '../../components/PageHeader'
 import Skeleton from '../../components/Skeleton'
 import { Button } from '../../components/ui'
@@ -22,6 +22,7 @@ import SpendPlanPanel from './SpendPlanPanel'
 import AddReleaseModal from './AddReleaseModal'
 import MergeFlow from './MergeFlow'
 import EmptyState from '../../components/EmptyState'
+import NextStepPrompt, { useNextStep } from '../../components/NextStepPrompt'
 
 export default function Releases() {
   const { user: currentUser } = useAuth()
@@ -48,6 +49,18 @@ export default function Releases() {
   const [error, setError] = useState('')
   const [savingId, setSavingId] = useState(null)
   const [showAddModal, setShowAddModal] = useState(false)
+  // Arriving from a saved contract: /releases?add=1&artist=Name opens Add
+  // release with the artist filled in. The param is read once and dropped so a
+  // refresh does not reopen the form.
+  const [searchParams, setSearchParams] = useSearchParams()
+  const [prefillArtist] = useState(() => searchParams.get('artist') || '')
+  const [nextStep, showNextStep, clearNextStep] = useNextStep()
+  useEffect(() => {
+    if (searchParams.get('add') === '1') {
+      setShowAddModal(true)
+      setSearchParams({}, { replace: true })
+    }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
   const [artists, setArtists] = useState([])
   const [teamMembers, setTeamMembers] = useState([])
   const [metadataEdit, setMetadataEdit] = useState({})
@@ -121,8 +134,20 @@ export default function Releases() {
   }
 
   // Callback AddReleaseModal fires after creating a release.
-  const handleReleaseCreated = (release) => {
+  const handleReleaseCreated = (release, form) => {
     setReleases(prev => [release, ...prev])
+    // The hand-off: a release is the thing a marketing budget is spent on, so
+    // the budget sheet is the next stop. Keyed the way the sheet is keyed.
+    const name = release?.artist_name || form?.artist_name || ''
+    const key = artistBucket(name)
+    if (key) {
+      showNextStep({
+        title: `${release?.project_name || 'Release'} added`,
+        body: `Set ${name}'s marketing budget so this release has a number to spend against.`,
+        to: `/artist-budgets/${encodeURIComponent(key)}?name=${encodeURIComponent(name)}`,
+        label: 'Open the budget sheet',
+      })
+    }
   }
 
   // Jump-to navigation for the notification banner chips: open list view,
@@ -1343,7 +1368,9 @@ export default function Releases() {
         onClose={() => setShowAddModal(false)}
         onCreated={handleReleaseCreated}
         artists={artists}
+        initialArtistName={prefillArtist}
       />
+      <NextStepPrompt prompt={nextStep} onClose={clearNextStep} />
     </div>
   )
 }
