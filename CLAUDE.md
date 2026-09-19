@@ -144,6 +144,15 @@ Authoritative project guide: **`boom-dashboard/CLAUDE.md`** — read it before m
   `server/scripts/calendar-fixture.cjs` (18, seeds both a Superadmin's and a
   `/releases`-only User's view). `AdminRoute` on `/renewals` is a `canView`
   gate, so a User granted the page reaches it from a renewal event.
+- **Signing plan (2026-09-18, designed, NOT built):**
+  https://claude.ai/code/artifact/c4388ce4-710c-48d4-8128-81f37bfbf826 — Deal →
+  Signed is the trigger; terms + contact typed on the deal at Offer; signing
+  upserts the roster row, creates the advance as an approved Net-30 invoice
+  (recoupable, reviewed) and a calendar marker; a five-step checklist on the
+  profile computed from the tables (contract on file · payment details + W-9 ·
+  advance paid · budget set · first release), collapsing to "Onboarded on";
+  roster chip, Home tile; payment details via the vendor form link or a typed-in
+  admin form. Four build stages listed in the plan.
 - **Bank-statement heuristics were tuned on Boom's Bank of America statements.** The own-name lists (`statements.js` stop-words, `funding-pairs.js` account-trailer strip) now say Market Street, but the layout parsers have not seen a Market Street statement yet. Expect the AI fallback to do the work until they do.
 
 ## Commands (run from `boom-dashboard/`)
