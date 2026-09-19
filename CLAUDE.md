@@ -49,7 +49,14 @@ Authoritative project guide: **`boom-dashboard/CLAUDE.md`** — read it before m
   tick on the user form; an admin can tick a second preset for somebody who does
   two jobs and the pages union. The Permissions editor's "Add preset…" ADDS pages
   (Clear to start over). Every preset except ops excludes hidden pages; every
-  preset carries Flags. `client/scripts/navpresets-fixture.mjs` (33 assertions)
+  preset carries Flags. **Executive** (2026-09-19, John: "for ceo, coo, etc.") is
+  the fifth department/preset — roster, releases, deals, contracts, Reports,
+  recoupments, budgets, campaigns, People; no queues — and a new Executive
+  defaults to hierarchy_level 1 (`DEPARTMENT_LEVEL`). DEPARTMENTS is now
+  Executive, A&R, Marketing, Finance, Operations. My Nav lists only pages the
+  sidebar DRAWS for the person (hidden pages are reached from Settings or other
+  pages) and names a family child as `Releases › Pipeline`.
+  `client/scripts/navpresets-fixture.mjs` (34 assertions)
   checks the lists against NAV_PAGES and the real canViewPath. Boom's five
   templates (marketing/bookkeeping/anr/finance_exec/legal, overwrite-on-apply)
   are gone here. DEPARTMENTS is now A&R, Marketing, Finance, Operations.

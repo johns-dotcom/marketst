@@ -77,12 +77,13 @@ ok(grown.has('/bk/ledger') && grown.has('/artists'), 'addPaths keeps what was al
 ok(!addPaths(new Set(), ['/does-not-exist']).has('/does-not-exist'), 'addPaths drops a path the app does not have')
 
 console.log('\n5. departments seed the default tick')
-ok(JSON.stringify(DEPARTMENTS) === JSON.stringify(['A&R', 'Marketing', 'Finance', 'Operations']), `departments: ${DEPARTMENTS.join(', ')}`)
+ok(JSON.stringify(DEPARTMENTS) === JSON.stringify(['Executive', 'A&R', 'Marketing', 'Finance', 'Operations']), `departments: ${DEPARTMENTS.join(', ')}`)
+ok(presetsForDepartment('Executive').join() === 'executive' && unionPaths(['executive']).includes('/reports') && !unionPaths(['executive']).includes('/bk/approvals'), 'Executive → the executive preset: reports yes, approval queue no')
 for (const d of DEPARTMENTS) {
   const keys = presetsForDepartment(d)
   ok(keys.length === 1 && by[keys[0]] && by[keys[0]].department === d, `${d.padEnd(11)} → ${keys.join(', ')}`)
 }
-ok(presetsForDepartment('Executive').length === 0, 'an unknown department seeds nothing rather than guessing')
+ok(presetsForDepartment('Legal').length === 0, 'an unknown department seeds nothing rather than guessing')
 
 console.log('\n6. a User holding a preset reaches its pages and nothing more (real canViewPath)')
 const knownPages = known

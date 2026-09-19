@@ -12,7 +12,8 @@
 // the lists are clean so a typo is caught before it is a silent no-op.
 //
 // Hidden pages (Financials, Salary, …) are deliberately absent from every
-// preset except `ops`: they are off the sidebar because nothing at Market
+// preset except `ops` — with one exception, `/team` (People) in `executive`,
+// which is hidden only because Settings links to it: they are off the sidebar because nothing at Market
 // Street produces their data yet, and a grant to a page nobody can find is a
 // support question waiting to happen.
 
@@ -69,6 +70,22 @@ export const PRESETS = [
     ],
   },
   {
+    key: 'executive',
+    label: 'Executive (CEO, COO…)',
+    department: 'Executive',
+    description: 'The label at a glance — roster, releases, deals and contracts, the money reports, recoupments, budgets and campaigns, People. None of the day-to-day queues.',
+    paths: [
+      ...COMMON,
+      '/artists',
+      '/releases', '/catalog',
+      '/deals', '/contracts', '/pending-contracts', '/renewals',
+      '/reports',
+      '/recoupments', '/recoupments/planning', '/recoupments/audit',
+      '/artist-budgets', '/artist-campaigns',
+      '/team',
+    ],
+  },
+  {
     key: 'ops',
     label: 'Ops / admin (everything)',
     department: 'Operations',
@@ -81,11 +98,15 @@ export const PRESETS = [
 // is a single value on the user row, so this is the DEFAULT tick, not the
 // ceiling — the form lets an admin tick a second preset before saving.
 const DEPARTMENT_PRESETS = {
+  'Executive':  ['executive'],
   'A&R':        ['anr'],
   'Marketing':  ['marketing'],
   'Finance':    ['bookkeeper'],
   'Operations': ['ops'],
 }
+// Executives sit at the top of the task hierarchy (TeamMember's EXEC badge is
+// hierarchy_level <= 2); the user form defaults a new Executive to level 1.
+export const DEPARTMENT_LEVEL = { 'Executive': 1 }
 
 export const DEPARTMENTS = Object.keys(DEPARTMENT_PRESETS)
 

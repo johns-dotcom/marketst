@@ -7,7 +7,7 @@ import { useState, useEffect } from 'react'
 import { Plus, Pencil, Trash2, X, Loader, Check, ChevronRight, ChevronDown, Search, AlertTriangle } from 'lucide-react'
 import api from '../api'
 import { NAV_PAGES } from '../navConfig'
-import { PRESETS, DEPARTMENTS, presetsForDepartment, unionPaths, addPaths } from '../lib/navPresets'
+import { PRESETS, DEPARTMENTS, DEPARTMENT_LEVEL, presetsForDepartment, unionPaths, addPaths } from '../lib/navPresets'
 import { useBoomReps, useBoomRepsContext } from '../context/BoomRepsContext'
 import { canViewPath } from '../lib/pageAccess'
 
@@ -188,6 +188,8 @@ export function PersonModal({ user, onClose, onSaved, currentUserRole }) {
   const setDepartment = (d) => {
     set('department', d)
     if (isEdit) return
+    // An Executive starts at the top of the task hierarchy unless a level was typed.
+    if (DEPARTMENT_LEVEL[d] && Number(form.hierarchy_level) === 99) set('hierarchy_level', DEPARTMENT_LEVEL[d])
     const keys = new Set(presetsForDepartment(d))
     setPresetKeys(keys)
     setAllowedPages(new Set(unionPaths([...keys])))

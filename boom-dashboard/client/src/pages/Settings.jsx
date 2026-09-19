@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Users, Plus, Trash2, X, Loader, CheckCircle2, Check, SlidersHorizontal, Sun, Moon, Monitor, Archive, Download, FileSpreadsheet, FolderArchive, AlertTriangle, EyeOff, Search, ChevronRight, ChevronDown, UserCircle2, KeyRound, Bell, Building2, Plug, ScrollText, Send, ExternalLink, LogOut } from 'lucide-react'
 import api from '../api'
-import { NAV_PAGES } from '../navConfig'
+import { NAV_PAGES, NAV_GROUPS } from '../navConfig'
 import { Link, useSearchParams } from 'react-router-dom'
 import { refreshLabel } from '../hooks/useLabel'
 import { useAuth } from '../context/AuthContext'
@@ -173,22 +173,29 @@ function MyNavTab() {
     localStorage.setItem('nav_hidden_pages', '[]')
   }
 
-  // Group pages the user can access
+  // Only pages the sidebar actually DRAWS for this person: hidden pages
+  // (Financials, People, Activity, Sandbox…) are reached from elsewhere, so
+  // offering to hide them here would be a switch wired to nothing. A tabbed
+  // family's children are listed under the family's name (Releases › Pipeline)
+  // so it is clear that unticking every child removes the family row.
+  const familyOf = {}
+  for (const g of NAV_GROUPS) for (const i of g.items) if (i.tabbed) for (const c of i.children) familyOf[c.path] = i.label
+  const drawn = ALL_PAGES.filter(p => !p.hidden && canView(p.path))
   const groups = {}
-  ALL_PAGES.forEach(p => {
-    if (!canView(p.path)) return
+  drawn.forEach(p => {
     if (!groups[p.group]) groups[p.group] = []
     groups[p.group].push(p)
   })
 
-  const visibleCount = ALL_PAGES.filter(p => canView(p.path) && !hiddenPages.includes(p.path)).length
-  const totalCount = ALL_PAGES.filter(p => canView(p.path)).length
+  const visibleCount = drawn.filter(p => !hiddenPages.includes(p.path)).length
+  const totalCount = drawn.length
 
   return (
     <div>
       <div className="flex items-center justify-between mb-5">
         <div>
           <p className="text-sm text-gray-500">{visibleCount} of {totalCount} pages shown in your nav.</p>
+          <p className="text-[11px] text-gray-400 mt-0.5">Untick a page to take it off your sidebar. Pages reached from Settings or from other pages are not listed; they stay reachable.</p>
         </div>
         {hiddenPages.length > 0 && (
           <button onClick={resetAll} className="text-xs font-semibold text-boom-600 hover:text-boom-700 px-3 py-1.5 rounded-lg border border-boom-200 hover:bg-boom-50 transition-colors">
@@ -219,7 +226,7 @@ function MyNavTab() {
                       onChange={() => togglePage(page.path)}
                       style={{ accentColor: '#334155', width: 16, height: 16 }}
                     />
-                    <span className={`text-sm font-medium ${checked ? 'text-boom-700' : 'text-gray-400'}`}>{page.label}</span>
+                    <span className={`text-sm font-medium ${checked ? 'text-boom-700' : 'text-gray-400'}`}>{familyOf[page.path] ? <><span className="text-gray-400 font-normal">{familyOf[page.path]} › </span>{page.label}</> : page.label}</span>
                   </label>
                 )
               })}
