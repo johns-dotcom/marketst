@@ -1463,6 +1463,12 @@ await pool.query(`ALTER TABLE expenses ADD COLUMN IF NOT EXISTS ai_scan JSONB`).
   // Google SSO: password_hash is no longer required
   await pool.query(`ALTER TABLE users ALTER COLUMN password_hash DROP NOT NULL`);
 
+  // My settings (2026-09-19): profile fields and notification preferences.
+  for (const col of [`title TEXT`, `phone TEXT`, `notification_prefs JSONB`]) {
+    await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS ${col}`)
+      .catch(err => console.error(`users.${col.split(' ')[0]} migration failed:`, err.message));
+  }
+
 
   // Market Street Reps registry — the canonical list of reps that appears in
   // every "Market Street Rep" dropdown (vendor submit, ledger filters, user

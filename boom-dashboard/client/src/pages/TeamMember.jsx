@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react'
-import { useParams, Link } from 'react-router-dom'
-import { ChevronLeft, Music, CheckSquare, Activity, Clock } from 'lucide-react'
+import { useParams, Link, useNavigate } from 'react-router-dom'
+import { ChevronLeft, Music, CheckSquare, Activity, Clock, Shield, LogOut, Trash2, Eye, Pencil } from 'lucide-react'
 import Breadcrumb from '../components/Breadcrumb'
 import api from '../api'
 import { formatDate, isPastLocal, daysUntilLocal } from '../utils'
 import { useAuth } from '../context/AuthContext'
+import { PersonModal, DeleteConfirm, AccessEditor } from '../components/PeopleAdmin'
 
 const PRIORITY_DOT = { 'Urgent': 'bg-red-600', 'High': 'bg-boom-500', 'Medium': 'bg-amber-400', 'Low': 'bg-gray-300' }
 const STATUS_STYLE = {
@@ -24,10 +25,14 @@ const CATEGORY_STYLE = {
 
 export default function TeamMember() {
   const { id } = useParams()
-  const { user: currentUser } = useAuth()
+  const { user: currentUser, impersonate } = useAuth()
+  const navigate = useNavigate()
   const [member, setMember] = useState(null)
   const [loading, setLoading] = useState(true)
-  const [tab, setTab] = useState('releases')
+  const isAdminUser = currentUser?.role === 'Admin' || currentUser?.role === 'Superadmin'
+  const [tab, setTab] = useState(() => (new URLSearchParams(window.location.search).get('tab') === 'access' ? 'access' : 'releases'))
+  const [personModal, setPersonModal] = useState(null)
+  const [accessNote, setAccessNote] = useState('')
 
   useEffect(() => {
     const fetch = async () => {
@@ -72,12 +77,23 @@ export default function TeamMember() {
     { id: 'releases',  label: 'Releases',  count: member.releases?.length },
     { id: 'tasks',     label: 'Tasks',     count: openTasks.length },
     { id: 'activity',  label: 'Activity',  count: null },
+    // Access (2026-09-19): role, department, presets and the pages this person
+    // can reach — what Settings › Users and the Permissions matrix used to hold.
+    ...(isAdminUser ? [{ id: 'access', label: 'Access', count: null }] : []),
   ]
+  const canManage = currentUser?.role === 'Superadmin' || (member.role !== 'Admin' && member.role !== 'Superadmin')
+  const reload = () => api.get(`/team/${id}`).then((r) => setMember(r.data.data)).catch(() => {})
+  const signOutEverywhere = async () => {
+    if (!window.confirm(`Sign ${member.name} out of every device?`)) return
+    try { await api.post(`/settings/users/${member.id}/logout-all`); setAccessNote('Signed out everywhere') } catch (e) { setAccessNote(e?.response?.data?.error || 'Could not sign out') }
+    setTimeout(() => setAccessNote(''), 3000)
+  }
+  const viewAs = async () => { try { await impersonate(member.id); navigate('/') } catch (e) { setAccessNote(e?.response?.data?.error || 'Could not view as this person') } }
 
   return (
     <div className="space-y-6">
       <Breadcrumb items={[
-        { label: 'Team', path: '/team' },
+        { label: 'People', path: '/team' },
         { label: member.name },
       ]} />
 
@@ -231,6 +247,32 @@ export default function TeamMember() {
                   })}
                 </div>
               )}
+            </div>
+          )}
+
+          {/* ACCESS TAB — admins */}
+          {tab === 'access' && isAdminUser && (
+            <div className="space-y-6" data-tab-access>
+              <div className="flex items-start justify-between gap-4 flex-wrap">
+                <div className="text-sm">
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Account</p>
+                  <p className="text-gray-900 font-semibold">{member.role}{member.department ? ` · ${member.department}` : ''}</p>
+                  <p className="text-gray-500 text-xs">{member.email}{member.hierarchy_level != null ? ` · level ${member.hierarchy_level}` : ''}</p>
+                </div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  {canManage && <button onClick={() => setPersonModal({ type: 'edit' })} className="inline-flex items-center gap-1.5 text-xs font-semibold border border-rule rounded-lg px-2.5 py-1.5 hover:bg-gray-50" data-edit-person><Pencil size={12} /> Edit account</button>}
+                  {currentUser?.role === 'Superadmin' && !isSelf && <button onClick={viewAs} className="inline-flex items-center gap-1.5 text-xs font-semibold border border-rule rounded-lg px-2.5 py-1.5 hover:bg-gray-50" data-view-as><Eye size={12} /> View as</button>}
+                  {canManage && !isSelf && <button onClick={signOutEverywhere} className="inline-flex items-center gap-1.5 text-xs font-semibold border border-rule rounded-lg px-2.5 py-1.5 hover:bg-gray-50" data-signout-person><LogOut size={12} /> Sign out everywhere</button>}
+                  {canManage && !isSelf && <button onClick={() => setPersonModal({ type: 'delete' })} className="inline-flex items-center gap-1.5 text-xs font-semibold border border-rose-200 text-rose-700 rounded-lg px-2.5 py-1.5 hover:bg-rose-50" data-remove-person><Trash2 size={12} /> Remove</button>}
+                </div>
+              </div>
+              {accessNote && <p className="text-xs text-gray-500" data-access-note>{accessNote}</p>}
+              <div>
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2 flex items-center gap-1.5"><Shield size={11} /> Pages this person can open</p>
+                <AccessEditor person={member} currentUserRole={currentUser?.role} onSaved={() => { setAccessNote('Access saved'); setTimeout(() => setAccessNote(''), 2500) }} />
+              </div>
+              {personModal?.type === 'edit' && <PersonModal currentUserRole={currentUser?.role} user={member} onClose={() => setPersonModal(null)} onSaved={reload} />}
+              {personModal?.type === 'delete' && <DeleteConfirm user={member} onClose={() => setPersonModal(null)} onDeleted={() => navigate('/team')} />}
             </div>
           )}
 

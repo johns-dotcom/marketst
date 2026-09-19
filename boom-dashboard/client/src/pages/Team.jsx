@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { Plus, Trash2, Check, ChevronDown, Send, LayoutList, Columns, AtSign, X, TrendingUp, Loader } from 'lucide-react'
+import { Plus, Trash2, Check, ChevronDown, Send, LayoutList, Columns, AtSign, X, TrendingUp, Loader, Users, UserPlus, Pencil, Copy } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import api from '../api'
 import { useAuth } from '../context/AuthContext'
@@ -7,6 +7,8 @@ import useHotkeys from '../hooks/useHotkeys'
 import { formatDate, isPastLocal, daysUntilLocal } from '../utils'
 import PageHeader from '../components/PageHeader'
 import EmailPreviewModal from '../components/EmailPreviewModal'
+import { PersonModal, DeleteConfirm, BoomRepsPanel } from '../components/PeopleAdmin'
+import { PRESETS } from '../lib/navPresets'
 
 const PRIORITY_DOT = {
   'Urgent': 'bg-red-600',
@@ -40,7 +42,19 @@ export default function Team() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [taskForm, setTaskForm] = useState({ description: '', priority: 'Medium', due_date: '' })
-  const [viewMode, setViewMode] = useState('people') // 'people' | 'workload' | 'velocity'
+  // People (2026-09-19): admins land on the DIRECTORY — accounts, roles, access,
+  // last sign-in — the one list that used to be split across Settings › Users,
+  // Settings › Permissions and this page. Everyone else lands on tasks.
+  const isAdminUser = currentUser?.role === 'Admin' || currentUser?.role === 'Superadmin'
+  const [viewMode, setViewMode] = useState(isAdminUser ? 'directory' : 'people') // 'directory' | 'people' | 'workload' | 'velocity'
+  const [people, setPeople] = useState(null)
+  const [personModal, setPersonModal] = useState(null) // null | { type: 'add' | 'edit' | 'delete', user }
+  const [directoryNote, setDirectoryNote] = useState('')
+  const fetchPeople = () => api.get('/settings/people').then((r) => setPeople(r.data?.data || [])).catch(() => setPeople([]))
+  useEffect(() => { if (isAdminUser) fetchPeople() }, [isAdminUser]) // eslint-disable-line react-hooks/exhaustive-deps
+  // Which presets a person's rows add up to (a preset "holds" when every one of its pages is granted).
+  const presetsOf = (pages) => (!pages ? [] : PRESETS.filter((pr) => pr.paths.every((x) => pages.includes(x))).map((pr) => pr.label))
+  const ago = (ts) => { if (!ts) return 'never'; const d = Math.floor((Date.now() - new Date(ts).getTime()) / 86400000); return d === 0 ? 'today' : d === 1 ? 'yesterday' : d < 30 ? `${d} days ago` : new Date(ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) }
   const [workloadData, setWorkloadData] = useState([])
   const [velocityData, setVelocityData] = useState(null)
   const [velocityLoading, setVelocityLoading] = useState(false)
@@ -48,7 +62,7 @@ export default function Team() {
   // Global "New Task" form with @ mention
   const [showNewTask, setShowNewTask] = useState(false)
 
-  const VIEW_MODES = ['people', 'workload', 'velocity']
+  const VIEW_MODES = [...(isAdminUser ? ['directory'] : []), 'people', 'workload', 'velocity']
   useHotkeys([
     { key: 'n', handler: () => setShowNewTask(true) },
     ...VIEW_MODES.map((m, i) => ({ key: String(i + 1), handler: () => setViewMode(m) })),
@@ -259,9 +273,14 @@ export default function Team() {
     <div>
       {/* Header */}
       <PageHeader
-        title="Team"
-        subtitle={`${team.length} members · ${activeCount} active tasks`}
+        title="People"
+        subtitle={`${team.length} ${team.length === 1 ? 'person' : 'people'} · ${activeCount} active tasks`}
         actions={<>
+          {viewMode === 'directory' && isAdminUser && (
+            <button onClick={() => setPersonModal({ type: 'add' })} data-invite
+              className="flex items-center gap-1.5 text-xs font-semibold text-white bg-gray-900 hover:bg-gray-800 px-3 py-1.5 rounded-lg transition-colors"
+            ><UserPlus size={13} /> Add a person</button>
+          )}
           {viewMode === 'people' && (
             <button
               onClick={() => setShowNewTask(v => !v)}
@@ -269,10 +288,16 @@ export default function Team() {
             ><Plus size={13} /> New Task</button>
           )}
           <div className="flex items-center gap-1 bg-gray-100 p-1 rounded-lg">
+            {isAdminUser && (
+              <button
+                onClick={() => setViewMode('directory')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${viewMode === 'directory' ? 'bg-card shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}
+              ><Users size={13} /> Directory</button>
+            )}
             <button
               onClick={() => setViewMode('people')}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${viewMode === 'people' ? 'bg-card shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}
-            ><LayoutList size={13} /> People</button>
+            ><LayoutList size={13} /> Tasks</button>
             <button
               onClick={() => { setViewMode('workload'); fetchWorkload() }}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${viewMode === 'workload' ? 'bg-card shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}
@@ -715,6 +740,68 @@ export default function Team() {
       })()}
 
       {/* ── PEOPLE LIST ── */}
+      {viewMode === 'directory' && isAdminUser && (
+        <div data-directory>
+          {people === null ? <p className="text-sm text-gray-400 py-8 text-center">Loading…</p> : (
+            <div className="border border-rule rounded-xl overflow-hidden">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-gray-50 border-b border-rule text-[11px] font-semibold text-gray-500 uppercase tracking-wide">
+                    <th className="text-left px-4 py-3">Name</th>
+                    <th className="text-left px-4 py-3">Role</th>
+                    <th className="text-left px-4 py-3">Department</th>
+                    <th className="text-left px-4 py-3">Access</th>
+                    <th className="text-left px-4 py-3">Last sign-in</th>
+                    <th className="text-right px-4 py-3">Open tasks</th>
+                    <th className="px-4 py-3" />
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {people.map((u) => {
+                    const pres = presetsOf(u.pages)
+                    const access = u.role === 'Superadmin' ? 'everything'
+                      : u.pages && u.pages.length ? `${pres.length ? pres.join(' + ') + ' · ' : ''}${u.pages.length} page${u.pages.length === 1 ? '' : 's'}`
+                      : u.role === 'User' ? 'Home and Settings only' : `${u.role} defaults`
+                    const canManage = currentUser?.role === 'Superadmin' || (u.role !== 'Admin' && u.role !== 'Superadmin')
+                    return (
+                      <tr key={u.id} className="hover:bg-gray-50 transition-colors" data-person={u.id}>
+                        <td className="px-4 py-3">
+                          <Link to={`/team/${u.id}`} className="flex items-center gap-2.5 group">
+                            <div className="w-7 h-7 rounded-full bg-boom-100 flex items-center justify-center flex-shrink-0"><span className="text-[11px] font-bold text-boom-700">{u.name?.charAt(0)?.toUpperCase()}</span></div>
+                            <div className="min-w-0">
+                              <p className="font-medium text-gray-900 group-hover:text-boom-700 truncate">{u.name}{u.id === currentUser?.id ? <span className="text-[9px] font-bold tracking-wider ml-1.5 px-1 py-0.5 rounded bg-gray-100 text-gray-500">YOU</span> : null}</p>
+                              <p className="text-[11px] text-gray-400 truncate">{u.email}{u.title ? ` · ${u.title}` : ''}</p>
+                            </div>
+                          </Link>
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs font-semibold ${u.role === 'Superadmin' ? 'bg-purple-50 text-purple-700' : u.role === 'Admin' ? 'bg-boom-50 text-boom-700' : u.role === 'Approver' ? 'bg-amber-50 text-amber-700' : 'bg-gray-100 text-gray-600'}`}>{u.role}</span>
+                        </td>
+                        <td className="px-4 py-3 text-gray-500">{u.department || '—'}</td>
+                        <td className="px-4 py-3 text-gray-600 text-xs" data-access>{access}</td>
+                        <td className="px-4 py-3 text-gray-500 text-xs" data-last-signin>{u.invite_pending ? <span className="text-amber-700 font-medium">invite pending</span> : ago(u.last_sign_in)}</td>
+                        <td className="px-4 py-3 text-right tabular-nums text-gray-700">{u.open_tasks || 0}</td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-1 justify-end">
+                            {canManage && <button onClick={() => setPersonModal({ type: 'edit', user: u })} className="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg" title="Edit"><Pencil size={14} /></button>}
+                            <Link to={`/team/${u.id}`} className="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg" title="Open"><ChevronDown size={14} className="-rotate-90" /></Link>
+                          </div>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+          <p className="text-[11px] text-gray-400 mt-2">Access is what a person can open: a role's defaults, or the pages granted to them. Open a person to change it.</p>
+          <div className="mt-8"><BoomRepsPanel /></div>
+          {personModal?.type === 'add' && <PersonModal currentUserRole={currentUser?.role} onClose={() => setPersonModal(null)} onSaved={(saved, pending) => { fetchPeople(); fetchTeam(); if (pending) setPendingEmail(pending) }} />}
+          {personModal?.type === 'edit' && <PersonModal currentUserRole={currentUser?.role} user={personModal.user} onClose={() => setPersonModal(null)} onSaved={() => { fetchPeople(); fetchTeam() }} />}
+          {personModal?.type === 'delete' && <DeleteConfirm user={personModal.user} onClose={() => setPersonModal(null)} onDeleted={() => { fetchPeople(); fetchTeam() }} />}
+        </div>
+      )}
+
       {viewMode === 'people' && (
       <div>
         {filtered.map((member, idx) => {

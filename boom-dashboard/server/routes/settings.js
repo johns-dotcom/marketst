@@ -3,7 +3,7 @@ const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 const pool = require('../db');
 const authMiddleware = require('../middleware/auth');
-const { sendWelcomeEmail, sendTestUserInvitationEmail } = require('../services/email');
+const { sendWelcomeEmail } = require('../services/email');
 const { prepareEmail: prepareEmailPayload } = require('../services/emailDispatch');
 const { clearForeignKeyRefs } = require('../lib/fkSweep');
 const { postEvent } = require('../lib/activityBot');
@@ -292,71 +292,6 @@ router.delete('/users/:id', adminOnly, async (req, res) => {
 // way as the hardcoded starter presets. Upsert by case-insensitive name so
 // re-saving a template under the same name updates it.
 
-// GET /api/settings/permission-templates
-router.get('/permission-templates', adminOnly, async (req, res) => {
-  try {
-    const { rows } = await pool.query(
-      'SELECT id, name, pages, created_by, updated_at FROM permission_templates ORDER BY LOWER(name)'
-    );
-    res.json({ success: true, data: rows });
-  } catch (err) {
-    console.error('Settings get permission-templates error:', err);
-    res.status(500).json({ success: false, error: 'Internal server error' });
-  }
-});
-
-// POST /api/settings/permission-templates — { name, pages }
-router.post('/permission-templates', adminOnly, async (req, res) => {
-  try {
-    const name = String(req.body?.name || '').trim();
-    const pages = req.body?.pages;
-    if (!name || name.length > 60) {
-      return res.status(400).json({ success: false, error: 'Template name required (max 60 chars)' });
-    }
-    if (!Array.isArray(pages) || pages.length === 0 || !pages.every(p => typeof p === 'string' && p.startsWith('/') && p.length <= 100)) {
-      return res.status(400).json({ success: false, error: 'pages must be a non-empty array of page paths' });
-    }
-    const { rows: existing } = await pool.query(
-      'SELECT id FROM permission_templates WHERE LOWER(name) = LOWER($1)', [name]
-    );
-    let row;
-    if (existing.length) {
-      const r = await pool.query(
-        `UPDATE permission_templates SET pages = $1, name = $2, created_by = $3, updated_at = NOW()
-          WHERE id = $4 RETURNING id, name, pages, created_by, updated_at`,
-        [JSON.stringify(pages), name, req.user.name, existing[0].id]
-      );
-      row = r.rows[0];
-    } else {
-      const r = await pool.query(
-        `INSERT INTO permission_templates (name, pages, created_by)
-         VALUES ($1, $2, $3) RETURNING id, name, pages, created_by, updated_at`,
-        [name, JSON.stringify(pages), req.user.name]
-      );
-      row = r.rows[0];
-    }
-    res.json({ success: true, data: row, updated: existing.length > 0 });
-  } catch (err) {
-    console.error('Settings save permission-template error:', err);
-    res.status(500).json({ success: false, error: 'Internal server error' });
-  }
-});
-
-// DELETE /api/settings/permission-templates/:id
-router.delete('/permission-templates/:id', adminOnly, async (req, res) => {
-  try {
-    await pool.query('DELETE FROM permission_templates WHERE id = $1', [req.params.id]);
-    res.json({ success: true });
-  } catch (err) {
-    console.error('Settings delete permission-template error:', err);
-    res.status(500).json({ success: false, error: 'Internal server error' });
-  }
-});
-
-// ─── Page Permissions ─────────────────────────────────────────────────────────
-
-// GET /api/settings/permissions/:userId — get allowed pages for a user
-// Returns array of page paths, or null if unrestricted (no rows)
 router.get('/permissions/:userId', adminOnly, async (req, res) => {
   try {
     const userId = parseInt(req.params.userId, 10);
@@ -538,6 +473,95 @@ router.patch('/reps/:name', adminOnly, async (req, res) => {
     console.error('PATCH /api/settings/reps/:name:', err);
     res.status(500).json({ success: false, error: 'Internal server error' });
   }
+});
+
+// ── My settings (2026-09-19) ────────────────────────────────────────────────
+// The signed-in person's own profile, sign-ins and notification preferences.
+const NOTIFY_KEYS = ['approvals_waiting', 'payments_due', 'tasks_assigned', 'renewals_coming', 'weekly_digest'];
+
+router.get('/me', authMiddleware, async (req, res) => {
+  try {
+    const { rows: [u] } = await pool.query(
+      'SELECT id, name, email, role, department, title, phone, notification_prefs, created_at FROM users WHERE id = $1', [req.user.id]);
+    if (!u) return res.status(404).json({ success: false, error: 'User not found' });
+    res.json({ success: true, data: u });
+  } catch (err) { console.error('settings/me error:', err); res.status(500).json({ success: false, error: 'Internal server error' }); }
+});
+
+router.put('/me', authMiddleware, async (req, res) => {
+  try {
+    const b = req.body || {};
+    const str = (v) => (v === undefined ? undefined : (v === null ? null : (String(v).trim() || null)));
+    const name = str(b.name);
+    if (name === null) return res.status(400).json({ success: false, error: 'Name cannot be empty' });
+    const { rows: [u] } = await pool.query(
+      `UPDATE users SET
+         name  = COALESCE($2, name),
+         title = CASE WHEN $3::boolean THEN $4 ELSE title END,
+         phone = CASE WHEN $5::boolean THEN $6 ELSE phone END
+       WHERE id = $1 RETURNING id, name, email, role, department, title, phone, notification_prefs`,
+      [req.user.id, name ?? null, b.title !== undefined, str(b.title) ?? null, b.phone !== undefined, str(b.phone) ?? null]);
+    res.json({ success: true, data: u });
+  } catch (err) { console.error('settings/me update error:', err); res.status(500).json({ success: false, error: 'Internal server error' }); }
+});
+
+// Recent sign-ins, from the log the login endpoints already write.
+router.get('/me/sessions', authMiddleware, async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT id, logged_in_at, ip_address, user_agent FROM user_login_logs WHERE user_id = $1 ORDER BY logged_in_at DESC LIMIT 12`, [req.user.id]);
+    res.json({ success: true, data: rows });
+  } catch (err) { console.error('settings/me/sessions error:', err); res.status(500).json({ success: false, error: 'Internal server error' }); }
+});
+
+// Notification preferences: stored now, SENT once Gmail is connected. The
+// client says so on the tab; this route only keeps the answers.
+router.get('/me/notifications', authMiddleware, async (req, res) => {
+  try {
+    const { rows: [u] } = await pool.query('SELECT notification_prefs FROM users WHERE id = $1', [req.user.id]);
+    const prefs = u?.notification_prefs || {};
+    res.json({ success: true, data: Object.fromEntries(NOTIFY_KEYS.map((k) => [k, prefs[k] === true])), keys: NOTIFY_KEYS, delivery: { gmail: !!process.env.GMAIL_REFRESH_TOKEN } });
+  } catch (err) { console.error('settings/me/notifications error:', err); res.status(500).json({ success: false, error: 'Internal server error' }); }
+});
+router.put('/me/notifications', authMiddleware, async (req, res) => {
+  try {
+    const b = req.body || {};
+    const prefs = Object.fromEntries(NOTIFY_KEYS.map((k) => [k, b[k] === true]));
+    await pool.query('UPDATE users SET notification_prefs = $2::jsonb WHERE id = $1', [req.user.id, JSON.stringify(prefs)]);
+    res.json({ success: true, data: prefs });
+  } catch (err) { console.error('settings/me/notifications update error:', err); res.status(500).json({ success: false, error: 'Internal server error' }); }
+});
+
+// ── People (2026-09-19) ─────────────────────────────────────────────────────
+// The one list behind /team for admins: every account with its page rows,
+// last sign-in and open-task count. Presets are a CLIENT vocabulary
+// (lib/navPresets.js), so the rows are returned raw and the client names
+// which presets they add up to.
+router.get('/people', adminOnly, async (req, res) => {
+  try {
+    const { rows: users } = await pool.query(
+      `SELECT u.id, u.name, u.email, u.role, u.department, u.hierarchy_level, u.boom_rep, u.title, u.phone, u.created_at,
+              (u.password_hash IS NULL) AS invite_pending,
+              (SELECT MAX(l.logged_in_at) FROM user_login_logs l WHERE l.user_id = u.id) AS last_sign_in,
+              (SELECT COUNT(*)::int FROM tasks t WHERE t.user_id = u.id AND t.status <> 'Done') AS open_tasks
+         FROM users u
+        ORDER BY CASE u.role WHEN 'Superadmin' THEN 1 WHEN 'Admin' THEN 2 WHEN 'Approver' THEN 3 WHEN 'User' THEN 4 ELSE 5 END, u.hierarchy_level, u.name`);
+    const { rows: perms } = await pool.query('SELECT user_id, page FROM user_page_permissions ORDER BY page');
+    const byUser = {};
+    for (const r of perms) (byUser[r.user_id] = byUser[r.user_id] || []).push(r.page);
+    res.json({ success: true, data: users.map((u) => ({ ...u, pages: byUser[u.id] || null })) });
+  } catch (err) { console.error('settings/people error:', err); res.status(500).json({ success: false, error: 'Internal server error' }); }
+});
+
+// Sign a person out everywhere: bump token_version so every JWT they hold is stale.
+router.post('/users/:id(\\d+)/logout-all', adminOnly, async (req, res) => {
+  try {
+    const { rows: [t] } = await pool.query('SELECT id, role FROM users WHERE id = $1', [req.params.id]);
+    if (!t) return res.status(404).json({ success: false, error: 'User not found' });
+    if (!isSuperadmin(req.user.role) && isAdminOrSuperadmin(t.role)) return res.status(403).json({ success: false, error: 'Only Superadmin can sign out an Admin' });
+    await pool.query('UPDATE users SET token_version = COALESCE(token_version, 0) + 1 WHERE id = $1', [t.id]);
+    res.json({ success: true });
+  } catch (err) { console.error('settings logout-all error:', err); res.status(500).json({ success: false, error: 'Internal server error' }); }
 });
 
 module.exports = router;

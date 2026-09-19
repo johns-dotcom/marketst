@@ -179,7 +179,7 @@ router.post('/register', authMiddleware, async (req, res) => {
 router.get('/me', authMiddleware, async (req, res) => {
   try {
     const result = await pool.query(
-      'SELECT id, name, email, role, department, hierarchy_level, boom_rep, created_at FROM users WHERE id = $1',
+      'SELECT id, name, email, role, department, hierarchy_level, boom_rep, title, phone, created_at FROM users WHERE id = $1',
       [req.user.id]
     );
 

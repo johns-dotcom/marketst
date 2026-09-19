@@ -175,7 +175,7 @@ export const AuthProvider = ({ children }) => {
     user ? canViewPath(path, { role: user.role, pagePermissions, knownPages }) : false
 
   return (
-    <AuthContext.Provider value={{ user, token, loading, login, googleLogin, logout, impersonate, exitImpersonation, impersonating, adminUser, pagePermissions, canView }}>
+    <AuthContext.Provider value={{ user, token, loading, login, googleLogin, logout, impersonate, exitImpersonation, impersonating, adminUser, pagePermissions, canView, refreshUser: fetchUser }}>
       {children}
     </AuthContext.Provider>
   )
