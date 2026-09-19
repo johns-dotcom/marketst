@@ -13,51 +13,27 @@
 // spotlight; if no step of a tour has a target, the tour does not start.
 // `path` gates the tour with the same canView the sidebar uses: a bookkeeper
 // never sees the Deals tour.
-export const TOURS = [
-  {
-    // The welcome tour WALKS THE PAGES: each step names its `path`; the engine
-    // navigates there, waits for the anchor, and skips pages this person cannot
-    // open (canView). `target: null` is a centered card with no spotlight.
-    id: 'welcome', title: 'Welcome to the dashboard', path: '/', version: '2026-09-19', auto: 'first-signin', multipage: true,
-    steps: [
-      { path: '/', target: null, title: 'Welcome to Market Street', body: 'A short walk through every page you can open — about three minutes. You can skip a page, or the whole tour, at any time, and replay it later from Walkthrough in the top bar.' },
-      { path: '/', target: '[data-tour="sidebar"]', title: 'Everything is in the sidebar', body: 'Five groups: General, Artists & releases, Money, Reports, Admin. A row with a chevron holds several pages; open it and they appear as tabs across the top.' },
-      { path: '/', target: '[data-tour="home-loop"]', title: 'Home is what needs doing', body: 'Approvals waiting, payments due, bank lines to review, releases coming, artists mid-onboarding, your tasks. Each tile opens the page that resolves it; when all is clear this collapses to one line.' },
-      { path: '/', target: '[data-tour="search"]', title: 'Search jumps anywhere', body: 'Press / or ⌘K. Type a page, an artist, a vendor or an invoice number.' },
-      { path: '/my-work', target: '[data-tour="my-work-list"]', title: 'My Work', body: 'Your tasks by when they are due, editable in place; the dates that involve you this week; and, on the right, only the things you can unblock.' },
-      { path: '/artists', target: '[data-tour="artists-header"]', title: 'Artists', body: 'The roster. Each profile is the hub for that artist: releases, contracts, documents, budget, recoupments, campaigns, and the onboarding checklist after a signing.' },
-      { path: '/releases', target: '[data-tour="releases-list"]', title: 'Releases', body: 'Every release with a date and its checklist. Click a row to expand it. Keys 1–7 switch its tabs.' },
-      { path: '/deals', target: '[data-tour="deal-board"]', title: 'Deals', body: 'Scouting to Signed. Type the terms on the deal at Offer; moving it to Signed adds the artist, creates the advance invoice, marks the calendar and prefills the contract.' },
-      { path: '/contracts', target: '[data-tour="contracts-header"]', title: 'Contracts', body: 'Agreements on file with terms and expiry. Expiring ones surface under Renewals and on the calendar.' },
-      { path: '/bk/approvals', target: '[data-tour="approvals"]', title: 'Approvals', body: 'Invoices vendors submitted, with what the AI read off the document beside what they typed. Confirm, answer the three questions, approve or reject.' },
-      { path: '/bk/payments', target: '[data-tour="payments"]', title: 'Payments', body: 'Approved invoices by priority. Mark paid, attach the proof, send the confirmation from the mailbox that owns payments.' },
-      { path: '/calendar', target: '[data-tour="calendar-grid"]', title: 'Calendar', body: 'Release dates, task deadlines, payment due dates, renewals and signings, each linking to its page. The legend is the filter.' },
-      { path: '/brand', target: '[data-brand-drop]', title: 'Brand', body: 'The label\'s logos and photos. Drop files in; anyone can download them.' },
-      { path: '/team', target: '[data-directory]', title: 'People', body: 'Everyone with an account: role, department, what they can open, last sign-in. Add a person and hand them a one-time link.' },
-      { path: '/settings', target: '[data-settings-shell] aside', title: 'Settings', body: 'Yours first — profile, sign-in, notifications, your mailbox, theme, sidebar. Then the label\'s: people, the Label record, integrations and mail.' },
-      { path: '/', target: '[data-tour="help"]', title: 'That is the dashboard', body: 'Each page also has its own short tour the first time you open it. Replay any of them from Walkthrough in the top bar, or press ? for shortcuts and tours.' },
-    ],
-  },
+const PAGE_TOURS = [
   {
     id: 'home', title: 'Home', path: '/', version: '2026-09-19',
     steps: [
       { target: '[data-tour="home-loop"]', title: 'The loop', body: 'Invoices arrive, get approved, get paid, the bank statement proves it, reports read from that. One tile per step.' },
       { target: '[data-quick-actions]', title: 'Start something', body: 'Add an invoice, add a release, open a new deal. Only the actions for pages you can open.' },
       { target: '[data-week]', title: 'The next seven days', body: 'From the team calendar: release dates, payment due dates, task deadlines, renewals. Each links to its page.' },
-      { target: '[data-activity]', title: 'What the team did', body: "Everyone else's recent changes, newest first, with any alerts on top." },
+      { target: '[data-activity]', needs: '/activity', title: 'What the team did', body: "Everyone else's recent changes, newest first, with any alerts on top." },
     ],
   },
   {
     id: 'releases', title: 'Releases', path: '/releases', version: '2026-09-19',
     steps: [
       { target: '[data-tour="releases-header"]', title: 'The pipeline', body: 'Every release with a date, and its checklist. Add release opens a form; if you arrived from a saved contract the artist is already filled in.' },
-      { target: '[data-tour="releases-list"]', title: 'One row per release', body: 'Click a row to expand it: checklist, metadata, DSP submissions, budget, activity, comments. Keys 1–7 switch tabs; j and k move between releases.' },
+      { target: '[data-tour="releases-list"], [data-tour="releases-header"]', title: 'One row per release', body: 'Click a row to expand it: checklist, metadata, DSP submissions, budget, activity, comments. Keys 1–7 switch tabs; j and k move between releases.' },
     ],
   },
   {
     id: 'deals', title: 'Deals', path: '/deals', version: '2026-09-19',
     steps: [
-      { target: '[data-tour="deal-board"]', title: 'Scouting to Signed', body: "Drag a card between stages. Type the terms and the artist's contact on the deal at Offer — the contract, the roster row and the advance invoice all read from them." },
+      { target: '[data-tour="deal-board"], [data-tour="deals-header"]', title: 'Scouting to Signed', body: "Drag a card between stages. Type the terms and the artist's contact on the deal at Offer — the contract, the roster row and the advance invoice all read from them." },
       { target: '[data-tour="deals-header"]', title: 'Signed does the work', body: 'Moving a deal to Signed adds the artist to the roster, creates the advance as an invoice due in 30 days, marks the calendar, and hands you the contract form prefilled.' },
     ],
   },
@@ -71,13 +47,13 @@ export const TOURS = [
     id: 'artists', title: 'Artists', path: '/artists', version: '2026-09-19',
     steps: [
       { target: '[data-tour="artists-header"]', title: 'The roster', body: 'Everyone signed to the label. Add artist creates a profile by hand; a deal moved to Signed does it for you.' },
-      { target: '[data-tour="artist-card"]', title: 'Open a profile', body: 'The profile is the hub: releases, contracts, documents, budget, recoupments, campaigns, and the onboarding checklist for a newly signed artist.' },
+      { target: '[data-tour="artist-card"], [data-tour="artists-header"]', title: 'Open a profile', body: 'The profile is the hub: releases, contracts, documents, budget, recoupments, campaigns, and the onboarding checklist for a newly signed artist.' },
     ],
   },
   {
     id: 'artist-profile', title: "An artist's profile", path: '/artists', version: '2026-09-19', match: /^\/artists\/\d+/,
     steps: [
-      { target: '[data-onboarding]', title: 'Onboarding', body: 'For an artist signed through the pipeline: contract on file, payment details and W-9, advance paid, budget set, first release. It ticks itself from the data and collapses when complete.' },
+      { target: '[data-onboarding], [data-tour="artist-tabs"]', title: 'Onboarding', body: 'For an artist signed through the pipeline: contract on file, payment details and W-9, advance paid, budget set, first release. It ticks itself from the data and collapses when complete.' },
       { target: '[data-tour="artist-tabs"]', title: 'Every side of the artist', body: 'Releases and contracts, then the money: Budget, Recoupments and Campaigns, each read-only here with a link to its full page.' },
     ],
   },
@@ -103,7 +79,7 @@ export const TOURS = [
   {
     id: 'people', title: 'People', path: '/team', version: '2026-09-19',
     steps: [
-      { target: '[data-directory]', title: 'Everyone with an account', body: 'Role, department, what they can open, last sign-in, open tasks. Open a person to change their access.' },
+      { target: '[data-directory], [data-invite]', title: 'Everyone with an account', body: 'Role, department, what they can open, last sign-in, open tasks. Open a person to change their access.' },
       { target: '[data-invite]', title: 'Adding a person', body: 'Name, email, department. The department picks a starting preset of pages; presets add up for someone with two jobs. You get a one-time link to send them.' },
     ],
   },
@@ -126,10 +102,29 @@ export const TOURS = [
       { target: '[data-tour="my-work-add"]', title: 'Add a task', body: 'Type it and press Enter. @ assigns it to a teammate; the chips set priority, category and due date. Press n anywhere on this page to jump here.' },
       { target: '[data-tour="my-work-list"]', title: 'Your list, by when', body: 'Overdue, today, this week, later, no date. Click a row to edit it in place — status, priority, due date, notes, who it is for. The circle marks it done.' },
       { target: '[data-tour="my-work-week"]', title: 'This week, mine', body: 'From the team calendar, kept to what involves you: your task deadlines, your releases, and the money dates you can open.' },
-      { target: '[data-tour="my-work-waiting"]', title: 'Waiting on you', body: 'Only things you can unblock: invoices for your approval, mentions, invites you sent that nobody used, the statement cutoff. It disappears when there is nothing.' },
+      { target: '[data-tour="my-work-waiting"], [data-tour="my-work-list"]', title: 'Waiting on you', body: 'Only things you can unblock: invoices for your approval, mentions, invites you sent that nobody used, the statement cutoff. It disappears when there is nothing.' },
     ],
   },
 ]
+
+// The welcome tour WALKS THE PAGES, and on each page it runs that page's own
+// tour in full — built from PAGE_TOURS so the two can never disagree. Steps
+// carry `path`; the engine navigates, waits for the anchor, and drops pages
+// this person cannot open. `target: null` is a centered card.
+const WALK = ['/', '/my-work', '/artists', '/releases', '/deals', '/contracts', '/bk/approvals', '/bk/payments', '/calendar', '/brand', '/team', '/settings']
+const WELCOME = {
+  id: 'welcome', title: 'Welcome to the dashboard', path: '/', version: '2026-09-19', auto: 'first-signin', multipage: true,
+  steps: [
+    { path: '/', target: null, title: 'Welcome to Market Street', body: 'A walk through every page you can open, a few steps each — about five minutes. Skip a page, or the whole tour, at any time; replay it later from Walkthrough in the top bar.' },
+    { path: '/', target: '[data-tour="sidebar"]', title: 'Everything is in the sidebar', body: 'Five groups: General, Artists & releases, Money, Reports, Admin. A row with a chevron holds several pages; open it and they appear as tabs across the top.' },
+    { path: '/', target: '[data-tour="search"]', title: 'Search jumps anywhere', body: 'Press / or ⌘K. Type a page, an artist, a vendor or an invoice number.' },
+    ...WALK.flatMap((pth) => PAGE_TOURS.filter((t) => t.path === pth && !t.match).flatMap((t) => t.steps.map((st) => ({ ...st, path: pth, page: t.title })))),
+    { path: '/', target: '[data-tour="help"]', title: 'That is the dashboard', body: 'Each page also has its own short tour the first time you open it. Replay any of them from Walkthrough in the top bar, or press ? for shortcuts and tours.' },
+  ],
+}
+export const TOURS = [WELCOME, ...PAGE_TOURS]
+// Page tours the welcome walk covers — finishing welcome marks these done too.
+export const WELCOME_COVERS = PAGE_TOURS.filter((t) => WALK.includes(t.path) && !t.match).map((t) => ({ id: t.id, version: t.version }))
 
 export const tourById = (id) => TOURS.find((t) => t.id === id) || null
 // Which tour belongs to a pathname (a page tour, never the welcome tour).

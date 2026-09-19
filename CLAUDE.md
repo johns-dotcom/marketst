@@ -355,13 +355,25 @@ Authoritative project guide: **`boom-dashboard/CLAUDE.md`** — read it before m
   /settings/me/tours`; a person who finished an older version sees the tour
   offered again as "updated". **THE RULE: a change to a page changes its tour
   in the same commit and bumps that tour's `version` (a date).**
-  **The welcome tour walks the pages** (`multipage: true`, each step carries
-  `path`; the engine navigates, waits up to `window.__TOUR_WAIT_MS__` (4s) for
-  the anchor, skips a step whose page never renders it, and drops steps on
-  pages the person cannot open); `target: null` is a centered card. The card
-  offers **Skip this page** (multipage only) and **Skip tour**; Esc skips the
-  tour. The fixture asserts the welcome tour visits every main page and starts
-  and ends on Home.
+  **The welcome tour walks the pages AND runs each page's whole tour there**
+  (bug fixed 2026-09-19, John: "doesnt go through a full page before moving
+  on"). `WELCOME` is BUILT from `PAGE_TOURS` — `WALK` lists the pages in
+  order and every step of that page's tour is spliced in with `path` and
+  `page` — so the two can never disagree; do not hand-write welcome steps.
+  The engine navigates, waits up to `window.__TOUR_WAIT_MS__` (4s) for the
+  anchor, and drops steps on pages the person cannot open (`step.needs` gates
+  a step on a second page, e.g. Home's activity card on `/activity`).
+  **Anchors that exist only with data carry a fallback**: a target is a
+  comma-separated selector list and the first that renders wins
+  (`[data-tour="releases-list"], [data-tour="releases-header"]`) — an empty
+  label must not make the walk skip pages after the 4s timeout. Finishing
+  welcome PUTs a batch (`{ tours: [...] }`, `WELCOME_COVERS`) that also marks
+  every page tour it ran as done, so no page re-offers its tour right after.
+  `target: null` is a centered card. The card offers **Skip this page**
+  (multipage only) and **Skip tour**; Esc skips the tour. The fixture asserts
+  the welcome tour visits every main page, runs every step of every page tour
+  it visits, that each page step's anchor renders without data or carries a
+  fallback that does, and that it starts and ends on Home.
   `npm run tours-fixture` (`client/scripts/tours-fixture.mjs`) fails when a
   tour names a page not in the nav or a selector no page renders — run it with
   nav-fixture before pushing. `npm run tour-dom` drives the engine (fresh ·

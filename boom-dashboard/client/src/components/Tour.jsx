@@ -10,7 +10,7 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { X, ChevronLeft, ChevronRight, SkipForward, Loader } from 'lucide-react'
 import api from '../api'
 import { useAuth } from '../context/AuthContext'
-import { TOURS, tourById, tourForPath } from '../tours'
+import { TOURS, tourById, tourForPath, WELCOME_COVERS } from '../tours'
 
 const TourContext = createContext(null)
 const NOOP = { startTour: () => false, tours: [], done: {}, active: null, doneVersion: () => null, isDone: () => false, pageTour: null }
@@ -45,10 +45,13 @@ export function TourProvider({ children }) {
   const finish = useCallback(async (completed) => {
     const t = active?.tour; setActive(null)
     if (!t || completed === null) return
+    // Finishing the welcome walk also completes every page tour it ran, so
+    // those pages do not offer their tour again the moment they are opened.
+    const batch = [{ id: t.id, version: t.version, skipped: !completed }, ...(t.id === 'welcome' && completed ? WELCOME_COVERS.map((c) => ({ ...c, skipped: false })) : [])]
     try {
-      const r = await api.put('/settings/me/tours', { id: t.id, version: t.version, skipped: !completed })
-      setDone(r.data?.data || { ...(done || {}), [t.id]: { version: t.version } })
-    } catch { setDone((d) => ({ ...(d || {}), [t.id]: { version: t.version } })) }
+      const r = await api.put('/settings/me/tours', batch.length > 1 ? { tours: batch } : batch[0])
+      setDone(r.data?.data || Object.fromEntries(batch.map((b) => [b.id, { version: b.version }])))
+    } catch { setDone((d) => ({ ...(d || {}), ...Object.fromEntries(batch.map((b) => [b.id, { version: b.version }])) })) }
   }, [active, done])
 
   // Auto-start. Welcome first; then the page tour once per page per session.
@@ -88,7 +91,7 @@ function TourOverlay({ tour, index, setIndex, onFinish, canView }) {
   const steps = tour.steps
   // Which steps this person may take: a step on a page they cannot open is
   // dropped up front, so the count is honest.
-  const eligible = useMemo(() => steps.map((st, i) => ({ st, i })).filter(({ st }) => canView(st.path || tour.path)), [steps, tour.path, canView])
+  const eligible = useMemo(() => steps.map((st, i) => ({ st, i })).filter(({ st }) => canView(st.path || tour.path) && (!st.needs || canView(st.needs))), [steps, tour.path, canView])
   const order = eligible.map((e) => e.i)
   const pos = Math.max(0, order.indexOf(index) === -1 ? 0 : order.indexOf(index))
   const stepIdx = order[pos]
@@ -151,7 +154,7 @@ function TourOverlay({ tour, index, setIndex, onFinish, canView }) {
   const below = spot ? rect.top + rect.height + 16 + 200 < vh : true
   const cardTop = spot ? (below ? rect.top + rect.height + 14 : Math.max(12, rect.top - 14 - 210)) : Math.max(24, vh / 2 - 120)
   const cardLeft = spot ? Math.min(Math.max(12, rect.left), Math.max(12, vw - 372)) : Math.max(12, vw / 2 - 180)
-  const pageLabel = wantPath ? ({ '/': 'Home' }[wantPath] || wantPath.replace(/^\//, '').replace(/^bk\//, '').replace(/-/g, ' ')) : null
+  const pageLabel = step.page || (wantPath ? ({ '/': 'Home' }[wantPath] || wantPath.replace(/^\//, '').replace(/^bk\//, '').replace(/-/g, ' ')) : null)
   return (
     <div className="fixed inset-0 z-[200]" data-tour-overlay data-tour-id={tour.id} data-tour-step={stepIdx} data-tour-waiting={waiting ? '1' : '0'} aria-live="polite">
       {spot ? (

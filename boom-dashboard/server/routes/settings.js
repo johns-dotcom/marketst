@@ -540,11 +540,13 @@ router.put('/me/notifications', authMiddleware, async (req, res) => {
 // Tours: which click-through tours this person finished, and at which version.
 router.put('/me/tours', authMiddleware, async (req, res) => {
   try {
-    const id = String(req.body?.id || '').trim(); const version = String(req.body?.version || '').trim();
-    if (!/^[a-z0-9-]{2,40}$/.test(id) || !version) return res.status(400).json({ success: false, error: 'id and version required' });
+    // One tour, or a batch (the welcome walk completes the page tours it ran).
+    const list = Array.isArray(req.body?.tours) ? req.body.tours : [req.body || {}];
+    const clean = list.map((t) => ({ id: String(t?.id || '').trim(), version: String(t?.version || '').trim(), skipped: t?.skipped === true }));
+    if (!clean.length || clean.some((t) => !/^[a-z0-9-]{2,40}$/.test(t.id) || !t.version)) return res.status(400).json({ success: false, error: 'id and version required' });
+    const patch = Object.fromEntries(clean.map((t) => [t.id, { version: t.version, at: new Date().toISOString(), skipped: t.skipped }]));
     const { rows: [u] } = await pool.query(
-      `UPDATE users SET tours_done = COALESCE(tours_done, '{}'::jsonb) || jsonb_build_object($2::text, jsonb_build_object('version', $3::text, 'at', NOW(), 'skipped', $4::boolean)) WHERE id = $1 RETURNING tours_done`,
-      [req.user.id, id, version, req.body?.skipped === true]);
+      `UPDATE users SET tours_done = COALESCE(tours_done, '{}'::jsonb) || $2::jsonb WHERE id = $1 RETURNING tours_done`, [req.user.id, JSON.stringify(patch)]);
     res.json({ success: true, data: u?.tours_done || {} });
   } catch (err) { console.error('tours update error:', err); res.status(500).json({ success: false, error: 'Internal server error' }); }
 });

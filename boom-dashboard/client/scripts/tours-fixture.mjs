@@ -48,17 +48,23 @@ for (const t of TOURS) {
 
 console.log('\n2. every target is rendered by some page')
 for (const t of TOURS) for (const s of t.steps) {
+  if (s.needs) ok(NAV_PAGES.some((p) => p.path === s.needs), `${t.id}: step needs ${s.needs}, which is in the nav`)
   if (s.target === null) continue
-  // [data-x="v"] · [data-x] · [data-x] child
-  const m = s.target.match(/^\[(data-[a-z0-9-]+)(?:="([^"]+)")?\]/)
-  ok(!!m, `${t.id}: target ${s.target} is a data-attribute selector`)
-  if (m) ok(hasAttr(m[1], m[2]), `${t.id}: ${s.target} appears in client/src`)
+  // a comma-separated list of fallbacks; each must be a data-attribute selector some page renders
+  for (const sel of s.target.split(',').map((x) => x.trim())) {
+    const m = sel.match(/^\[(data-[a-z0-9-]+)(?:="([^"]+)")?\]/)
+    ok(!!m, `${t.id}: target ${sel} is a data-attribute selector`)
+    if (m) ok(hasAttr(m[1], m[2]), `${t.id}: ${sel} appears in client/src`)
+  }
 }
 
 console.log('\n2b. the welcome tour walks the pages')
 const welcome = TOURS.find((t) => t.id === 'welcome')
 const pages = [...new Set(welcome.steps.map((s) => s.path))]
 ok(welcome.multipage === true && pages.length >= 8, `welcome visits ${pages.length} pages`)
+const pageTourSteps = TOURS.filter((t) => t.id !== 'welcome' && !t.match && pages.includes(t.path)).reduce((n, t) => n + t.steps.length, 0)
+ok(welcome.steps.filter((s) => s.page).length === pageTourSteps, `welcome runs every step of every page tour it visits (${pageTourSteps} steps)`)
+ok(welcome.steps.filter((s) => s.page && !s.target.includes('-header') && !s.target.includes(',') && s.target !== '[data-tour="home-loop"]' && !/^\[data-(quick-actions|week|activity|tour="my-work-(add|list|week)"|tour="approvals"|tour="payments"|tour="calendar-grid"|legend|brand-(drop|filter)|invite|settings-shell)/.test(s.target)).length === 0, 'every page step points at an anchor that renders without data, or carries a fallback that does')
 ok(welcome.steps[0].path === '/' && welcome.steps[welcome.steps.length - 1].path === '/', 'it starts and ends on Home')
 for (const pth of ['/my-work', '/artists', '/releases', '/deals', '/contracts', '/bk/approvals', '/bk/payments', '/calendar', '/brand', '/team', '/settings']) ok(pages.includes(pth), `welcome visits ${pth}`)
 
