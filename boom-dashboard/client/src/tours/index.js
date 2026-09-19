@@ -15,14 +15,27 @@
 // never sees the Deals tour.
 export const TOURS = [
   {
-    id: 'welcome', title: 'Welcome to the dashboard', path: '/', version: '2026-09-19', auto: 'first-signin',
+    // The welcome tour WALKS THE PAGES: each step names its `path`; the engine
+    // navigates there, waits for the anchor, and skips pages this person cannot
+    // open (canView). `target: null` is a centered card with no spotlight.
+    id: 'welcome', title: 'Welcome to the dashboard', path: '/', version: '2026-09-19', auto: 'first-signin', multipage: true,
     steps: [
-      { target: '[data-tour="sidebar"]', title: 'Everything is in the sidebar', body: 'Five groups: General, Artists & releases, Money, Reports, Admin. A row with a chevron holds several pages; open it and they appear as tabs across the top.' },
-      { target: '[data-tour="home-loop"]', title: 'Home is what needs doing', body: 'Approvals waiting, payments due, bank lines to review, releases coming, artists mid-onboarding, your own tasks. Each tile opens the page that resolves it. When every tile is clear, this collapses to one line.' },
-      { target: '[data-tour="search"]', title: 'Search jumps anywhere', body: 'Press / or ⌘K. Type a page, an artist, a vendor or an invoice number.' },
-      { target: '[data-tour="notifications"]', title: 'Notifications', body: 'Mentions, assignments and alerts land here. Which of them also email you is your choice under Settings › Notifications.' },
-      { target: '[data-tour="help"]', title: 'Help, shortcuts, and these tours', body: 'Press ? at any time. It lists the keyboard shortcuts and lets you replay any tour, including this one.' },
-      { target: '[data-tour="sidebar-settings"]', title: 'Settings is yours first', body: 'Profile, sign-in, notifications and your sidebar. Admins also find People, the Label record, integrations and mail there.' },
+      { path: '/', target: null, title: 'Welcome to Market Street', body: 'A short walk through every page you can open — about three minutes. You can skip a page, or the whole tour, at any time, and replay it later from Walkthrough in the top bar.' },
+      { path: '/', target: '[data-tour="sidebar"]', title: 'Everything is in the sidebar', body: 'Five groups: General, Artists & releases, Money, Reports, Admin. A row with a chevron holds several pages; open it and they appear as tabs across the top.' },
+      { path: '/', target: '[data-tour="home-loop"]', title: 'Home is what needs doing', body: 'Approvals waiting, payments due, bank lines to review, releases coming, artists mid-onboarding, your tasks. Each tile opens the page that resolves it; when all is clear this collapses to one line.' },
+      { path: '/', target: '[data-tour="search"]', title: 'Search jumps anywhere', body: 'Press / or ⌘K. Type a page, an artist, a vendor or an invoice number.' },
+      { path: '/my-work', target: '[data-tour="my-work-list"]', title: 'My Work', body: 'Your tasks by when they are due, editable in place; the dates that involve you this week; and, on the right, only the things you can unblock.' },
+      { path: '/artists', target: '[data-tour="artists-header"]', title: 'Artists', body: 'The roster. Each profile is the hub for that artist: releases, contracts, documents, budget, recoupments, campaigns, and the onboarding checklist after a signing.' },
+      { path: '/releases', target: '[data-tour="releases-list"]', title: 'Releases', body: 'Every release with a date and its checklist. Click a row to expand it. Keys 1–7 switch its tabs.' },
+      { path: '/deals', target: '[data-tour="deal-board"]', title: 'Deals', body: 'Scouting to Signed. Type the terms on the deal at Offer; moving it to Signed adds the artist, creates the advance invoice, marks the calendar and prefills the contract.' },
+      { path: '/contracts', target: '[data-tour="contracts-header"]', title: 'Contracts', body: 'Agreements on file with terms and expiry. Expiring ones surface under Renewals and on the calendar.' },
+      { path: '/bk/approvals', target: '[data-tour="approvals"]', title: 'Approvals', body: 'Invoices vendors submitted, with what the AI read off the document beside what they typed. Confirm, answer the three questions, approve or reject.' },
+      { path: '/bk/payments', target: '[data-tour="payments"]', title: 'Payments', body: 'Approved invoices by priority. Mark paid, attach the proof, send the confirmation from the mailbox that owns payments.' },
+      { path: '/calendar', target: '[data-tour="calendar-grid"]', title: 'Calendar', body: 'Release dates, task deadlines, payment due dates, renewals and signings, each linking to its page. The legend is the filter.' },
+      { path: '/brand', target: '[data-brand-drop]', title: 'Brand', body: 'The label\'s logos and photos. Drop files in; anyone can download them.' },
+      { path: '/team', target: '[data-directory]', title: 'People', body: 'Everyone with an account: role, department, what they can open, last sign-in. Add a person and hand them a one-time link.' },
+      { path: '/settings', target: '[data-settings-shell] aside', title: 'Settings', body: 'Yours first — profile, sign-in, notifications, your mailbox, theme, sidebar. Then the label\'s: people, the Label record, integrations and mail.' },
+      { path: '/', target: '[data-tour="help"]', title: 'That is the dashboard', body: 'Each page also has its own short tour the first time you open it. Replay any of them from Walkthrough in the top bar, or press ? for shortcuts and tours.' },
     ],
   },
   {

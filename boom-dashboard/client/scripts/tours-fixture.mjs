@@ -41,25 +41,32 @@ ok(new Set(TOURS.map((t) => t.id)).size === TOURS.length, 'ids are unique')
 ok(TOURS.some((t) => t.id === 'welcome'), 'a welcome tour exists')
 for (const t of TOURS) {
   ok(/^\d{4}-\d{2}-\d{2}$/.test(t.version), `${t.id}: version is a date (${t.version})`)
-  ok(t.steps.length >= 1 && t.steps.every((s) => s.title && s.body && s.target), `${t.id}: every step has target, title, body`)
+  ok(t.steps.length >= 1 && t.steps.every((s) => s.title && s.body && (s.target || s.target === null)), `${t.id}: every step has title, body and a target (null = centered card)`)
   ok(t.path === '/' || NAV_PAGES.some((p) => p.path === t.path), `${t.id}: page ${t.path} is in the nav`)
+  for (const st of t.steps) if (st.path) ok(st.path === '/' || NAV_PAGES.some((p) => p.path === st.path), `${t.id}: step page ${st.path} is in the nav`)
 }
 
 console.log('\n2. every target is rendered by some page')
-const pages = new Set(NAV_PAGES.map((p) => p.path))
 for (const t of TOURS) for (const s of t.steps) {
+  if (s.target === null) continue
   // [data-x="v"] · [data-x] · [data-x] child
   const m = s.target.match(/^\[(data-[a-z0-9-]+)(?:="([^"]+)")?\]/)
   ok(!!m, `${t.id}: target ${s.target} is a data-attribute selector`)
   if (m) ok(hasAttr(m[1], m[2]), `${t.id}: ${s.target} appears in client/src`)
 }
 
+console.log('\n2b. the welcome tour walks the pages')
+const welcome = TOURS.find((t) => t.id === 'welcome')
+const pages = [...new Set(welcome.steps.map((s) => s.path))]
+ok(welcome.multipage === true && pages.length >= 8, `welcome visits ${pages.length} pages`)
+ok(welcome.steps[0].path === '/' && welcome.steps[welcome.steps.length - 1].path === '/', 'it starts and ends on Home')
+for (const pth of ['/my-work', '/artists', '/releases', '/deals', '/contracts', '/bk/approvals', '/bk/payments', '/calendar', '/brand', '/team', '/settings']) ok(pages.includes(pth), `welcome visits ${pth}`)
+
 console.log('\n3. routing')
 ok(tourForPath('/artists/12')?.id === 'artist-profile', '/artists/12 → the profile tour, not the roster tour')
 ok(tourForPath('/artists')?.id === 'artists', '/artists → the roster tour')
 ok(tourForPath('/nowhere') === null, 'an unknown path has no tour')
 ok(tourForPath('/') ?.id === 'home', '/ → the Home tour (welcome is never a page tour)')
-void pages
 
 console.log(failed ? `\n${failed} FAILED` : '\nall assertions passed')
 process.exit(failed ? 1 : 0)
