@@ -214,7 +214,10 @@ Authoritative project guide: **`boom-dashboard/CLAUDE.md`** — read it before m
   royal · forest, `data-step` on the root drives `--ms-step`), and every
   primary button as a "] NEXT [ENTER]" block (`ms-enter`, the bracket and the
   `kbd` are `aria-hidden`, so the harness's text regexes still match). IBM Plex
-  Mono for headings/labels/buttons, the sans stays for body copy. Built in the
+  Mono for headings/labels/buttons, the sans stays for body copy. Second pass
+  the same day (John: "a bit more professional"): straight edges + soft
+  shadows, fainter grain, flat colour bars for steps, the note as a plain
+  callout, bracket glyph hidden — CSS only, no promote needed. Built in the
   LAB and promoted with `sync-vendor-lab.mjs --promote`; the hooks live outside
   the four sync deltas so both files carry them. `npm run vendorform-dom`
   (both pages, all scenarios) is the regression check; the look was verified

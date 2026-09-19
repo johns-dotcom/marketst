@@ -11,12 +11,19 @@
  *
  * Legibility first: body copy stays a sans; the mono carries headings,
  * labels, step signs and buttons. Step colour: 1 red · 2 blue · 3 green.
+ *
+ * Second pass (John: "a bit more professional"): straight edges and soft
+ * shadows instead of torn paper and hard offsets, a fainter grain, flat colour
+ * bars for the steps instead of scalloped awnings, the note as a plain callout
+ * in the body sans, no bracket glyph on the buttons. The sign, the mono, the
+ * step colours and the ENTER key stay — that is the identity; the rest was
+ * costume.
  */
 @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&display=swap');
 
 .ms-form {
-  --ms-paper: #EFE7D3;
-  --ms-paper-2: #F7F2E6;
+  --ms-paper: #F1EBDD;
+  --ms-paper-2: #FBF8F1;
   --ms-ink: #1C1A17;
   --ms-ink-2: #4A453C;
   --ms-ink-3: #7A7366;
@@ -37,8 +44,8 @@
   color: var(--ms-ink);
   background-color: var(--ms-paper) !important;
   /* halftone paper */
-  background-image: radial-gradient(rgba(28, 26, 23, 0.11) 1px, transparent 1.5px);
-  background-size: 7px 7px;
+  background-image: radial-gradient(rgba(28, 26, 23, 0.045) 1px, transparent 1.4px);
+  background-size: 6px 6px;
 }
 .ms-form[data-step="2"] { --ms-step: var(--ms-royal); --ms-step-2: var(--ms-royal-2); }
 .ms-form[data-step="3"] { --ms-step: var(--ms-forest); --ms-step-2: var(--ms-forest-2); }
@@ -47,74 +54,65 @@
 .ms-form header { background: transparent !important; border-bottom: 0 !important; height: auto !important; padding: 18px 28px 6px !important; gap: 14px; }
 .ms-sign {
   display: inline-flex; align-items: center; gap: 10px;
-  font-family: var(--ms-mono); font-weight: 600; font-size: 15px; letter-spacing: 0.14em; text-transform: uppercase;
+  font-family: var(--ms-mono); font-weight: 600; font-size: 13px; letter-spacing: 0.12em; text-transform: uppercase;
   color: #F4EFE2; background: var(--ms-sign);
-  padding: 7px 14px 7px 12px; border-radius: 3px;
-  box-shadow: inset 0 0 0 2px var(--ms-sign), inset 0 0 0 3px rgba(244, 239, 226, 0.85), 3px 4px 0 rgba(28, 26, 23, 0.25);
+  padding: 6px 12px 6px 10px; border-radius: 3px;
+  box-shadow: inset 0 0 0 2px var(--ms-sign), inset 0 0 0 3px rgba(244, 239, 226, 0.85), 0 2px 6px rgba(28, 26, 23, 0.18);
   position: relative;
 }
 .ms-sign::before { content: ''; width: 5px; height: 5px; border-radius: 50%; background: rgba(244, 239, 226, 0.9); }
 .ms-sign-sub { font-family: var(--ms-mono); font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ms-ink-3); }
 /* the post the sign hangs from */
-.ms-form header::after { content: ''; flex: 1; height: 3px; background: repeating-linear-gradient(90deg, var(--ms-ink) 0 10px, transparent 10px 18px); opacity: .35; margin-left: 6px; }
+.ms-form header { border-bottom: 1px solid var(--ms-rule) !important; padding-bottom: 14px !important; margin-bottom: 4px; }
 
 /* ── type ────────────────────────────────────────────────────────────── */
-.ms-h1 { font-family: var(--ms-mono) !important; font-weight: 700 !important; letter-spacing: -0.01em; font-size: 26px !important; line-height: 1.15; color: var(--ms-ink) !important; text-wrap: balance; }
+.ms-h1 { font-family: var(--ms-mono) !important; font-weight: 600 !important; letter-spacing: -0.01em; font-size: 22px !important; line-height: 1.15; color: var(--ms-ink) !important; text-wrap: balance; }
 .ms-form label.block.text-xs.font-bold.uppercase { font-family: var(--ms-mono); letter-spacing: 0.1em; color: var(--ms-ink-2) !important; font-weight: 600 !important; }
 .ms-form .text-gray-900 { color: var(--ms-ink) !important; }
 .ms-form .text-gray-500, .ms-form .text-gray-600, .ms-form .text-slate-600 { color: var(--ms-ink-2) !important; }
 .ms-form .text-gray-400, .ms-form .text-gray-300 { color: var(--ms-ink-3) !important; }
 
 /* ── paper pieces ────────────────────────────────────────────────────── */
-.ms-form .rounded-xl, .ms-form .rounded-2xl, .ms-form .rounded-lg { border-radius: 3px !important; }
+.ms-form .rounded-xl, .ms-form .rounded-2xl, .ms-form .rounded-lg { border-radius: 4px !important; }
 .ms-form .border-rule, .ms-form .border-gray-200 { border-color: var(--ms-rule) !important; }
 .ms-form .bg-card, .ms-form .bg-white { background-color: var(--ms-paper-2) !important; }
-.ms-form .bg-gray-50, .ms-form .bg-gray-100 { background-color: #EAE2CE !important; }
+.ms-form .bg-gray-50, .ms-form .bg-gray-100 { background-color: #F4EFE3 !important; }
 .ms-card {
-  border: 0 !important;
+  border: 1px solid var(--ms-rule) !important;
   background: var(--ms-paper-2) !important;
-  box-shadow: 3px 4px 0 rgba(28, 26, 23, 0.18);
-  /* a torn top and bottom edge */
-  clip-path: polygon(0 6px, 3% 2px, 7% 7px, 12% 1px, 18% 6px, 24% 2px, 31% 8px, 37% 3px, 44% 7px, 50% 1px, 56% 6px, 63% 2px, 69% 8px, 75% 3px, 81% 7px, 88% 1px, 94% 6px, 100% 3px,
-                     100% calc(100% - 5px), 95% 100%, 89% calc(100% - 6px), 82% calc(100% - 1px), 76% calc(100% - 7px), 69% calc(100% - 2px), 62% calc(100% - 8px), 55% calc(100% - 3px), 48% calc(100% - 7px), 41% calc(100% - 1px), 34% calc(100% - 6px), 27% calc(100% - 2px), 20% calc(100% - 8px), 13% calc(100% - 3px), 6% calc(100% - 7px), 0 calc(100% - 2px));
-  padding-top: 6px; padding-bottom: 6px;
-  margin-bottom: 18px !important;
+  box-shadow: 0 1px 2px rgba(28, 26, 23, 0.05), 0 6px 18px -8px rgba(28, 26, 23, 0.18);
+  border-radius: 4px !important;
+  margin-bottom: 16px !important;
 }
-.ms-card-head { background: transparent !important; border-bottom: 2px dashed var(--ms-rule) !important; }
+.ms-card-head { background: #F4EFE3 !important; border-bottom: 1px solid var(--ms-rule) !important; }
 .ms-card-head .font-black, .ms-card-head .text-sm.font-black { font-family: var(--ms-mono); letter-spacing: 0.06em; text-transform: uppercase; font-size: 12px !important; }
 .ms-card-head .rounded-full.bg-red-600 { background: var(--ms-step) !important; border-radius: 2px !important; font-family: var(--ms-mono); }
 
 /* the torn-paper note (the site's "Fresh this morning." labels) */
 .ms-note {
-  background: var(--ms-paper-2) !important; border: 0 !important; border-radius: 0 !important;
-  font-family: var(--ms-mono) !important; font-weight: 500 !important; font-size: 12.5px !important; line-height: 1.5;
-  color: var(--ms-ink) !important;
-  box-shadow: 2px 3px 0 rgba(28, 26, 23, 0.16);
-  clip-path: polygon(0 4px, 5% 0, 11% 5px, 19% 1px, 27% 6px, 36% 2px, 45% 6px, 54% 0, 63% 5px, 72% 1px, 81% 6px, 90% 2px, 100% 5px, 100% calc(100% - 4px), 92% 100%, 83% calc(100% - 5px), 74% calc(100% - 1px), 65% calc(100% - 6px), 55% calc(100% - 2px), 46% calc(100% - 6px), 37% 100%, 28% calc(100% - 5px), 19% calc(100% - 1px), 10% calc(100% - 6px), 0 calc(100% - 2px));
-  transform: rotate(-0.4deg);
+  background: var(--ms-paper-2) !important; border: 1px solid var(--ms-rule) !important; border-left: 3px solid var(--ms-step) !important; border-radius: 4px !important;
+  font-family: var(--ms-sans) !important; font-weight: 500 !important; font-size: 13px !important; line-height: 1.55;
+  color: var(--ms-ink-2) !important;
 }
-.ms-note .font-black { color: var(--ms-step) !important; }
+.ms-note .font-black { color: var(--ms-step) !important; font-family: var(--ms-mono); }
 
 /* ── mode toggle: two paper tabs ─────────────────────────────────────── */
 .ms-toggle { border: 0 !important; background: transparent !important; gap: 8px; overflow: visible !important; }
-.ms-toggle button { font-family: var(--ms-mono) !important; text-transform: uppercase; letter-spacing: 0.1em; font-size: 12px !important; border-radius: 3px; border: 2px solid var(--ms-ink); background: var(--ms-paper-2); color: var(--ms-ink) !important; box-shadow: 2px 3px 0 rgba(28, 26, 23, 0.2); }
-.ms-toggle button.bg-red-600 { background: var(--ms-ink) !important; color: var(--ms-paper) !important; }
+.ms-toggle button { font-family: var(--ms-mono) !important; text-transform: uppercase; letter-spacing: 0.08em; font-size: 11.5px !important; border-radius: 4px; border: 1px solid var(--ms-rule); background: var(--ms-paper-2); color: var(--ms-ink-2) !important; box-shadow: 0 1px 2px rgba(28, 26, 23, 0.06); }
+.ms-toggle button.bg-red-600 { background: var(--ms-ink) !important; border-color: var(--ms-ink); color: var(--ms-paper) !important; }
 
 /* ── the three steps: awnings ────────────────────────────────────────── */
-.ms-steps { align-items: flex-end !important; gap: 14px !important; margin-bottom: 26px !important; }
+.ms-steps { align-items: flex-end !important; gap: 12px !important; margin-bottom: 22px !important; }
 .ms-steps > div { flex-direction: column; align-items: stretch !important; gap: 6px !important; }
 .ms-steps > div > .h-0\.5 { display: none; }
 .ms-steps .ms-awning {
-  height: 16px; border-radius: 2px 2px 0 0;
-  /* two-tone stripes (not colour + paper), so the awning reads as one object rather than a row of pennants */
-  background: repeating-linear-gradient(90deg, var(--a) 0 12px, color-mix(in srgb, var(--a) 30%, #F7F2E6) 12px 24px);
-  -webkit-mask: linear-gradient(#000 0 0) top / 100% calc(100% - 5px) no-repeat, radial-gradient(circle at 6px 0, #000 5.5px, transparent 6px) bottom / 12px 6px repeat-x;
-          mask: linear-gradient(#000 0 0) top / 100% calc(100% - 5px) no-repeat, radial-gradient(circle at 6px 0, #000 5.5px, transparent 6px) bottom / 12px 6px repeat-x;
-  opacity: .3;
+  height: 4px; border-radius: 2px;
+  background: var(--a);
+  opacity: .22;
 }
 .ms-steps > div[data-state="current"] .ms-awning { opacity: 1; }
-.ms-steps > div[data-state="done"] .ms-awning { opacity: .7; }
-.ms-steps .rounded-full { border-radius: 2px !important; font-family: var(--ms-mono); width: 22px !important; height: 22px !important; }
+.ms-steps > div[data-state="done"] .ms-awning { opacity: .55; }
+.ms-steps .rounded-full { border-radius: 3px !important; font-family: var(--ms-mono); width: 20px !important; height: 20px !important; }
 .ms-steps > div[data-state="current"] .rounded-full { background: var(--a) !important; }
 .ms-steps > div[data-state="done"] .rounded-full { background: var(--ms-ink) !important; }
 .ms-steps span.text-xs { font-family: var(--ms-mono); text-transform: uppercase; letter-spacing: 0.1em; font-size: 10.5px !important; }
@@ -123,7 +121,7 @@
 /* ── inputs ──────────────────────────────────────────────────────────── */
 .ms-form input:not([type="checkbox"]):not([type="radio"]):not([type="file"]), .ms-form select, .ms-form textarea {
   border-width: 2px !important; border-color: var(--ms-rule) !important; border-radius: 3px !important;
-  background: #FBF8F0 !important; color: var(--ms-ink) !important; font-family: var(--ms-sans);
+  background: #FFFFFF !important; color: var(--ms-ink) !important; font-family: var(--ms-sans);
 }
 .ms-form input:focus, .ms-form select:focus, .ms-form textarea:focus { border-color: var(--ms-step) !important; box-shadow: 0 0 0 3px color-mix(in srgb, var(--ms-step) 20%, transparent); outline: none !important; }
 .ms-form .focus\:border-red-500:focus { border-color: var(--ms-step) !important; }
@@ -147,28 +145,28 @@
 
 /* ── "] NEXT [ENTER]" blocks ─────────────────────────────────────────── */
 .ms-enter {
-  font-family: var(--ms-mono) !important; text-transform: uppercase; letter-spacing: 0.14em; font-weight: 600 !important; font-size: 13px !important;
+  font-family: var(--ms-mono) !important; text-transform: uppercase; letter-spacing: 0.1em; font-weight: 600 !important; font-size: 12.5px !important;
   background: var(--ms-step) !important; color: #F4EFE2 !important;
-  border-radius: 2px !important; border: 0;
-  box-shadow: 3px 4px 0 rgba(28, 26, 23, 0.28);
+  border-radius: 4px !important; border: 0;
+  box-shadow: 0 1px 2px rgba(28, 26, 23, 0.12), 0 4px 12px -6px color-mix(in srgb, var(--ms-step) 60%, transparent);
   display: inline-flex; align-items: center; justify-content: center; gap: 12px;
-  transition: transform .08s ease, box-shadow .08s ease, background-color .15s !important;
+  transition: background-color .15s, box-shadow .15s !important;
 }
 .ms-enter:hover:not(:disabled) { background: var(--ms-step-2) !important; }
-.ms-enter:active:not(:disabled) { transform: translate(2px, 3px); box-shadow: 1px 1px 0 rgba(28, 26, 23, 0.28); }
+.ms-enter:active:not(:disabled) { box-shadow: 0 1px 2px rgba(28, 26, 23, 0.12); }
 .ms-enter:disabled { background: #B8AE99 !important; box-shadow: none; color: #F4EFE2 !important; }
-.ms-enter-bracket { font-weight: 400; opacity: .9; }
-.ms-enter-key { font-size: 9.5px; letter-spacing: 0.12em; padding: 2px 6px; border: 1.5px solid rgba(244, 239, 226, 0.8); border-radius: 2px; line-height: 1.2; opacity: .9; }
+.ms-enter-bracket { display: none; }
+.ms-enter-key { font-size: 9px; letter-spacing: 0.1em; padding: 2px 6px; border: 1px solid rgba(244, 239, 226, 0.6); border-radius: 3px; line-height: 1.2; opacity: .85; }
 .ms-enter.ms-enter--ink { background: var(--ms-ink) !important; }
 .ms-enter.ms-enter--ink:hover:not(:disabled) { background: #000 !important; }
-.ms-back { font-family: var(--ms-mono) !important; text-transform: uppercase; letter-spacing: 0.1em; font-size: 12px !important; border: 2px solid var(--ms-ink) !important; color: var(--ms-ink) !important; border-radius: 2px !important; background: transparent !important; }
+.ms-back { font-family: var(--ms-mono) !important; text-transform: uppercase; letter-spacing: 0.08em; font-size: 11.5px !important; border: 1px solid var(--ms-rule) !important; color: var(--ms-ink-2) !important; border-radius: 4px !important; background: var(--ms-paper-2) !important; }
 .ms-back:hover { background: var(--ms-paper-2) !important; }
 
 /* ── success ─────────────────────────────────────────────────────────── */
-.ms-success .ms-card-big { border: 0 !important; box-shadow: 4px 5px 0 rgba(28, 26, 23, 0.2) !important; }
+.ms-success .ms-card-big { box-shadow: 0 8px 28px -12px rgba(28, 26, 23, 0.25) !important; }
 .ms-success .bg-green-100 { background: var(--ms-forest) !important; color: #F4EFE2 !important; border-radius: 3px !important; }
 
 /* ── footer line ─────────────────────────────────────────────────────── */
 .ms-foot { font-family: var(--ms-mono) !important; text-transform: uppercase; letter-spacing: 0.12em; font-size: 10px !important; color: var(--ms-ink-3) !important; }
 
-@media (prefers-reduced-motion: reduce) { .ms-enter { transition: none !important; } .ms-enter:active:not(:disabled) { transform: none; } }
+@media (prefers-reduced-motion: reduce) { .ms-enter { transition: none !important; } }
