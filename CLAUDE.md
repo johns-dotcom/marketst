@@ -236,6 +236,17 @@ Authoritative project guide: **`boom-dashboard/CLAUDE.md`** — read it before m
   The `users.is_test` column is left in place, unread — dropping a column is
   not reversible and nothing writes it any more. `GET /settings/users` lists
   every user now.
+- **Settings plan (2026-09-19, designed, NOT built):**
+  https://claude.ai/code/artifact/6b91930c-f930-40c7-bbe2-696c2ac4599c — two
+  halves (My settings: Profile · Sign-in · Notifications · Theme · My Nav;
+  Label settings: People · Label · Integrations · Activity · Sandbox · Archive);
+  `/team` becomes the one People page with an Access panel per person
+  (Users tab + Permissions matrix + templates routes retire); a `label_settings`
+  record replaces `BOOM_INFO` / `BOOM_DEFAULTS` / the TODO(marketst)
+  placeholders (EIN + bank numbers encrypted, masked reads); invite links
+  (`user_invites`, public set-password page); read-only Integrations status;
+  family shrinks to Settings · Admin docs. NO PATH CHANGES. Five build stages in
+  the plan.
 - **Bank-statement heuristics were tuned on Boom's Bank of America statements.** The own-name lists (`statements.js` stop-words, `funding-pairs.js` account-trailer strip) now say Market Street, but the layout parsers have not seen a Market Street statement yet. Expect the AI fallback to do the work until they do.
 
 ## Commands (run from `boom-dashboard/`)
