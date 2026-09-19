@@ -17,6 +17,7 @@ import api from '../api'
 import PageHeader from '../components/PageHeader'
 import BankEvidenceDot from '../components/BankEvidenceDot'
 import { recoupState } from '../utils'
+import EmptyState from '../components/EmptyState'
 
 const usd = (n) => (Number(n) || 0).toLocaleString('en-US', { style: 'currency', currency: 'USD' })
 
@@ -251,9 +252,10 @@ export default function BkCreators() {
 
       {!loading && tab === 'payments' && (
         rows.length === 0 ? (
-          <div className="text-sm text-gray-400 py-8">
-            No creator payments yet. “Record a payment” adds one.
-          </div>
+          <EmptyState
+            title="No creator payments yet"
+            body="Small payments to creators and influencers who never send an invoice. “Record a payment” above adds one; each is logged like any other payable."
+          />
         ) : (
           <div className="card overflow-x-auto">
             <table className="w-full text-sm">

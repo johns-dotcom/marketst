@@ -33,6 +33,7 @@ import useIsMobile from '../hooks/useIsMobile'
 import LedgerCard from '../components/mobile/LedgerCard'
 import LedgerEntrySheet from '../components/mobile/LedgerEntrySheet'
 import FilterSheet, { FilterField } from '../components/mobile/FilterSheet'
+import EmptyState from '../components/EmptyState'
 
 // A stable identity for the invoiced half, which reads no statements. A fresh
 // [] here would be a new dependency on every render for the memos below it.
@@ -2959,7 +2960,18 @@ export default function BkLedger({ bank = false }) {
         {/* Card list */}
         <div className="flex flex-col gap-2 mt-2">
           {pagedRows.length === 0 && (
-            <div className="text-center text-sm text-gray-400 py-12">No entries match the current filters.</div>
+            entries.length === 0 ? (
+              <EmptyState
+                title={bank ? 'No bank lines booked yet' : 'The ledger is empty'}
+                body={bank
+                  ? 'Bank debits that were booked without an invoice show here. Upload a statement and answer its lines on For review.'
+                  : 'Every approved invoice, paid or not, lives here. Approve one on Approvals or add one yourself.'}
+                action={bank ? { label: 'Upload statement', to: '/bk/statements' } : { label: 'Add invoice', to: '/bk/add' }}
+                source={bank ? { label: 'For review', to: '/bk/bank-matching' } : { label: 'Approvals', to: '/bk/approvals' }}
+              />
+            ) : (
+              <div className="text-center text-sm text-gray-400 py-12">No entries match the current filters.</div>
+            )
           )}
           {pagedRows.map(e => {
             const isChild = !!(e.parent_id && inSet.has(e.parent_id))

@@ -25,6 +25,7 @@ import { formatDate, normalizeArtistKey, familyArtists, filterSocialsForArtist }
 import { useToast } from '../context/ToastContext'
 import { useAuth } from '../context/AuthContext'
 import { useFxRates } from '../context/FxRatesContext'
+import EmptyState from '../components/EmptyState'
 
 // ── Currency helpers ────────────────────────────────────────────────────────
 // influencer_campaigns.total_budget is unscoped (no currency column), so the
@@ -2471,11 +2472,17 @@ export default function ArtistCampaigns() {
         )}
 
         {filteredIndexRows.length === 0 ? (
-          <div className="card p-12 text-center">
-            <p className="text-sm text-gray-400">
-              {indexQuery ? `No artists match "${indexQuery}".` : 'No artist spend or campaigns on file yet.'}
-            </p>
-          </div>
+          indexQuery ? (
+            <div className="card p-12 text-center">
+              <p className="text-sm text-gray-400">No artists match "{indexQuery}".</p>
+            </div>
+          ) : (
+            <EmptyState
+              title="No campaign spend yet"
+              body="Marketing and advertising spend by artist shows here as invoices are approved and bank statements are matched. Budgets for it live on the artist's budget sheet."
+              source={{ label: 'Artist budgets', to: '/artist-budgets' }}
+            />
+          )
         ) : (() => {
           // Partition rows by dismissed state. Dismissed artists render
           // in a collapsed section at the bottom so overhead / rent /

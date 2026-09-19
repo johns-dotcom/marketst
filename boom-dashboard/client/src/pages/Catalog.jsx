@@ -6,6 +6,7 @@ import { formatDate } from '../utils'
 import PageHeader from '../components/PageHeader'
 import Skeleton from '../components/Skeleton'
 import useHotkeys from '../hooks/useHotkeys'
+import EmptyState from '../components/EmptyState'
 
 // Convert a Spotify URI or raw ID to a full https:// URL
 function spotifyUrl(uri) {
@@ -426,17 +427,14 @@ export default function Catalog() {
           ))}
         </div>
       ) : filtered.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-24 text-center">
-          <Disc3 size={40} className="text-gray-200 mb-4" />
-          <p className="text-gray-500 font-medium">
-            {showArchived ? 'No archived releases' : 'No releases in the catalog yet'}
-          </p>
-          <p className="text-sm text-gray-400 mt-1">
-            {showArchived
-              ? 'Archive delayed or never-released projects from the Release Tracker or their detail page.'
-              : 'Mark releases as "Released" from the Release Tracker to add them here.'}
-          </p>
-        </div>
+        <EmptyState
+          icon={Disc3}
+          title={showArchived ? 'No archived releases' : 'Nothing in the catalog yet'}
+          body={showArchived
+            ? 'Archive a delayed or never-released project from its detail page and it shows here.'
+            : 'Releases move here on their release date. Until then they live on the Pipeline.'}
+          source={{ label: showArchived ? 'the Pipeline' : 'the Pipeline', to: '/releases' }}
+        />
       ) : (
         /* Timeline grouped by year */
         <div className="space-y-10">

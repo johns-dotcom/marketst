@@ -83,6 +83,16 @@ Authoritative project guide: **`boom-dashboard/CLAUDE.md`** — read it before m
   — never both. Harnesses: `npm run budgetsimple-dom` (29),
   `server/scripts/artist-budget-simple-fixture.cjs` (21). Index has a "New
   budget" button (roster picker → the sheet by key, `?name=` carries spelling).
+- **Flow plan (2026-09-18):** https://claude.ai/code/artifact/2390f265-defe-4019-b14d-5e3965a2f44b
+  — measured link graph, then four phases: A empty states · B hand-off prompts ·
+  C artist hub + breadcrumbs (+ generated PDFs saved to the artist) · D team
+  calendar (releases + tasks + payment due dates + renewals). **Phase A shipped:**
+  `components/EmptyState.jsx` is THE empty state (title, one-sentence body, one
+  action, a source link); wired into Roster, Releases, Catalog, Deals, Pending,
+  Renewals, Approvals, Payments, Ledger (both halves), Creators, Rules, Vendors,
+  Recoupments, Campaigns. The Roster gained **Add artist** (name + genre →
+  `POST /artists`, opens the profile) — nothing in the app could create an
+  artist by hand before; Boom's roster came from the deleted master-sheet import.
 - **Bank-statement heuristics were tuned on Boom's Bank of America statements.** The own-name lists (`statements.js` stop-words, `funding-pairs.js` account-trailer strip) now say Market Street, but the layout parsers have not seen a Market Street statement yet. Expect the AI fallback to do the work until they do.
 
 ## Commands (run from `boom-dashboard/`)

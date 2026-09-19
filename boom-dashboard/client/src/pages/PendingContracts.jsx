@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { Search, Plus, X, ChevronDown, FileText, Edit3, Trash2, RefreshCw } from 'lucide-react'
 import api from '../api'
 import PageHeader from '../components/PageHeader'
+import EmptyState from '../components/EmptyState'
 
 const STATUS_STYLES = {
   'Sent':     { pill: 'bg-emerald-50 text-emerald-700 ring-emerald-200', dot: 'bg-emerald-400' },
@@ -297,10 +298,13 @@ export default function PendingContracts() {
           <RefreshCw className="w-5 h-5 animate-spin mr-2" /> Loading…
         </div>
       ) : filtered.length === 0 ? (
-        <div className="text-center py-24 text-gray-300">
-          <FileText className="w-8 h-8 mx-auto mb-3 opacity-50" />
-          <p className="text-sm font-medium">No artists found</p>
-        </div>
+        <EmptyState
+          icon={FileText}
+          title="No pending contracts"
+          body="Contracts out for signature show here. They come from a deal marked Signed, or from the Contract generator."
+          action={{ label: 'Create contract', to: '/contracts/create' }}
+          source={{ label: 'Deals', to: '/deals' }}
+        />
       ) : (
         <div className="space-y-2">
           {filtered.map(item => (

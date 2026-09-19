@@ -15,6 +15,7 @@ import { formatDate, usdSuffix, totalsToUsd, usdTotalSuffix, toUsd, itemsToUsd, 
 import BankEvidenceDot from '../components/BankEvidenceDot'
 import { useFxRates } from '../context/FxRatesContext'
 import { useToast } from '../context/ToastContext'
+import EmptyState from '../components/EmptyState'
 
 function fmt(v, currency = 'USD') {
   if (!v && v !== 0) return new Intl.NumberFormat('en-US', { style: 'currency', currency: currency || 'USD' }).format(0)
@@ -2649,9 +2650,11 @@ export default function Recoupments() {
           — a row cannot show a figure the sort disagrees with. */}
       {!isDetail && (
         grouped.length === 0 ? (
-          <div className="card p-12 text-center">
-            <p className="text-sm text-gray-400">No recoupable items found</p>
-          </div>
+          <EmptyState
+            title="Nothing recoupable yet"
+            body="Recoupable spend appears here once an invoice is approved with an artist on it. Each artist becomes a row you can upload for recoupment."
+            source={{ label: 'Approvals', to: '/bk/approvals' }}
+          />
         ) : (() => {
           // ── Dismissal partition + sort ──────────────────────────────────
           // Priority is a tag (chips + subtabs), never a rank — rows sort

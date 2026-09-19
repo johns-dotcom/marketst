@@ -34,6 +34,7 @@ import useIsMobile from '../hooks/useIsMobile'
 import PaymentCard from '../components/mobile/PaymentCard'
 import PaymentSheet from '../components/mobile/PaymentSheet'
 import FilterSheet, { FilterField } from '../components/mobile/FilterSheet'
+import EmptyState from '../components/EmptyState'
 
 const RED = '#334155'
 const GREEN = '#16a34a'
@@ -3915,7 +3916,16 @@ export default function BkPayments() {
           {/* Table — horizontal scroll only; vertical growth is unrestricted so the page scrolls. */}
           <div style={{ overflowX: 'auto' }}>
             {filtered.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '60px 20px', color: '#999', fontSize: 14 }}>No payments found.</div>
+              entries.length === 0 ? (
+                <EmptyState
+                  title="Nothing due yet"
+                  body="Approved invoices land here on their due date, ordered by what to pay first. Approve one on Approvals, or add one yourself."
+                  action={{ label: 'Add invoice', to: '/bk/add' }}
+                  source={{ label: 'Approvals', to: '/bk/approvals' }}
+                />
+              ) : (
+                <div style={{ textAlign: 'center', padding: '60px 20px', color: '#999', fontSize: 14 }}>No payments match the current filters.</div>
+              )
             ) : (
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                 <thead>

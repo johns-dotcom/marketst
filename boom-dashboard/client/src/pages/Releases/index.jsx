@@ -21,6 +21,7 @@ import CalendarView from './CalendarView'
 import SpendPlanPanel from './SpendPlanPanel'
 import AddReleaseModal from './AddReleaseModal'
 import MergeFlow from './MergeFlow'
+import EmptyState from '../../components/EmptyState'
 
 export default function Releases() {
   const { user: currentUser } = useAuth()
@@ -615,7 +616,18 @@ export default function Releases() {
               </thead>
               <tbody className="divide-y divide-gray-50">
                 {filteredReleases.length === 0 ? (
-                  <tr><td colSpan="9" className="px-5 py-16 text-center text-sm text-gray-300">No releases found</td></tr>
+                  <tr><td colSpan="9" className="p-3">
+                    {releases.length === 0 ? (
+                      <EmptyState
+                        title="No releases yet"
+                        body="A release needs an artist on the roster. Add one and it appears here with its checklist, dates and DSP links."
+                        action={{ label: 'Add release', onClick: () => setShowAddModal(true) }}
+                        source={{ label: 'the Roster', to: '/artists' }}
+                      />
+                    ) : (
+                      <p className="px-5 py-12 text-center text-sm text-gray-300">No releases match these filters</p>
+                    )}
+                  </td></tr>
                 ) : (
                   filteredReleases.map((release, rIdx) => {
                     const isExpanded = expandedId === release.id

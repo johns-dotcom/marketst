@@ -18,6 +18,7 @@ import { useAuth } from '../context/AuthContext'
 import { CATEGORIES, CURRENCIES, PAYMENT_METHODS, SOCIAL_PLATFORMS } from '../constants'
 import { useCategories } from '../context/CategoriesContext'
 import { useBoomReps } from '../context/BoomRepsContext'
+import EmptyState from '../components/EmptyState'
 
 const RED = '#334155'
 const GREEN = '#16a34a'
@@ -932,12 +933,25 @@ export default function BkApprovals() {
 
         {/* ── Cards ── */}
         {filtered.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '80px 20px', background: C.cardBg, borderRadius: 12, border: '1px solid ' + C.border }}>
-            <CheckCircle2 style={{ width: 40, height: 40, color: GREEN, margin: '0 auto 12px' }} />
-            <p style={{ color: '#777', fontSize: 15, fontWeight: 600 }}>
-              {entries.length === 0 ? 'All invoices are approved!' : 'No matches for current filters.'}
-            </p>
-          </div>
+          entries.length === 0 ? (
+            <EmptyState
+              icon={CheckCircle2}
+              title="Nothing waiting for approval"
+              body="Vendors submit invoices at the public form and they land here. You can add one yourself too."
+              action={{ label: 'Add invoice', to: '/bk/add' }}
+            >
+              <button type="button"
+                onClick={() => navigator.clipboard?.writeText(`${window.location.origin}/submit`)}
+                className="text-[12px] text-gray-500 hover:text-ink underline">
+                Copy the vendor form link
+              </button>
+            </EmptyState>
+          ) : (
+            <div style={{ textAlign: 'center', padding: '80px 20px', background: C.cardBg, borderRadius: 12, border: '1px solid ' + C.border }}>
+              <CheckCircle2 style={{ width: 40, height: 40, color: GREEN, margin: '0 auto 12px' }} />
+              <p style={{ color: '#777', fontSize: 15, fontWeight: 600 }}>No matches for current filters.</p>
+            </div>
+          )
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             {filtered.map((entry, eIdx) => {

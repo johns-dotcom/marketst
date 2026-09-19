@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext'
 import { Link2, Ban, Loader, AlertTriangle, FileX, ArrowRight } from 'lucide-react'
 import api from '../api'
 import { fmt, fmtDate } from '../utils/bankDisplay'
+import EmptyState from '../components/EmptyState'
 
 // Standing decisions, kept off the page where the daily work happens.
 //
@@ -438,8 +439,12 @@ export default function BkRules() {
           )}
         </div>
         {totalRules === 0 && (
-          <div className="px-4 py-8 text-center text-sm text-gray-400">
-            No rules yet. Accept one above and it starts applying to the next statement you upload.
+          <div className="p-3">
+            <EmptyState compact
+              title="No rules yet"
+              body="Rules are standing decisions about recurring bank lines. Accept a suggestion on Bank › For review and it applies to the next statement you upload."
+              source={{ label: 'For review', to: '/bk/bank-matching' }}
+            />
           </div>
         )}
         {catRules.map((r) => (

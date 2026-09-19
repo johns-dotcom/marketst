@@ -4,6 +4,7 @@ import { Building2, Search, Zap, Link2, X, ExternalLink, GitMerge, Flag, Chevron
 import { useAuth } from '../context/AuthContext'
 import api from '../api'
 import BkVendorFlags from './BkVendorFlags'
+import EmptyState from '../components/EmptyState'
 
 // Unified Vendors directory — one row per COMPANY: ledger invoices + bank
 // activity joined through explicit links, aliases, and name equality.
@@ -348,6 +349,25 @@ export default function BkVendorsUnified() {
                 </tr>
               </thead>
               <tbody>
+                {filtered.length === 0 && (
+                  <tr><td colSpan={14} className="p-3">
+                    {vendors.length === 0 ? (
+                      <EmptyState
+                        title="No vendors yet"
+                        body="A vendor appears here with their first invoice — from the public form, or one you add. Their W-9, bank details and every invoice collect on their page."
+                        action={{ label: 'Add invoice', to: '/bk/add' }}
+                      >
+                        <button type="button"
+                          onClick={() => navigator.clipboard?.writeText(`${window.location.origin}/submit`)}
+                          className="text-[12px] text-gray-500 hover:text-ink underline">
+                          Copy the vendor form link
+                        </button>
+                      </EmptyState>
+                    ) : (
+                      <p className="px-3 py-8 text-center text-[12.5px] text-gray-400">No vendors match.</p>
+                    )}
+                  </td></tr>
+                )}
                 {filtered.map((v) => (
                   <tr key={v.name} className="border-b border-divider cursor-pointer hover:bg-gray-50 group"
                     onClick={() => navigate(`/bk/vendors/${encodeURIComponent(v.name)}`)}>

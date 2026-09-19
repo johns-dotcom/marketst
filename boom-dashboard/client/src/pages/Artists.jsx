@@ -5,6 +5,7 @@ import api from '../api'
 import { formatDate } from '../utils'
 import FilesPanel from '../components/FilesPanel'
 import PageHeader from '../components/PageHeader'
+import EmptyState from '../components/EmptyState'
 import { useAuth } from '../context/AuthContext'
 
 const GENRE_COLORS = {
@@ -224,11 +225,65 @@ function artistInitials(name = '') {
   return name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
 }
 
+// Add one artist by name. Genre is optional and only feeds the roster filter.
+// The profile opens on save so the next step (a deal, a release, a budget) is
+// one click away rather than a search.
+function AddArtistModal({ onClose, onCreated }) {
+  const [name, setName] = useState('')
+  const [genre, setGenre] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [err, setErr] = useState('')
+  const submit = async (e) => {
+    e?.preventDefault?.()
+    const n = name.replace(/\s+/g, ' ').trim()
+    if (!n) { setErr('An artist needs a name.'); return }
+    setSaving(true); setErr('')
+    try {
+      const r = await api.post('/artists', { name: n, genre: genre.trim() || null })
+      onCreated?.(r.data?.data)
+    } catch (ex) {
+      setErr(ex.response?.data?.error || ex.message)
+    } finally { setSaving(false) }
+  }
+  return (
+    <div className="fixed inset-0 z-50 flex items-start justify-center pt-24 bg-overlay" onClick={onClose}>
+      <form className="card p-5 w-full max-w-md space-y-4" onClick={(e) => e.stopPropagation()} onSubmit={submit} data-modal="add-artist">
+        <div>
+          <h2 className="text-[15px] font-bold text-ink">Add artist</h2>
+          <p className="text-[12px] text-gray-500 mt-1">Their profile opens next, where deals, releases and the budget sheet start.</p>
+        </div>
+        <div>
+          <label className="block text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-1">Name</label>
+          <input autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder="Artist or project name"
+            className="w-full text-sm border border-rule rounded-lg px-3 py-2 bg-card focus:outline-none focus:ring-2 focus:ring-boom-400" />
+        </div>
+        <div>
+          <label className="block text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-1">Genre <span className="font-normal normal-case text-gray-400">optional</span></label>
+          <input value={genre} onChange={(e) => setGenre(e.target.value)} placeholder="e.g. Electronic"
+            className="w-full text-sm border border-rule rounded-lg px-3 py-2 bg-card focus:outline-none focus:ring-2 focus:ring-boom-400" />
+        </div>
+        {err && <p className="text-[12px] text-rose-600">{err}</p>}
+        <div className="flex justify-end gap-2">
+          <button type="button" onClick={onClose} className="text-[12.5px] px-3 py-1.5 rounded-lg border border-rule text-gray-600 hover:bg-gray-100">Cancel</button>
+          <button type="submit" disabled={saving || !name.trim()} className="btn-primary text-[12.5px] px-3 py-1.5 disabled:opacity-50">
+            {saving ? 'Saving…' : 'Add artist'}
+          </button>
+        </div>
+      </form>
+    </div>
+  )
+}
+
 export default function Artists() {
   const navigate = useNavigate()
   const { user } = useAuth()
   const isSuperadmin = user?.role?.toLowerCase() === 'superadmin'
   const [artists, setArtists] = useState([])
+  // Nothing in the app created an artist by hand until 2026-09-18 — Boom's
+  // roster arrived through the (since removed) master-sheet import, and a
+  // release cannot exist without an artist. A new label needs a first artist
+  // before it can do anything else, so this is the one create form the page has.
+  const [showAddArtist, setShowAddArtist] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const [page, setPage] = useState(1)
@@ -758,6 +813,13 @@ export default function Artists() {
         title="Roster"
         subtitle={loading ? '—' : `${filtered.length} artist${filtered.length !== 1 ? 's' : ''}${genreFilter !== 'All' ? ` · ${genreFilter}` : ''}${releaseFilter !== 'All' ? ` · ${releaseFilter}` : ''}${activeOnly ? ' · Active only' : ''}`}
         actions={<>
+          <button
+            onClick={() => setShowAddArtist(true)}
+            data-action="add-artist"
+            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold text-white bg-boom-600 hover:bg-boom-700 rounded-lg"
+          >
+            <Plus size={13} /> Add artist
+          </button>
           <div className="relative" ref={exportRef}>
             <button
               onClick={() => setExportOpen(v => !v)}
@@ -1028,9 +1090,26 @@ export default function Artists() {
 
       {error && <div className="text-sm text-red-600 text-center py-12">{error}</div>}
 
+      {showAddArtist && (
+        <AddArtistModal
+          onClose={() => setShowAddArtist(false)}
+          onCreated={(a) => { setShowAddArtist(false); fetchArtists(); navigate(`/artists/${a.id}`) }}
+        />
+      )}
+
       {/* Artist Grid */}
       {filtered.length === 0 && !loading ? (
-        <p className="text-sm text-gray-400 text-center py-12">No artists found</p>
+        artists.length === 0 ? (
+          <EmptyState
+            icon={Users}
+            title="No artists on the roster yet"
+            body="Everything else hangs off an artist — releases, contracts, budgets, recoupments. Add the first one here; a deal marked Signed also lands them here."
+            action={{ label: 'Add artist', onClick: () => setShowAddArtist(true) }}
+            source={{ label: 'Deals', to: '/deals' }}
+          />
+        ) : (
+          <p className="text-sm text-gray-400 text-center py-12">No artists match</p>
+        )
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
           {filtered.map((artist) => renderArtistCard(artist, { isArchived: false, onArchive: toggleArchive, onView: handleViewArtist, genreColor, artistInitials }))}

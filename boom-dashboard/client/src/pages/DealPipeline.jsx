@@ -7,6 +7,7 @@ import PageHeader from '../components/PageHeader'
 import FilesPanel from '../components/FilesPanel'
 import useHotkeys from '../hooks/useHotkeys'
 import { Button, Input, Select } from '../components/ui'
+import EmptyState from '../components/EmptyState'
 
 const STAGES = ['Scouting', 'Meeting', 'Offer', 'Negotiation', 'Signed', 'Passed']
 const PRIORITIES = ['High', 'Medium', 'Low']
@@ -287,6 +288,14 @@ export default function DealPipeline() {
       )}
 
       {error && <div className="text-sm text-red-600 text-center py-12">{error}</div>}
+
+      {!loading && !error && deals.length === 0 && !showForm && (
+        <EmptyState
+          title="No deals in the pipeline"
+          body="Track a prospect from first meeting to signed. A deal marked Signed is what becomes a contract."
+          action={{ label: 'New deal', onClick: () => setShowForm(true) }}
+        />
+      )}
 
       {/* Kanban Board */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">

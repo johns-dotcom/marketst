@@ -3,6 +3,7 @@ import { Clock, AlertTriangle, CheckCircle2, XCircle } from 'lucide-react'
 import api from '../api'
 import { formatDate, daysUntilLocal } from '../utils'
 import PageHeader from '../components/PageHeader'
+import EmptyState from '../components/EmptyState'
 
 export default function Renewals() {
   const [renewals, setRenewals] = useState([])
@@ -151,7 +152,13 @@ export default function Renewals() {
             <tbody className="divide-y divide-gray-100">
               {filteredRenewals.length === 0 ? (
                 <tr>
-                  <td colSpan="8" className="px-4 py-12 text-center text-sm text-gray-400">No renewals found</td>
+                  <td colSpan="8" className="p-3">
+                    <EmptyState compact
+                      title="Nothing coming up for renewal"
+                      body="Contracts with an expiration or option date appear here as the date approaches."
+                      source={{ label: 'Contracts', to: '/contracts' }}
+                    />
+                  </td>
                 </tr>
               ) : (
                 filteredRenewals
