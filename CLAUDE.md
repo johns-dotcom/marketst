@@ -206,6 +206,24 @@ Authoritative project guide: **`boom-dashboard/CLAUDE.md`** — read it before m
   `handoff-dom` scenario `terms` (contract prefill), `home-dom` (onboarding
   tile). Left open, on purpose: payee spelling on the advance (roster name
   today), term as months not dates, planned marketing not on the deal.
+- **The public vendor form wears Market Street's own look (2026-09-19).**
+  `client/src/styles/marketst-form.css` is a THEME LAYER scoped to `.ms-form`:
+  halftone paper, torn-paper cards (`ms-card`, clip-path) and notes
+  (`ms-note`), a green MARKET.ST street sign for the header (`ms-sign`),
+  striped awnings for the three steps (`ms-steps`, `--a` per step: brick ·
+  royal · forest, `data-step` on the root drives `--ms-step`), and every
+  primary button as a "] NEXT [ENTER]" block (`ms-enter`, the bracket and the
+  `kbd` are `aria-hidden`, so the harness's text regexes still match). IBM Plex
+  Mono for headings/labels/buttons, the sans stays for body copy. Built in the
+  LAB and promoted with `sync-vendor-lab.mjs --promote`; the hooks live outside
+  the four sync deltas so both files carry them. `npm run vendorform-dom`
+  (both pages, all scenarios) is the regression check; the look was verified
+  with a headless-Chrome screenshot of the production build on :3011
+  (`NODE_ENV=production PORT=3011 node index.js`, then Chrome
+  `--headless=new --screenshot`). Reference: the market.st site's paper-cutout
+  street. jsdom for the harnesses lives in `/tmp/domtest` and macOS prunes
+  files there after three days — `cd /tmp/domtest && npm i jsdom` when a
+  harness says "did not mount".
 - **Bank-statement heuristics were tuned on Boom's Bank of America statements.** The own-name lists (`statements.js` stop-words, `funding-pairs.js` account-trailer strip) now say Market Street, but the layout parsers have not seen a Market Street statement yet. Expect the AI fallback to do the work until they do.
 
 ## Commands (run from `boom-dashboard/`)

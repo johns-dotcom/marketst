@@ -51,6 +51,7 @@ import { normalizeInvoiceNum } from '../utils'
 import { CATEGORIES, CURRENCY_OPTIONS as CURRENCIES } from '../constants'
 import { useCategories } from '../context/CategoriesContext'
 import { useBoomReps } from '../context/BoomRepsContext'
+import '../styles/marketst-form.css'
 
 // Always render a safe, human-readable string — Claude may sometimes return
 // each issue as an object instead of a string, which crashes React.
@@ -516,11 +517,11 @@ function InvoiceRow({ index, inv, total, isReimb, errors, onNumber, onFile, onRe
 function SuccessScreen({ vendorName, onReset, count = 1 }) {
   const many = count > 1
   return (
-    <div className="min-h-screen bg-gray-100 font-['Nunito',system-ui,sans-serif] flex flex-col items-center justify-center p-6">
-      <div className="text-3xl font-black text-slate-700 mb-8" style={{letterSpacing:'-0.5px'}}>Market Street</div>
-      <div className="bg-card border border-rule rounded-2xl p-12 max-w-md w-full text-center shadow-lg">
+    <div className="ms-form ms-success min-h-screen bg-gray-100 flex flex-col items-center justify-center p-6" data-step="3">
+      <div className="mb-8"><span className="ms-sign">Market.st</span></div>
+      <div className="ms-card ms-card-big bg-card border border-rule rounded-2xl p-12 max-w-md w-full text-center shadow-lg">
         <div className="mx-auto mb-4 w-16 h-16 rounded-full bg-green-100 text-green-600 flex items-center justify-center text-3xl font-bold">✓</div>
-        <h1 className="text-xl font-black text-gray-900 mb-2">
+        <h1 className="ms-h1 text-xl font-black text-gray-900 mb-2">
           {many ? `${count} Invoices Received` : 'Invoice Received'}
         </h1>
         <p className="text-sm text-gray-500 mb-1">Thanks, <span className="text-red-600 font-bold">{vendorName}</span>.</p>
@@ -553,9 +554,9 @@ function SuccessScreen({ vendorName, onReset, count = 1 }) {
         <p className="text-xs text-gray-400 mb-4">We'll be in touch if we need anything else.</p>
         <button
           onClick={onReset}
-          className="bg-red-600 hover:bg-red-700 text-white font-bold text-sm px-6 py-3 rounded-lg transition-colors"
+          className="ms-enter ms-enter--ink bg-red-600 hover:bg-red-700 text-white font-bold text-sm px-6 py-3 rounded-lg transition-colors"
         >
-          Submit Another
+          <span className="ms-enter-bracket" aria-hidden>]</span> Submit Another <kbd className="ms-enter-key" aria-hidden>Enter</kbd>
         </button>
       </div>
     </div>
@@ -1666,10 +1667,11 @@ export default function VendorSubmitLab() {
   const setSkipValidation = (v) => setSkipValidationRaw(v)
 
   return (
-    <div className="min-h-screen bg-gray-100" style={{fontFamily:"'Nunito',system-ui,sans-serif",fontSize:14}}>
-      {/* Header */}
+    <div className="ms-form min-h-screen bg-gray-100" data-step={step} style={{fontSize:14}}>
+      {/* Header — the street sign */}
       <header className="bg-card border-b border-rule px-7 flex items-center h-14">
-        <span className="text-2xl font-black text-slate-700" style={{letterSpacing:'-0.5px'}}>Market Street</span>
+        <span className="ms-sign">Market.st</span>
+        <span className="ms-sign-sub">{isReimb ? 'Reimbursements' : 'Vendor invoices'}</span>
       </header>
 
       {adminPreview && (
@@ -1694,7 +1696,7 @@ export default function VendorSubmitLab() {
       )}
 
       <div className="max-w-xl mx-auto px-5 pb-20" style={{marginTop:36}}>
-        <h1 className="text-xl font-black text-gray-900 mb-1">
+        <h1 className="ms-h1 text-xl font-black text-gray-900 mb-1">
           {isReimb ? 'Submit a Reimbursement' : 'Submit an Invoice'}
         </h1>
         <p className="text-sm text-gray-500 mb-6 leading-relaxed">
@@ -1702,7 +1704,7 @@ export default function VendorSubmitLab() {
         </p>
 
         {/* Mode toggle */}
-        <div className="flex bg-card border-2 border-rule rounded-xl overflow-hidden mb-5">
+        <div className="ms-toggle flex bg-card border-2 border-rule rounded-xl overflow-hidden mb-5">
           {['invoice','reimbursement'].map(m => (
             <button
               key={m}
@@ -1719,12 +1721,12 @@ export default function VendorSubmitLab() {
 
         {/* Info banner */}
         {!isReimb ? (
-          <div className="flex gap-2.5 bg-gray-50 border-2 border-rule rounded-xl p-3 mb-5 text-sm text-slate-600 font-semibold">
+          <div className="ms-note flex gap-2.5 bg-gray-50 border-2 border-rule rounded-xl p-3 mb-5 text-sm text-slate-600 font-semibold">
             <span className="text-gray-400 font-black mt-0.5">i</span>
             <span>Bill to <strong>Market Street</strong>. Include your invoice number, date, description, total amount, and your payment instructions (bank account + routing number, or PayPal email). A "Pay" link to a portal is not enough.</span>
           </div>
         ) : (
-          <div className="flex gap-2.5 bg-blue-50 border-2 border-blue-200 rounded-xl p-3 mb-5 text-sm text-blue-800 font-semibold">
+          <div className="ms-note flex gap-2.5 bg-blue-50 border-2 border-blue-200 rounded-xl p-3 mb-5 text-sm text-blue-800 font-semibold">
             <span className="text-blue-400 font-black mt-0.5">i</span>
             <span>Attach your receipt. No W9 / W8 required for reimbursements.</span>
           </div>
@@ -1753,15 +1755,19 @@ export default function VendorSubmitLab() {
         )}
 
         {/* Step indicator */}
-        <div className="flex items-center gap-2 mb-5">
+        <div className="ms-steps flex items-center gap-2 mb-5">
           {[1, 2, 3].map(s => (
-            <div key={s} className="flex items-center gap-2 flex-1">
+            <div key={s} className="flex items-center gap-2 flex-1" data-state={s < step ? 'done' : s === step ? 'current' : 'todo'}
+              style={{ '--a': s === 1 ? 'var(--ms-brick)' : s === 2 ? 'var(--ms-royal)' : 'var(--ms-forest)' }}>
+              <div className="ms-awning" aria-hidden />
+              <div className="flex items-center gap-2">
               <div className={`w-7 h-7 rounded-full text-xs font-black flex items-center justify-center flex-shrink-0 transition-all ${
                 s < step ? 'bg-green-500 text-white' : s === step ? 'bg-red-600 text-white' : 'bg-gray-200 text-gray-400'
               }`}>{s < step ? '✓' : s}</div>
               <span className={`text-xs font-bold ${s === step ? 'text-gray-900' : 'text-gray-400'}`}>
                 {s === 1 ? 'Your Info' : s === 2 ? 'Documents' : 'Project Info'}
               </span>
+              </div>
               {s < 3 && <div className={`flex-1 h-0.5 ${s < step ? 'bg-green-400' : 'bg-gray-200'}`} />}
             </div>
           ))}
@@ -1779,8 +1785,8 @@ export default function VendorSubmitLab() {
           {step === 1 && (<>
 
           {/* ── Section 1: Your Info ─────────────────────────────────────────── */}
-          <div className="bg-card border border-rule rounded-xl overflow-hidden mb-2.5">
-            <div className="px-5 py-3 border-b border-rule bg-gray-50 flex items-center gap-2.5">
+          <div className="ms-card bg-card border border-rule rounded-xl overflow-hidden mb-2.5">
+            <div className="ms-card-head px-5 py-3 border-b border-rule bg-gray-50 flex items-center gap-2.5">
               <span className="w-5 h-5 rounded-full bg-red-600 text-white text-xs font-black flex items-center justify-center">1</span>
               <span className="text-sm font-black text-gray-900">Your Info</span>
             </div>
@@ -2049,8 +2055,8 @@ export default function VendorSubmitLab() {
 
           {/* Step 1 Next button */}
           <button type="button" onClick={goToStep2}
-            className="w-full bg-red-600 hover:bg-red-700 text-white font-black text-base rounded-xl py-3.5 transition-colors mt-3">
-            Next — Upload Documents
+            className="ms-enter w-full bg-red-600 hover:bg-red-700 text-white font-black text-base rounded-xl py-3.5 transition-colors mt-3">
+            <span className="ms-enter-bracket" aria-hidden>]</span> Next — Upload Documents <kbd className="ms-enter-key" aria-hidden>Enter</kbd>
           </button>
           </>)}
 
@@ -2160,8 +2166,8 @@ export default function VendorSubmitLab() {
             </div>
           )}
 
-          <div className="bg-card border border-rule rounded-xl overflow-hidden mb-2.5">
-            <div className="px-5 py-3 border-b border-rule bg-gray-50 flex items-center gap-2.5">
+          <div className="ms-card bg-card border border-rule rounded-xl overflow-hidden mb-2.5">
+            <div className="ms-card-head px-5 py-3 border-b border-rule bg-gray-50 flex items-center gap-2.5">
               <span className="w-5 h-5 rounded-full bg-red-600 text-white text-xs font-black flex items-center justify-center">3</span>
               <span className="text-sm font-black text-gray-900">Project Info</span>
             </div>
@@ -2305,7 +2311,7 @@ export default function VendorSubmitLab() {
               type "N/A" so admins know it's an explicit answer, not a
               forgotten field. The handleSubmit validator requires at least
               one row to have a non-empty handle. */}
-          <div className="bg-card border border-rule rounded-xl overflow-hidden mb-2.5">
+          <div className="ms-card bg-card border border-rule rounded-xl overflow-hidden mb-2.5">
             <div className="px-5 py-3 border-b border-rule bg-gray-50 flex items-center justify-between gap-2.5">
               <div className="flex items-center gap-2.5">
                 <span className="text-sm font-black text-gray-900">Social Media</span>
@@ -2378,8 +2384,8 @@ export default function VendorSubmitLab() {
 
           {/* ── Step 2: Documents ─────────────────────────────────────────── */}
           {step === 2 && (<>
-          <div className="bg-card border border-rule rounded-xl overflow-hidden mb-2.5">
-            <div className="px-5 py-3 border-b border-rule bg-gray-50 flex items-center gap-2.5">
+          <div className="ms-card bg-card border border-rule rounded-xl overflow-hidden mb-2.5">
+            <div className="ms-card-head px-5 py-3 border-b border-rule bg-gray-50 flex items-center gap-2.5">
               <span className="w-5 h-5 rounded-full bg-red-600 text-white text-xs font-black flex items-center justify-center">2</span>
               <span className="text-sm font-black text-gray-900">Documents</span>
               {invoices.length > 1 && (
@@ -2486,12 +2492,12 @@ export default function VendorSubmitLab() {
 
           <div className="flex gap-3 mt-3">
             <button type="button" onClick={() => { setStep(1); setError('') }}
-              className="flex-1 border-2 border-rule text-gray-600 font-bold text-sm rounded-xl py-3 hover:bg-gray-50 transition-colors">
+              className="ms-back flex-1 border-2 border-rule text-gray-600 font-bold text-sm rounded-xl py-3 hover:bg-gray-50 transition-colors">
               ← Back
             </button>
             <button type="button" onClick={goToStep3} disabled={parsing}
-              className="flex-[2] bg-red-600 hover:bg-red-700 disabled:bg-gray-300 text-white font-black text-base rounded-xl py-3.5 transition-colors">
-              {parsing ? 'Scanning invoice...' : 'Next — Review & Submit'}
+              className="ms-enter flex-[2] bg-red-600 hover:bg-red-700 disabled:bg-gray-300 text-white font-black text-base rounded-xl py-3.5 transition-colors">
+              <span className="ms-enter-bracket" aria-hidden>]</span> {parsing ? 'Scanning invoice...' : 'Next — Review & Submit'} <kbd className="ms-enter-key" aria-hidden>Enter</kbd>
             </button>
           </div>
           </>)}
@@ -2502,7 +2508,7 @@ export default function VendorSubmitLab() {
           {/* ── Section 2: Project Info ── (pre-filled by AI) */}
 
           {/* ── Notes ────────────────────────────────────────────────────────── */}
-          <div className="bg-card border border-rule rounded-xl overflow-hidden mb-2.5">
+          <div className="ms-card bg-card border border-rule rounded-xl overflow-hidden mb-2.5">
             <div className="p-4 px-5">
               <button
                 type="button"
@@ -2554,20 +2560,20 @@ export default function VendorSubmitLab() {
 
           <div className="flex gap-3 mt-3">
             <button type="button" onClick={() => { setStep(2); setError('') }}
-              className="flex-1 border-2 border-rule text-gray-600 font-bold text-sm rounded-xl py-3 hover:bg-gray-50 transition-colors">
+              className="ms-back flex-1 border-2 border-rule text-gray-600 font-bold text-sm rounded-xl py-3 hover:bg-gray-50 transition-colors">
               ← Back
             </button>
             <button
               type="submit"
               disabled={submitting || step3Missing.length > 0}
-              className="flex-[2] bg-red-600 hover:bg-red-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-black text-base rounded-xl py-3.5 transition-colors"
+              className="ms-enter flex-[2] bg-red-600 hover:bg-red-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-black text-base rounded-xl py-3.5 transition-colors"
             >
-              {submitting ? 'Submitting…'
+              <span className="ms-enter-bracket" aria-hidden>]</span> {submitting ? 'Submitting…'
                 : submitCount > 1 ? `Submit ${submitCount} Invoices`
-                  : isReimb ? 'Submit Reimbursement' : 'Submit Invoice'}
+                  : isReimb ? 'Submit Reimbursement' : 'Submit Invoice'} <kbd className="ms-enter-key" aria-hidden>Enter</kbd>
             </button>
           </div>
-          <p className="text-center text-xs text-gray-300 mt-3">Secure submission — Market Street only</p>
+          <p className="ms-foot text-center text-xs text-gray-300 mt-3">Secure submission — Market Street only</p>
           </>)}
 
         </form>
