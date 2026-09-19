@@ -54,11 +54,12 @@ export default function Team() {
   useEffect(() => { if (isAdminUser) fetchPeople() }, [isAdminUser]) // eslint-disable-line react-hooks/exhaustive-deps
   // Which presets a person's rows add up to (a preset "holds" when every one of its pages is granted).
   const presetsOf = (pages) => (!pages ? [] : PRESETS.filter((pr) => pr.paths.every((x) => pages.includes(x))).map((pr) => pr.label))
-  const resendInvite = async (u) => {
+  const resendInvite = async (u, send = false) => {
     try {
-      const r = await api.post(`/settings/users/${u.id}/invite`)
+      const r = await api.post(`/settings/users/${u.id}/invite${send ? '?send=1' : ''}`)
       const url = `${window.location.origin}${r.data.data.path}`
-      try { await navigator.clipboard.writeText(url); setDirectoryNote(`Invite link for ${u.name} copied — it expires in 7 days.`) } catch { setDirectoryNote(url) }
+      if (send && r.data.data.emailed) setDirectoryNote(`Invite emailed to ${u.email} — it expires in 7 days.`)
+      else { try { await navigator.clipboard.writeText(url); setDirectoryNote(`Invite link for ${u.name} copied — it expires in 7 days.`) } catch { setDirectoryNote(url) } }
     } catch (e) { setDirectoryNote(e?.response?.data?.error || 'Could not make an invite link') }
     setTimeout(() => setDirectoryNote(''), 6000)
   }
@@ -789,7 +790,7 @@ export default function Team() {
                         <td className="px-4 py-3 text-gray-600 text-xs" data-access>{access}</td>
                         <td className="px-4 py-3 text-gray-500 text-xs" data-last-signin>
                           {u.invite_pending
-                            ? <span className="text-amber-700 font-medium">invite pending{canManage && <> · <button type="button" onClick={() => resendInvite(u)} className="underline hover:text-amber-900" data-resend-invite>copy a new link</button></>}</span>
+                            ? <span className="text-amber-700 font-medium">invite pending{canManage && <> · <button type="button" onClick={() => resendInvite(u)} className="underline hover:text-amber-900" data-resend-invite>copy a new link</button> · <button type="button" onClick={() => resendInvite(u, true)} className="underline hover:text-amber-900" data-email-invite>email it</button></>}</span>
                             : ago(u.last_sign_in)}
                         </td>
                         <td className="px-4 py-3 text-right tabular-nums text-gray-700">{u.open_tasks || 0}</td>

@@ -11,6 +11,7 @@ const contractsRoutes = require('./routes/contracts');
 const dealsRoutes = require('./routes/deals');
 const labelRoutes = require('./routes/label');
 const brandRoutes = require('./routes/brand');
+const mailRoutes = require('./routes/mail');
 const dashboardRoutes = require('./routes/dashboard');
 const searchRoutes = require('./routes/search');
 const dspRoutes = require('./routes/dsp');
@@ -240,6 +241,7 @@ app.use('/api/admin-docs', adminDocsRoutes);
 app.use('/api/deals', dealsRoutes);
 app.use('/api/label', labelRoutes);
 app.use('/api/brand', brandRoutes);
+app.use('/api/mail', mailRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/search', searchRoutes);
 app.use('/api/dsp', dspRoutes);
@@ -1486,6 +1488,38 @@ await pool.query(`ALTER TABLE expenses ADD COLUMN IF NOT EXISTS ai_scan JSONB`).
       updated_at TIMESTAMPTZ DEFAULT NOW(), updated_by INTEGER REFERENCES users(id) ON DELETE SET NULL
     )`).catch(err => console.error('label_settings migration failed:', err.message));
   await pool.query(`INSERT INTO label_settings (id, display_name, legal_name) VALUES (1, 'Market Street', 'Market Street') ON CONFLICT (id) DO NOTHING`).catch(() => {});
+
+  // Connected mailboxes (2026-09-19): which address each kind of mail goes from.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS mailboxes (
+      id SERIAL PRIMARY KEY,
+      address TEXT NOT NULL UNIQUE,
+      display_name TEXT DEFAULT 'Market Street',
+      kind TEXT NOT NULL CHECK (kind IN ('shared','personal')),
+      owner_user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+      refresh_token_enc TEXT,
+      source TEXT NOT NULL DEFAULT 'oauth',
+      status TEXT NOT NULL DEFAULT 'active',
+      last_error TEXT,
+      connected_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      connected_at TIMESTAMPTZ DEFAULT NOW(),
+      last_used_at TIMESTAMPTZ,
+      updated_at TIMESTAMPTZ DEFAULT NOW()
+    )`).catch(err => console.error('mailboxes migration failed:', err.message));
+  await pool.query(`CREATE TABLE IF NOT EXISTS mailbox_purposes (purpose TEXT PRIMARY KEY, mailbox_id INTEGER NOT NULL REFERENCES mailboxes(id) ON DELETE CASCADE)`).catch(err => console.error('mailbox_purposes migration failed:', err.message));
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS mail_log (
+      id SERIAL PRIMARY KEY,
+      mailbox_id INTEGER REFERENCES mailboxes(id) ON DELETE SET NULL,
+      purpose TEXT, kind TEXT, to_addr TEXT, cc_addr TEXT, subject TEXT,
+      status TEXT NOT NULL, error TEXT,
+      entity_type TEXT, entity_id TEXT, gmail_id TEXT,
+      sent_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    )`).catch(err => console.error('mail_log migration failed:', err.message));
+  await pool.query(`CREATE TABLE IF NOT EXISTS mail_jobs (job TEXT NOT NULL, period TEXT NOT NULL, ran_at TIMESTAMPTZ DEFAULT NOW(), PRIMARY KEY (job, period))`).catch(err => console.error('mail_jobs migration failed:', err.message));
+  // The environment sender becomes the first shared mailbox (no-op once any mailbox exists).
+  await require('./lib/mail').importEnvMailbox();
 
   // Invites (2026-09-19): a person is created with no password and a one-time
   // link (token hashed here) that sets it. Seven days; resend voids the old one.
@@ -3006,6 +3040,9 @@ await pool.query(`ALTER TABLE expenses ADD COLUMN IF NOT EXISTS ai_scan JSONB`).
   };
   setTimeout(rematchSweep, 5 * 60 * 1000);
   setInterval(rematchSweep, 24 * 60 * 60 * 1000);
+
+  // Notification preferences → mail, hourly, through the Team mailbox (lib/notifier.js).
+  require('./lib/notifier').start();
 
   // Salary employees — standalone payroll roster (not tied to users table)
   await pool.query(`

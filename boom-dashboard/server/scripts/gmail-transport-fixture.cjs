@@ -19,7 +19,7 @@
  *
  * Nothing leaves this process. `https.request` and the OAuth token exchange are
  * both replaced before services/email.js is loaded, so this exercises the REAL
- * sendPaymentConfirmationEmail against a scripted transport rather than a copy
+ * the Gmail transport against a scripted https.request rather than a copy
  * of it — a copy would only prove the copy.
  */
 const { EventEmitter } = require('events');
@@ -64,7 +64,10 @@ https.request = (opts, cb) => {
   return req;
 };
 
-const { sendPaymentConfirmationEmail } = require('../services/email');
+// The transport moved to lib/gmail-transport.js (2026-09-19, connected
+// mailboxes); the senders now route through lib/mail.js, which needs a mailbox
+// row. This fixture is about the TRANSPORT, so it calls it directly.
+const { sendViaGmailAPI } = require('../lib/gmail-transport');
 
 const results = [];
 const check = (name, ok, detail) => {
@@ -81,11 +84,9 @@ const settles = (p, ms = 4000) => Promise.race([
   new Promise((r) => setTimeout(() => r({ state: 'HUNG' }), ms)),
 ]);
 
-const send = () => sendPaymentConfirmationEmail({
-  vendorName: 'Salmon Studios Limited',
-  vendorEmail: 'accounts@salmonstudios.net',
-  amount: 700, currency: 'USD', invoiceNumber: 'SS-1611',
-  paymentDate: '2026-08-20', paymentMethod: 'Wire',
+const send = () => sendViaGmailAPI('fake-access-token', {
+  from: 'Market Street <test@deanst.co>', to: 'accounts@salmonstudios.net',
+  subject: 'Payment confirmation — SS-1611', html: '<p>Paid.</p>',
 });
 
 (async () => {

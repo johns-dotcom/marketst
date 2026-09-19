@@ -1,117 +1,10 @@
-const https = require('https');
 
 // The refresh-token exchange moved to lib/google-oauth.js when the Sheets export
 // became a second caller. Same code, same behaviour (a fresh token per call) —
 // the move exists so the two integrations can never drift apart on credentials.
-const { getAccessToken, credentialsPresent } = require('../lib/google-oauth');
+const { sendMail, isConnected } = require('../lib/mail');
 
 const APP_URL = process.env.FRONTEND_URL || 'https://marketst-production.up.railway.app';
-
-// Encode subject line for non-ASCII characters (RFC 2047)
-function encodeSubject(subject) {
-  if (/^[\x20-\x7E]*$/.test(subject)) return subject; // pure ASCII, no encoding needed
-  return '=?UTF-8?B?' + Buffer.from(subject, 'utf-8').toString('base64') + '?=';
-}
-
-// How long to wait for Gmail before giving up on one message. Attachments are
-// inlined base64 in the request body, so a multi-MB invoice + proof is a slow
-// upload; this is not a latency budget, it is a backstop against a socket that
-// never answers.
-const SEND_TIMEOUT_MS = Number(process.env.GMAIL_SEND_TIMEOUT_MS || 120000);
-
-// Send via Gmail API (raw HTTPS — no SMTP, works on Railway)
-// Supports optional attachments: [{ filename, data (base64), mimeType }]
-function sendViaGmailAPI(accessToken, { to, cc, subject, html, attachments }) {
-  return new Promise((resolve, reject) => {
-    let message;
-
-    if (attachments && attachments.length > 0) {
-      const boundary = `boundary_${Date.now()}_${Math.random().toString(36).slice(2)}`
-      const parts = [
-        `From: Market Street <${process.env.GMAIL_USER}>`,
-        `To: ${to}`,
-        ...(cc ? [`Cc: ${cc}`] : []),
-        `Subject: ${encodeSubject(subject)}`,
-        `MIME-Version: 1.0`,
-        `Content-Type: multipart/mixed; boundary="${boundary}"`,
-        ``,
-        `--${boundary}`,
-        `Content-Type: text/html; charset=utf-8`,
-        ``,
-        html,
-      ]
-      for (const att of attachments) {
-        const mime = att.mimeType || 'application/pdf'
-        parts.push(
-          `--${boundary}`,
-          `Content-Type: ${mime}; name="${att.filename}"`,
-          `Content-Disposition: attachment; filename="${att.filename}"`,
-          `Content-Transfer-Encoding: base64`,
-          ``,
-          att.data,
-        )
-      }
-      parts.push(`--${boundary}--`)
-      message = parts.join('\r\n')
-    } else {
-      message = [
-        `From: Market Street <${process.env.GMAIL_USER}>`,
-        `To: ${to}`,
-        ...(cc ? [`Cc: ${cc}`] : []),
-        `Subject: ${encodeSubject(subject)}`,
-        `MIME-Version: 1.0`,
-        `Content-Type: text/html; charset=utf-8`,
-        ``,
-        html,
-      ].join('\r\n')
-    }
-
-    const encoded = Buffer.from(message)
-      .toString('base64')
-      .replace(/\+/g, '-')
-      .replace(/\//g, '_')
-      .replace(/=+$/, '');
-
-    const body = JSON.stringify({ raw: encoded });
-
-    const req = https.request({
-      hostname: 'gmail.googleapis.com',
-      path:     '/gmail/v1/users/me/messages/send',
-      method:   'POST',
-      headers:  {
-        'Authorization':  `Bearer ${accessToken}`,
-        'Content-Type':   'application/json',
-        'Content-Length': Buffer.byteLength(body),
-      },
-    }, (res) => {
-      let data = '';
-      res.on('data', c => data += c);
-      res.on('end', () => {
-        // The STATUS decides, not the body. This used to be a bare
-        // `JSON.parse(data)` on the first line: a non-JSON body — Google's HTML
-        // error page, a truncated response — threw INSIDE this handler, which is
-        // not a rejection. The promise never settled, so the caller waited
-        // forever and the work after it (marking the row confirmed) never ran,
-        // while the message may well have been accepted.
-        let json = null;
-        try { json = data ? JSON.parse(data) : null; } catch { /* not JSON */ }
-        if (res.statusCode >= 200 && res.statusCode < 300) resolve(json || { raw: data });
-        else reject(new Error(`Gmail API error ${res.statusCode}: ${json ? JSON.stringify(json) : data.slice(0, 300)}`));
-      });
-    });
-    // A hung socket is the other way this promise never settles, and it costs
-    // the same thing: the send is neither confirmed nor recorded, and the row
-    // keeps offering Send with the email already gone. Generous — big
-    // attachments upload slowly — but finite, so it fails instead of hanging.
-    req.setTimeout(SEND_TIMEOUT_MS, () => {
-      req.destroy(new Error(`Gmail API did not respond within ${SEND_TIMEOUT_MS / 1000}s — `
-        + 'the message may or may not have been sent; check the sent folder before resending.'));
-    });
-    req.on('error', reject);
-    req.write(body);
-    req.end();
-  });
-}
 
 function buildWelcomeHtml({ name, email, role, department }) {
   return `
@@ -146,8 +39,7 @@ async function sendWelcomeEmail({ name, email, role, department, htmlOverride, t
     const html = htmlOverride
       ? sanitizeEmailHtml(htmlOverride)
       : buildWelcomeHtml({ name, email, role, department });
-    const accessToken = await getAccessToken();
-    await sendViaGmailAPI(accessToken, {
+        await sendMail({ kind: 'welcome',
       to: toOverride || email,
       cc: ccOverride || undefined,
       subject: subjectOverride || 'Welcome to Market Street Dashboard',
@@ -207,8 +99,7 @@ async function sendVendorApprovedEmail({ vendorName, vendorEmail, amount, curren
     const html = htmlOverride
       ? sanitizeEmailHtml(htmlOverride)
       : buildVendorApprovedHtml({ vendorName, amount, currency, invoiceNumber, artist, submittedAt });
-    const accessToken = await getAccessToken();
-    await sendViaGmailAPI(accessToken, {
+        await sendMail({ kind: 'vendor_approved',
       to: toOverride || vendorEmail,
       subject: subjectOverride || `Invoice Approved - ${vendorName}${invoiceNumber ? ` (#${invoiceNumber})` : ''}`,
       html,
@@ -262,8 +153,7 @@ async function sendVendorRejectedEmail({ vendorName, vendorEmail, amount, curren
     const html = htmlOverride
       ? sanitizeEmailHtml(htmlOverride)
       : buildVendorRejectedHtml({ vendorName, amount, currency, invoiceNumber, reason });
-    const accessToken = await getAccessToken();
-    await sendViaGmailAPI(accessToken, {
+        await sendMail({ kind: 'vendor_rejected',
       to: toOverride || vendorEmail,
       subject: subjectOverride || `Invoice Update - ${vendorName}${invoiceNumber ? ` (#${invoiceNumber})` : ''}`,
       html,
@@ -411,8 +301,7 @@ async function sendPaymentConfirmationEmail({ vendorName, vendorEmail, amount, c
       : buildPaymentConfirmationHtml({ vendorName, amount, currency, invoiceNumber, paymentDate, paymentMethod, personalMessage });
     const subj = subject || buildPaymentConfirmationSubject({ vendorName, invoiceNumber });
 
-    const accessToken = await getAccessToken();
-    await sendViaGmailAPI(accessToken, {
+        await sendMail({ kind: 'payment_confirmation',
       to: recipient,
       cc: cc || undefined,
       subject: subj,
@@ -515,8 +404,7 @@ async function sendBulkPaymentConfirmationEmail({ vendorName, vendorEmail, items
       : buildBulkPaymentConfirmationHtml({ vendorName, items });
     const subject = subjectOverride || buildBulkPaymentConfirmationSubject({ vendorName, items });
 
-    const accessToken = await getAccessToken();
-    await sendViaGmailAPI(accessToken, {
+        await sendMail({ kind: 'bulk_payment_confirmation',
       to: toOverride || vendorEmail,
       cc: (ccOverride !== undefined ? ccOverride : cc) || undefined,
       subject,
@@ -578,8 +466,7 @@ async function sendTaskAssignmentEmail({ assigneeName, assigneeEmail, assignerNa
     const html = htmlOverride
       ? sanitizeEmailHtml(htmlOverride)
       : buildTaskAssignmentHtml({ assigneeName, assignerName, description, priority, due_date });
-    const accessToken = await getAccessToken();
-    await sendViaGmailAPI(accessToken, {
+        await sendMail({ kind: 'task_assigned',
       to: toOverride || assigneeEmail,
       cc: ccOverride || undefined,
       subject: subjectOverride || buildTaskAssignmentSubject({ assignerName, description }),
@@ -644,8 +531,7 @@ async function sendInternalRequestEmail({ typeLabel, userName, userEmail, userRo
     const html = htmlOverride
       ? sanitizeEmailHtml(htmlOverride)
       : buildInternalRequestHtml({ typeLabel, userName, userEmail, userRole, page, title, details, timestamp });
-    const accessToken = await getAccessToken();
-    await sendViaGmailAPI(accessToken, {
+        await sendMail({ kind: 'internal_request',
       to: toOverride || 'john@deanst.co',
       cc: ccOverride || undefined,
       subject: subjectOverride || `[Dashboard] ${typeLabel} from ${userName}: ${title}`,
@@ -697,8 +583,7 @@ async function sendTestUserInvitationEmail({ name, email, password, role, htmlOv
     const html = htmlOverride
       ? sanitizeEmailHtml(htmlOverride)
       : buildTestUserInvitationHtml({ name, email, password, role });
-    const accessToken = await getAccessToken();
-    await sendViaGmailAPI(accessToken, {
+        await sendMail({ kind: 'test_invitation',
       to: toOverride || email,
       cc: ccOverride || undefined,
       subject: subjectOverride || 'Your Market Street demo account is ready',
@@ -751,12 +636,11 @@ async function sendChatMentionEmail({ recipientName, recipientEmail, actorName, 
   try {
     if (!toOverride && !recipientEmail) return false;
     // No provider configured → silently do nothing. See the note above.
-    if (!credentialsPresent()) return false;
+    if (!(await isConnected('team'))) return false;
     const html = htmlOverride
       ? sanitizeEmailHtml(htmlOverride)
       : buildChatMentionHtml({ recipientName, actorName, channelLabel, snippet, link });
-    const accessToken = await getAccessToken();
-    await sendViaGmailAPI(accessToken, {
+        await sendMail({ kind: 'chat_mention',
       to: toOverride || recipientEmail,
       cc: ccOverride || undefined,
       subject: subjectOverride || buildChatMentionSubject({ actorName, channelLabel }),
@@ -775,9 +659,8 @@ async function sendChatMentionEmail({ recipientName, recipientEmail, actorName, 
 /**
  * Generic email sender — use for one-off flows where the HTML is composed by the caller.
  */
-async function sendEmail({ to, cc, subject, html, attachments }) {
-  const accessToken = await getAccessToken();
-  await sendViaGmailAPI(accessToken, { to, cc: cc || undefined, subject, html, attachments: attachments || [] });
+async function sendEmail({ to, cc, subject, html, attachments, purpose = 'team', kind, entity }) {
+  await sendMail({ purpose, kind, to, cc: cc || undefined, subject, html, attachments: attachments || [], entity });
 }
 
 module.exports = {

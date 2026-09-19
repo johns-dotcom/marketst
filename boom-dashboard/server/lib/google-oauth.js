@@ -39,12 +39,12 @@ function credentialsPresent() {
  * lines: the ambiguity cost a round trip of "the APIs are enabled, why is it
  * still failing".
  */
-function getAccessTokenInfo() {
+function getAccessTokenInfo(refreshToken = process.env.GMAIL_REFRESH_TOKEN) {
   return new Promise((resolve, reject) => {
     const body = new URLSearchParams({
       client_id:     process.env.GMAIL_CLIENT_ID,
       client_secret: process.env.GMAIL_CLIENT_SECRET,
-      refresh_token: process.env.GMAIL_REFRESH_TOKEN,
+      refresh_token: refreshToken,
       grant_type:    'refresh_token',
     }).toString();
 
@@ -68,7 +68,9 @@ function getAccessTokenInfo() {
             scopes: String(json.scope || '').split(/\s+/).filter(Boolean),
           });
         } else {
-          reject(new Error(`Token error: ${JSON.stringify(json)}`));
+          const err = new Error(`Token error: ${JSON.stringify(json)}`);
+          err.code = json.error || 'token_error'; // 'invalid_grant' = the refresh token was revoked
+          reject(err);
         }
       });
     });
@@ -84,4 +86,9 @@ async function getAccessToken() {
   return (await getAccessTokenInfo()).token;
 }
 
-module.exports = { getAccessToken, getAccessTokenInfo, credentialsPresent };
+// Connected mailboxes (lib/mail.js) hold their own refresh tokens.
+async function getAccessTokenFor(refreshToken) {
+  return (await getAccessTokenInfo(refreshToken)).token;
+}
+
+module.exports = { getAccessToken, getAccessTokenInfo, getAccessTokenFor, credentialsPresent };

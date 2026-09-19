@@ -1,5 +1,4 @@
 const express = require('express');
-const https = require('https');
 const authMiddleware = require('../middleware/auth');
 
 const router = express.Router();
@@ -16,51 +15,6 @@ const TYPE_LABELS = {
 // rather than repointed at lib/google-oauth.js. sendViaGmailAPI below is dead
 // for the same reason; left in place because deleting it is a separate change.
 
-// Send via Gmail API (HTTPS only — no SMTP, works on Railway)
-function sendViaGmailAPI(accessToken, { from, to, replyTo, subject, html }) {
-  return new Promise((resolve, reject) => {
-    const message = [
-      `From: ${from}`,
-      `To: ${to}`,
-      `Reply-To: ${replyTo}`,
-      `Subject: ${subject}`,
-      `MIME-Version: 1.0`,
-      `Content-Type: text/html; charset=utf-8`,
-      ``,
-      html,
-    ].join('\r\n');
-
-    const encoded = Buffer.from(message)
-      .toString('base64')
-      .replace(/\+/g, '-')
-      .replace(/\//g, '_')
-      .replace(/=+$/, '');
-
-    const body = JSON.stringify({ raw: encoded });
-
-    const req = https.request({
-      hostname: 'gmail.googleapis.com',
-      path:     '/gmail/v1/users/me/messages/send',
-      method:   'POST',
-      headers:  {
-        'Authorization': `Bearer ${accessToken}`,
-        'Content-Type':  'application/json',
-        'Content-Length': Buffer.byteLength(body),
-      },
-    }, (res) => {
-      let data = '';
-      res.on('data', c => data += c);
-      res.on('end', () => {
-        const json = JSON.parse(data);
-        if (res.statusCode >= 200 && res.statusCode < 300) resolve(json);
-        else reject(new Error(`Gmail API error ${res.statusCode}: ${JSON.stringify(json)}`));
-      });
-    });
-    req.on('error', reject);
-    req.write(body);
-    req.end();
-  });
-}
 
 // POST /api/requests
 router.post('/', authMiddleware, async (req, res) => {

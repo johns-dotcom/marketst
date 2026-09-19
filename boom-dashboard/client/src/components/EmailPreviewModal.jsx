@@ -43,6 +43,20 @@ export default function EmailPreviewModal({
   attachmentLabels,
   customSend,
 }) {
+  // From (2026-09-19): the purpose's shared mailbox, or the sender's own if
+  // they connected one under My settings › My mailbox.
+  const [fromOptions, setFromOptions] = useState(null)
+  const [fromMailboxId, setFromMailboxId] = useState('')
+  useEffect(() => {
+    if (!open) return
+    api.get('/mail/mailboxes').then((r) => {
+      const boxes = r.data?.data || []
+      const mine = boxes.find((b) => b.kind === 'personal' && b.status === 'active')
+      const purposeKey = { payment_confirmation: 'payments', bulk_payment_confirmation: 'payments', vendor_approved: 'vendors', vendor_rejected: 'vendors' }[previewKind] || 'team'
+      const shared = (r.data?.purposes || []).find((p) => p.key === purposeKey)?.mailbox || null
+      setFromOptions({ shared, mine })
+    }).catch(() => setFromOptions({ shared: null, mine: null }))
+  }, [open, previewKind])
   const { theme } = useTheme()
   const C = getDarkColors(theme)
   const inputSty = {
@@ -192,6 +206,7 @@ export default function EmailPreviewModal({
         await customSend(payload)
       } else {
         await api.post('/email/send', {
+          from_mailbox_id: fromMailboxId || undefined,
           kind: previewKind,
           context: previewContext || {},
           ...payload,
@@ -243,6 +258,16 @@ export default function EmailPreviewModal({
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 10, marginBottom: 14, marginTop: 14 }}>
+          {fromOptions && (fromOptions.shared || fromOptions.mine) && (
+            <div style={{ marginBottom: 12 }} data-from-selector>
+              <div style={{ fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.05em', color: C.textFaint, marginBottom: 4 }}>From</div>
+              <select value={fromMailboxId} onChange={(e) => setFromMailboxId(e.target.value)} className="select-base w-full" style={{ fontSize: 13 }}>
+                {fromOptions.shared && <option value="">{fromOptions.shared.address} · the label{fromOptions.shared.status !== 'active' ? ' (needs reconnecting)' : ''}</option>}
+                {fromOptions.mine && <option value={fromOptions.mine.id}>{fromOptions.mine.address} · me</option>}
+              </select>
+              {!fromOptions.shared && <div style={{ fontSize: 11, color: '#b45309', marginTop: 4 }}>No shared mailbox owns this kind of mail; it will go from your own address.</div>}
+            </div>
+          )}
           <div>
             <div style={{ fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.05em', color: C.textFaint, marginBottom: 4 }}>To</div>
             <input

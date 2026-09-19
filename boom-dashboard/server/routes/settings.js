@@ -524,7 +524,8 @@ router.get('/me/notifications', authMiddleware, async (req, res) => {
   try {
     const { rows: [u] } = await pool.query('SELECT notification_prefs FROM users WHERE id = $1', [req.user.id]);
     const prefs = u?.notification_prefs || {};
-    res.json({ success: true, data: Object.fromEntries(NOTIFY_KEYS.map((k) => [k, prefs[k] === true])), keys: NOTIFY_KEYS, delivery: { gmail: !!process.env.GMAIL_REFRESH_TOKEN } });
+    const { isConnected } = require('../lib/mail');
+    res.json({ success: true, data: Object.fromEntries(NOTIFY_KEYS.map((k) => [k, prefs[k] === true])), keys: NOTIFY_KEYS, delivery: { gmail: await isConnected('team') } });
   } catch (err) { console.error('settings/me/notifications error:', err); res.status(500).json({ success: false, error: 'Internal server error' }); }
 });
 router.put('/me/notifications', authMiddleware, async (req, res) => {
@@ -575,7 +576,17 @@ router.post('/users/:id(\\d+)/invite', adminOnly, async (req, res) => {
     if (!t) return res.status(404).json({ success: false, error: 'User not found' });
     if (!isSuperadmin(req.user.role) && isAdminOrSuperadmin(t.role)) return res.status(403).json({ success: false, error: 'Only Superadmin can invite an Admin' });
     const invite = await createInvite(t.id, req.user.id);
-    res.json({ success: true, data: invite });
+    let emailed = false;
+    if (req.query.send === '1' || req.body?.send === true) {
+      const { sendMail, runWithMailContext } = require('../lib/mail');
+      const url = `${process.env.FRONTEND_URL || 'https://marketst-production.up.railway.app'}${invite.path}`;
+      await runWithMailContext({ actor: { id: req.user.id, email: req.user.email, name: req.user.name } }, () => sendMail({
+        kind: 'invite', purpose: 'team', to: t.email, subject: 'Your Market Street dashboard login',
+        html: `<p>Hi ${t.name.split(' ')[0]},</p><p>${req.user.name || 'An admin'} added you to the Market Street dashboard. Set your password and sign in here:</p><p><a href="${url}">${url}</a></p><p style="color:#666;font-size:12px;">The link works once and expires in 7 days.</p>`,
+        entity: { type: 'user', id: t.id } }));
+      emailed = true;
+    }
+    res.json({ success: true, data: { ...invite, emailed } });
   } catch (err) { console.error('settings invite error:', err); res.status(500).json({ success: false, error: 'Internal server error' }); }
 });
 
@@ -586,7 +597,11 @@ router.get('/integrations', adminOnly, async (req, res) => {
     const has = (...keys) => keys.every((k) => !!process.env[k]);
     const lastAudit = async (like) => (await pool.query(`SELECT MAX(created_at) AS t FROM bk_audit_log WHERE action ILIKE $1`, [like]).catch(() => ({ rows: [{ t: null }] }))).rows[0]?.t || null;
     const rows = [
-      { key: 'gmail', label: 'Gmail', configured: has('GMAIL_CLIENT_ID', 'GMAIL_CLIENT_SECRET', 'GMAIL_REFRESH_TOKEN', 'GMAIL_USER'), powers: 'payment confirmations, welcome and invite emails, notifications', detail: process.env.GMAIL_USER ? `sends as ${process.env.GMAIL_USER}` : null, last_used: await lastAudit('%confirmation%') },
+      await (async () => {
+        // Mail is connected mailboxes now, not env vars. Configured = at least one active box.
+        const { rows } = await pool.query(`SELECT address, last_used_at FROM mailboxes WHERE status = 'active' ORDER BY connected_at`).catch(() => ({ rows: [] }));
+        return { key: 'gmail', label: 'Mail (Google)', configured: rows.length > 0, powers: 'payment confirmations, welcome and invite emails, notifications', detail: rows.length ? `${rows.length} mailbox${rows.length === 1 ? '' : 'es'}: ${rows.map((r) => r.address).join(', ')}` : (has('GMAIL_CLIENT_ID', 'GMAIL_CLIENT_SECRET') ? 'OAuth client ready — connect a mailbox in the Mail card above' : 'needs GMAIL_CLIENT_ID and GMAIL_CLIENT_SECRET on Railway'), last_used: rows.map((r) => r.last_used_at).filter(Boolean).sort().pop() || null };
+      })(),
       { key: 'google_signin', label: 'Google sign-in', configured: has('GOOGLE_CLIENT_ID'), powers: 'one-click login for the team (the client also needs VITE_GOOGLE_CLIENT_ID at build time)', detail: null, last_used: null },
       { key: 'spotify', label: 'Spotify', configured: has('SPOTIFY_CLIENT_ID', 'SPOTIFY_CLIENT_SECRET'), powers: 'cover art and artist lookup on releases', detail: null, last_used: null },
       { key: 'storage', label: 'File storage (R2)', configured: has('R2_ACCOUNT_ID', 'R2_ACCESS_KEY_ID', 'R2_SECRET_ACCESS_KEY', 'R2_BUCKET_NAME'), powers: 'invoices, W-9s, proofs, contracts and documents', detail: process.env.R2_BUCKET_NAME ? `bucket ${process.env.R2_BUCKET_NAME}` : null, last_used: null },

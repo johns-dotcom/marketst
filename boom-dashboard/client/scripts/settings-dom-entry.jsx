@@ -66,7 +66,7 @@ async function main() {
   const tabs = [...host.querySelectorAll('[data-tab]')].map((t) => t.getAttribute('data-tab'))
   if (scenario === 'user') {
     assert('a User sees only My settings', sections.join(',') === 'My settings' && !tabs.includes('people') && !tabs.includes('label'))
-    assert('with five tabs', tabs.join(',') === 'profile,signin,notifications,theme,mynav')
+    assert('with six tabs', tabs.join(',') === 'profile,signin,notifications,mailbox,theme,mynav')
     say('DONE'); globalThis.__DONE__ = true; return
   }
   assert('the rail has two groups: My settings and Label settings', sections.join(',') === 'My settings,Label settings')
@@ -92,7 +92,7 @@ async function main() {
   say('\nNOTIFICATIONS')
   click(host.querySelector('[data-tab="notifications"]')); await sleep(200)
   const nt = host.querySelector('[data-tab-notifications]')
-  assert('the tab says sending waits on Gmail', nt?.getAttribute('data-delivery') === undefined ? /Gmail/.test(textOf(nt)) : /Gmail/.test(textOf(nt)) && nt.querySelector('[data-delivery="off"]'))
+  assert('the tab says sending waits on a Team mailbox', /Team mailbox/.test(textOf(nt)) && nt.querySelector('[data-delivery]')?.getAttribute('data-delivery') === 'off')
   assert('saved prefs are reflected (payments due on)', nt.querySelector('[data-notify="payments_due"]')?.checked === true && nt.querySelector('[data-notify="tasks_assigned"]')?.checked === false)
   click(nt.querySelector('[data-notify="tasks_assigned"]')); await sleep(150)
   assert('toggling PUTs the whole set', calls.put.some((c) => c.url === '/settings/me/notifications' && c.body.tasks_assigned === true && c.body.payments_due === true))

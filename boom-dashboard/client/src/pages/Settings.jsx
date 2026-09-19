@@ -4,6 +4,7 @@ import api from '../api'
 import { NAV_PAGES, NAV_GROUPS } from '../navConfig'
 import { Link, useSearchParams } from 'react-router-dom'
 import { refreshLabel } from '../hooks/useLabel'
+import MailCard, { MyMailbox } from '../components/MailCard'
 import { useAuth } from '../context/AuthContext'
 import { useTheme } from '../context/ThemeContext'
 import PageHeader from '../components/PageHeader'
@@ -138,7 +139,7 @@ function NotificationsTab() {
   return (
     <div className="max-w-xl" data-tab-notifications>
       <div className={`rounded-lg border px-3 py-2 text-xs mb-4 ${gmail ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-amber-50 border-amber-200 text-amber-800'}`} data-delivery={gmail ? 'on' : 'off'}>
-        {gmail ? 'Email delivery is connected.' : 'Your choices are saved now. Sending starts when Gmail is connected under Label settings › Integrations — nothing is emailed yet.'}
+        {gmail ? 'Email delivery is connected: these go out from the Team mailbox.' : 'Your choices are saved now. Sending starts when a Team mailbox is connected under Label settings › Integrations › Mail — nothing is emailed yet.'}
       </div>
       <ul className="divide-y divide-divider border border-rule rounded-lg">
         {Object.entries(NOTIFY_LABELS).map(([k, [label, body]]) => (
@@ -421,7 +422,8 @@ function ArchiveTab() {
 const TAB_META = {
   profile:       ['Profile', 'How your name appears across the app.'],
   signin:        ['Sign-in', 'Your password and where you are signed in.'],
-  notifications: ['Notifications', 'Which events email you, once Gmail is connected.'],
+  notifications: ['Notifications', 'Which events email you, once a Team mailbox is connected.'],
+  mailbox:       ['My mailbox', 'Send as yourself from the app.'],
   theme:         ['Theme', 'Light, dark, or follow the system.'],
   mynav:         ['My Nav', 'Which pages appear in your sidebar.'],
   label:         ['Label', 'What prints on invoices, NDAs and waivers.'],
@@ -434,7 +436,7 @@ export default function Settings() {
   const isAdmin = currentUserRole === 'Admin' || currentUserRole === 'Superadmin'
   const [searchParams] = useSearchParams()
   const wanted = searchParams.get('tab') || 'profile'
-  const allowed = new Set(['profile', 'signin', 'notifications', 'theme', 'mynav', ...(isAdmin ? ['label', 'integrations'] : []), ...(currentUserRole === 'Superadmin' ? ['archive'] : [])])
+  const allowed = new Set(['profile', 'signin', 'notifications', 'mailbox', 'theme', 'mynav', ...(isAdmin ? ['label', 'integrations'] : []), ...(currentUserRole === 'Superadmin' ? ['archive'] : [])])
   const tab = allowed.has(wanted) ? wanted : 'profile'
   const [title, subtitle] = TAB_META[tab]
   return (
@@ -446,6 +448,7 @@ export default function Settings() {
       {tab === 'profile'       && <ProfileTab onSaved={() => refreshUser && refreshUser()} />}
       {tab === 'signin'        && <SignInTab />}
       {tab === 'notifications' && <NotificationsTab />}
+      {tab === 'mailbox'       && <MyMailbox />}
       {tab === 'theme'         && <ThemeTab />}
       {tab === 'mynav'         && <MyNavTab />}
       {tab === 'label'         && isAdmin && <LabelTab />}
@@ -583,7 +586,8 @@ function IntegrationsTab() {
   if (!rows) return <p className="text-sm text-gray-400">Loading…</p>
   const off = rows.filter((r) => !r.configured).length
   return (
-    <div className="max-w-2xl" data-tab-integrations>
+    <div className="max-w-2xl space-y-4" data-tab-integrations>
+      <MailCard />
       <p className="text-xs text-gray-500 mb-3">{off ? `${off} of ${rows.length} not configured. ` : 'Everything is configured. '}Read from the server's environment; nothing here accepts a key. Keys are set on Railway.</p>
       <ul className="divide-y divide-divider border border-rule rounded-lg">
         {rows.map((r) => (

@@ -300,19 +300,47 @@ Authoritative project guide: **`boom-dashboard/CLAUDE.md`** — read it before m
   removing is the uploader or an admin. NAV_PAGES is 49 now.
   `server/scripts/brand-fixture.cjs` (12) covers upload, the HTML refusal, the
   byte-identical download, the SVG-as-attachment rule and the delete gate.
-- **Mail plan (2026-09-19, designed, NOT built):** connected Google mailboxes
-  (`mailboxes` with encrypted refresh tokens, `mailbox_purposes`, `mail_log`),
-  connect flow from Settings › Integrations › Mail (shared, admins) and My
-  settings › My mailbox (personal), OAuth callback `/api/mail/oauth/callback`
-  (must be an authorised redirect URI on the GMAIL_CLIENT_ID client), routing
-  BY PURPOSE (Payments · Vendors and creators · Team · Artists · Clients), one
-  `lib/mail.js` `sendMail` replacing the three Gmail send copies
-  (services/email.js, routes/team.js, routes/requests.js), the env sender
-  imported on boot as the first shared mailbox, Reply-To = the human sender
-  when sending from a shared box, revoked tokens surfaced not retried,
-  outbound only. Notification prefs start sending in stage 4 via an
-  in-process scheduler with `mail_jobs`. Four stages in the plan:
-  https://claude.ai/code/artifact/c64c206d-780f-4a15-9ea7-e7f63e0f2ce5
+- **Connected mailboxes (2026-09-19, built; plan
+  https://claude.ai/code/artifact/c64c206d-780f-4a15-9ea7-e7f63e0f2ce5).**
+  `mailboxes` (address, kind shared|personal, owner, `refresh_token_enc`
+  under PAYMENT_DETAILS_KEY, `source` oauth|env, status active|
+  needs_reconnect), `mailbox_purposes` (purpose → mailbox: payments · vendors
+  · team · artists · clients), `mail_log` (every attempt), `mail_jobs`
+  (scheduler periods). **`lib/mail.js` `sendMail({ purpose|kind, to, cc,
+  subject, html, attachments, from, replyTo, entity })` is the ONE send path**
+  — the Gmail HTTPS call lives in `lib/gmail-transport.js` (extracted from
+  services/email.js; the copies in routes/team.js and routes/requests.js are
+  gone). Every sender in services/email.js calls `sendMail({ kind })`;
+  `PURPOSE_OF_KIND` maps kinds to purposes. `runWithMailContext({ actor,
+  fromMailboxId }, fn)` (AsyncLocalStorage) is how `POST /email/send` passes
+  WHO is sending: a human sending from a SHARED box gets Reply-To = their
+  address; `from_mailbox_id` lets them send as their own (personal) box.
+  Unassigned purpose → `MailNotConnected` (code MAIL_NOT_CONNECTED, 409 from
+  the send route) whose message is the sentence screens show; `invalid_grant`
+  → status needs_reconnect, never retried. `MAIL_DRY_RUN=1` logs without
+  calling Gmail (fixtures). **The env sender (GMAIL_USER + token) is imported
+  on boot as the first shared mailbox owning every purpose** (no-op once any
+  row exists) — so mail kept working through the change; the env vars can go
+  once a real mailbox is connected. `routes/mail.js`: status · mailboxes ·
+  connect (returns the Google consent URL, `state` = 10-minute JWT bound to
+  the user and kind) · PUBLIC `oauth/callback` (exchanges the code with
+  GMAIL_CLIENT_ID/SECRET, reads the address from userinfo, upserts, first
+  shared box claims all purposes, redirects to
+  `/settings?tab=integrations|mailbox&mail=connected|denied|badstate|norefresh`)
+  · purposes PUT · test send · disconnect (purposes go unassigned, reported) ·
+  log. **Ops step:** `https://marketst-production.up.railway.app/api/mail/oauth/callback`
+  (and the localhost one) must be an authorised redirect URI on the OAuth
+  client. UI: `components/MailCard.jsx` (Integrations card: boxes, purposes
+  matrix, recent sends, reconnect) and `MyMailbox` (My settings › My mailbox);
+  `EmailPreviewModal` gained a From selector. `lib/notifier.js` runs hourly:
+  approvals_waiting (09:00 LA daily), payments_due (Mon 09:00), renewals_coming
+  (daily, contracts hitting exactly 90 days out), weekly_digest (Fri 16:00) —
+  each claimed once per period in `mail_jobs`; `notifyAssigned` emails a task
+  immediately when the assignee's pref is on (then no preview is offered).
+  Invites: `POST /settings/users/:id/invite?send=1` emails the link; PersonModal
+  "Email it", People "email it". Integrations' Mail row now reads the mailboxes
+  table. Fixtures: `mail-fixture.cjs` (21, needs `MAIL_DRY_RUN=1` on the
+  server), `gmail-transport-fixture.cjs` now tests lib/gmail-transport directly.
 - **Bank-statement heuristics were tuned on Boom's Bank of America statements.** The own-name lists (`statements.js` stop-words, `funding-pairs.js` account-trailer strip) now say Market Street, but the layout parsers have not seen a Market Street statement yet. Expect the AI fallback to do the work until they do.
 
 ## Commands (run from `boom-dashboard/`)

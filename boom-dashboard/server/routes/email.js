@@ -73,11 +73,20 @@ router.post('/send', async (req, res) => {
       }
       override.cc = parts.join(', ');
     }
-    const result = await dispatchSend(kind, context, override);
+    // Who is sending (Reply-To for shared boxes) and, optionally, their own mailbox.
+    const { runWithMailContext, mailboxById } = require('../lib/mail');
+    let fromMailboxId = null;
+    if (req.body?.from_mailbox_id) {
+      const mb = await mailboxById(req.body.from_mailbox_id);
+      if (!mb) return res.status(400).json({ success: false, error: 'That mailbox is not connected' });
+      if (mb.kind === 'personal' && Number(mb.owner_user_id) !== Number(req.user.id) && req.user.role !== 'Superadmin') return res.status(403).json({ success: false, error: 'You can only send from your own mailbox' });
+      fromMailboxId = mb.id;
+    }
+    const result = await runWithMailContext({ actor: { id: req.user.id, email: req.user.email, name: req.user.name }, fromMailboxId }, () => dispatchSend(kind, context, override));
     res.json({ success: true, data: result });
   } catch (err) {
     console.error('POST /api/email/send:', err);
-    res.status(500).json({ success: false, error: err.message });
+    res.status(err.code === 'MAIL_NOT_CONNECTED' || err.code === 'MAIL_NEEDS_RECONNECT' ? 409 : 500).json({ success: false, error: err.message, code: err.code });
   }
 });
 

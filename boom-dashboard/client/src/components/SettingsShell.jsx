@@ -9,13 +9,14 @@
 // are untouched. The Sandbox stays an external link — it is a page that
 // deliberately stands apart from the app shell.
 import { Link, useLocation } from 'react-router-dom'
-import { UserCircle2, KeyRound, Bell, Sun, SlidersHorizontal, Users, Building2, Plug, ScrollText, ShieldCheck, Send, FolderArchive, ExternalLink } from 'lucide-react'
+import { UserCircle2, KeyRound, Bell, Mail, Sun, SlidersHorizontal, Users, Building2, Plug, ScrollText, ShieldCheck, Send, FolderArchive, ExternalLink } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 
 export const MY_ITEMS = [
   { id: 'profile',       label: 'Profile',       icon: UserCircle2,       to: '/settings?tab=profile' },
   { id: 'signin',        label: 'Sign-in',       icon: KeyRound,          to: '/settings?tab=signin' },
   { id: 'notifications', label: 'Notifications', icon: Bell,              to: '/settings?tab=notifications' },
+  { id: 'mailbox',       label: 'My mailbox',    icon: Mail,              to: '/settings?tab=mailbox' },
   { id: 'theme',         label: 'Theme',         icon: Sun,               to: '/settings?tab=theme' },
   { id: 'mynav',         label: 'My Nav',        icon: SlidersHorizontal, to: '/settings?tab=mynav' },
 ]

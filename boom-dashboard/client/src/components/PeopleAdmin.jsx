@@ -164,6 +164,7 @@ export function PersonModal({ user, onClose, onSaved, currentUserRole }) {
   // After creating: the one-time invite link to hand over (copied, or emailed once Gmail exists)
   const [invite, setInvite] = useState(null)
   const [copied, setCopied] = useState(false)
+  const [inviteNote, setInviteNote] = useState('')
 
   // Page permissions (for new users only)
   //
@@ -247,7 +248,7 @@ export function PersonModal({ user, onClose, onSaved, currentUserRole }) {
         onSaved(res.data.data, res.data.pending_email || null)
         if (res.data.invite?.path) {
           // Stay open to show the link — closing here would lose the only copy.
-          setInvite({ ...res.data.invite, url: `${window.location.origin}${res.data.invite.path}`, name: form.name, email: form.email })
+          setInvite({ ...res.data.invite, user_id: userId, url: `${window.location.origin}${res.data.invite.path}`, name: form.name, email: form.email })
           setSaving(false)
           return
         }
@@ -282,8 +283,11 @@ export function PersonModal({ user, onClose, onSaved, currentUserRole }) {
             <div className="flex items-center gap-2">
               <input readOnly value={invite.url} onFocus={(e) => e.target.select()} className="input-base flex-1 text-xs font-mono" data-invite-url />
               <button type="button" onClick={copy} className="text-xs font-semibold px-3 py-2 rounded-lg bg-gray-900 text-white hover:bg-gray-800 whitespace-nowrap" data-copy-invite>{copied ? 'Copied' : 'Copy link'}</button>
+              <button type="button" onClick={async () => { setInviteNote(''); try { const r = await api.post(`/settings/users/${invite.user_id}/invite?send=1`); setInviteNote(r.data.data.emailed ? `Emailed to ${invite.email}. (That made a fresh link; this one is now void.)` : 'Not sent'); setInvite((v) => ({ ...v, url: `${window.location.origin}${r.data.data.path}` })) } catch (e) { setInviteNote(e?.response?.data?.error || 'Could not send') } }}
+                className="text-xs font-semibold px-3 py-2 rounded-lg border border-rule hover:bg-gray-50 whitespace-nowrap" data-send-invite>Email it</button>
             </div>
-            <p className="text-[11px] text-gray-400">Until Gmail is connected the link is handed over by you. From People you can resend a fresh one at any time; resending voids this one.</p>
+            {inviteNote && <p className="text-[11px] text-gray-600" data-invite-note>{inviteNote}</p>}
+            <p className="text-[11px] text-gray-400">Copy it and hand it over, or email it through the Team mailbox if one is connected. From People you can resend a fresh one at any time; resending voids this one.</p>
             <div className="flex justify-end pt-1"><button onClick={onClose} className="text-sm font-semibold bg-gray-100 text-gray-700 px-4 py-2 rounded-xl hover:bg-gray-200">Done</button></div>
           </div>
         </div>

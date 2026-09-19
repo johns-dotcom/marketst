@@ -1,5 +1,4 @@
 const express = require('express');
-const https = require('https');
 const pool = require('../db');
 const authMiddleware = require('../middleware/auth');
 
@@ -8,34 +7,7 @@ const router = express.Router();
 // ── Gmail API helpers ───────────────────────────────────────────────────────
 // The token exchange was copied byte-for-byte in four files (here, requests.js,
 // services/email.js, and again for the Sheets export). One definition now.
-const { getAccessToken } = require('../lib/google-oauth');
-
-function sendEmail(accessToken, { to, subject, html }) {
-  return new Promise((resolve, reject) => {
-    const message = [
-      `From: Market Street Dashboard <${process.env.GMAIL_USER}>`,
-      `To: ${to}`,
-      `Subject: ${subject}`,
-      `MIME-Version: 1.0`,
-      `Content-Type: text/html; charset=utf-8`,
-      ``,
-      html,
-    ].join('\r\n');
-    const encoded = Buffer.from(message).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-    const body = JSON.stringify({ raw: encoded });
-    const req = https.request({
-      hostname: 'gmail.googleapis.com', path: '/gmail/v1/users/me/messages/send', method: 'POST',
-      headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) },
-    }, (res) => {
-      let data = '';
-      res.on('data', c => data += c);
-      res.on('end', () => resolve(JSON.parse(data)));
-    });
-    req.on('error', reject);
-    req.write(body);
-    req.end();
-  });
-}
+const { sendMail } = require('../lib/mail');
 
 async function notifyTaskAssignment({ assigneeName, assigneeEmail, assignerName, description, priority, due_date }) {
   try {
@@ -68,8 +40,8 @@ async function notifyTaskAssignment({ assigneeName, assigneeEmail, assignerName,
           <p style="margin:20px 0 0;font-size:12px;color:#aaa;">Log in to the Market Street Dashboard to view and manage your tasks.</p>
         </div>
       </div>`;
-    const token = await getAccessToken();
-    await sendEmail(token, {
+    await sendMail({
+      kind: 'task_assigned',
       to: assigneeEmail,
       subject: `[Market Street Dashboard] New task from ${assignerName}: ${description.slice(0, 60)}${description.length > 60 ? '…' : ''}`,
       html,
@@ -488,8 +460,15 @@ router.post('/tasks', authMiddleware, async (req, res) => {
           priority: priority || 'Medium',
           due_date: due_date || null,
         };
-        const preview = await prepareEmail('task_assigned', ctx);
-        pending_email = { kind: 'task_assigned', context: ctx, ...preview };
+        // If the assignee asked to be emailed about tasks and the Team mailbox is
+        // connected, it goes now — no preview to click through.
+        const { rows: [prefRow] } = await pool.query('SELECT notification_prefs FROM users WHERE id = $1', [effectiveUserId]).catch(() => ({ rows: [{}] }));
+        const sentNow = await require('../lib/notifier').notifyAssigned({ assignee: { email: targetUser.email, notification_prefs: prefRow?.notification_prefs }, assigner: currentUser.name, description, priority, due_date }).catch(() => false);
+        if (sentNow) pending_email = null;
+        else {
+          const preview = await prepareEmail('task_assigned', ctx);
+          pending_email = { kind: 'task_assigned', context: ctx, ...preview };
+        }
       } catch (err) {
         console.warn('task_assigned preview failed:', err.message);
       }

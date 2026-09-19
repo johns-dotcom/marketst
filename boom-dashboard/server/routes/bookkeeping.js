@@ -7412,7 +7412,7 @@ router.post('/payments/send-approval-email', async (req, res) => {
     const sendHtml = html_override ? sanitizeEmailHtml(html_override) : html;
     const sendTo = toOverride || to;
     const sendCc = ccOverride !== undefined ? (ccOverride || undefined) : cc;
-    await sendEmail({ to: sendTo, cc: sendCc, subject, html: sendHtml, attachments });
+    await sendEmail({ to: sendTo, cc: sendCc, subject, html: sendHtml, attachments, purpose: 'payments', kind: 'approval_summary' });
 
     await logBkAction(req.user, test ? 'payment_approval_email_test' : 'payment_approval_email_sent',
       null, `${invoiceCount} invoices`, null, null, null,
