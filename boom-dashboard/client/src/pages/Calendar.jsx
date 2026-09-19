@@ -1,13 +1,15 @@
 import { useState, useEffect, useMemo } from 'react'
-import { ChevronLeft, ChevronRight, Plus, X, Music, FileText, CheckSquare, Calendar as CalendarIcon, Disc3, Trash2, Loader } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { ChevronLeft, ChevronRight, Plus, X, Music, FileText, CheckSquare, Calendar as CalendarIcon, Disc3, Trash2, CreditCard, RefreshCw, ArrowUpRight, Lock } from 'lucide-react'
 import api from '../api'
-import { useAuth } from '../context/AuthContext'
 import useHotkeys from '../hooks/useHotkeys'
 import Skeleton from '../components/Skeleton'
+import EmptyState from '../components/EmptyState'
 
 const EVENT_STYLES = {
   release:          { bg: 'bg-blue-50',    border: 'border-blue-200',   dot: 'bg-blue-500',    text: 'text-blue-700',    label: 'Release' },
-  contract_expiry:  { bg: 'bg-red-50',     border: 'border-red-200',    dot: 'bg-red-500',     text: 'text-red-700',     label: 'Contract Expiry' },
+  contract_expiry:  { bg: 'bg-red-50',     border: 'border-red-200',    dot: 'bg-red-500',     text: 'text-red-700',     label: 'Renewal' },
+  payment_due:      { bg: 'bg-teal-50',    border: 'border-teal-200',   dot: 'bg-teal-600',    text: 'text-teal-800',    label: 'Payment due' },
   contract_signed:  { bg: 'bg-emerald-50', border: 'border-emerald-200',dot: 'bg-emerald-500', text: 'text-emerald-700', label: 'Contract Signed' },
   deadline:         { bg: 'bg-amber-50',   border: 'border-amber-200',  dot: 'bg-amber-500',   text: 'text-amber-700',   label: 'Task' },
   dsp_live:         { bg: 'bg-purple-50',  border: 'border-purple-200', dot: 'bg-purple-500',  text: 'text-purple-700',  label: 'DSP Live' },
@@ -17,7 +19,8 @@ const EVENT_STYLES = {
 
 const EVENT_ICONS = {
   release: Music,
-  contract_expiry: FileText,
+  contract_expiry: RefreshCw,
+  payment_due: CreditCard,
   contract_signed: FileText,
   deadline: CheckSquare,
   dsp_live: Disc3,
@@ -28,31 +31,35 @@ const EVENT_ICONS = {
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December']
 const DAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']
 
-const ALL_TYPES = [
-  { key: 'release', label: 'Releases' },
-  { key: 'deadline', label: 'Tasks' },
-  { key: 'contract_expiry', label: 'Contracts' },
-  { key: 'contract_signed', label: 'Contracts' },
-  { key: 'dsp_live', label: 'DSP' },
-  { key: 'dsp_submitted', label: 'DSP' },
-  { key: 'manual', label: 'Events' },
-]
-
+// The legend IS the filter (2026-09-18): one row per source, each a toggle,
+// each carrying its count. `source` names the feed the server reports in
+// `sources`, so a source withheld by page permission renders as such rather
+// than as an empty toggle — the difference between "nothing due" and "not
+// in your pages".
 const FILTER_GROUPS = [
-  { key: 'release', label: 'Releases', dot: 'bg-blue-500' },
-  { key: 'deadline', label: 'Tasks', dot: 'bg-amber-500' },
-  { key: 'contract', label: 'Contracts', dot: 'bg-red-500' },
-  { key: 'dsp', label: 'DSP', dot: 'bg-purple-500' },
-  { key: 'manual', label: 'Events', dot: 'bg-gray-500' },
+  { key: 'release',  label: 'Releases',       dot: 'bg-blue-500',   source: 'releases',  what: 'release dates' },
+  { key: 'deadline', label: 'Tasks',          dot: 'bg-amber-500',  source: 'tasks',     what: 'task due dates' },
+  { key: 'payment',  label: 'Payments due',   dot: 'bg-teal-600',   source: 'payments',  what: 'approved invoices on their due date' },
+  { key: 'renewal',  label: 'Renewals',       dot: 'bg-red-500',    source: 'renewals',  what: 'contract expiry dates' },
+  { key: 'contract', label: 'Contracts signed', dot: 'bg-emerald-500', source: 'contracts', what: 'signing dates' },
+  { key: 'dsp',      label: 'DSP',            dot: 'bg-purple-500', source: 'releases',  what: 'DSP submissions and go-lives' },
+  { key: 'manual',   label: 'Events',         dot: 'bg-gray-500',   source: null,        what: 'events added here' },
 ]
+export const groupOf = (type) => (
+  type === 'contract_expiry' ? 'renewal'
+  : type === 'contract_signed' ? 'contract'
+  : type === 'payment_due' ? 'payment'
+  : type.startsWith('dsp') ? 'dsp'
+  : FILTER_GROUPS.some((g) => g.key === type) ? type : 'manual'
+)
 
 function getStyle(type) {
   return EVENT_STYLES[type] || EVENT_STYLES.manual
 }
 
 export default function Calendar() {
-  const { user } = useAuth()
   const [events, setEvents] = useState([])
+  const [sources, setSources] = useState(null)   // which feeds the server gave this caller
   const [loading, setLoading] = useState(true)
   const [month, setMonth] = useState(new Date().getMonth())
   const [year, setYear] = useState(new Date().getFullYear())
@@ -65,6 +72,7 @@ export default function Calendar() {
     try {
       const res = await api.get('/calendar')
       setEvents(res.data.events || [])
+      setSources(res.data.sources || null)
     } catch (err) {
       console.error('Failed to load calendar:', err)
     }
@@ -84,11 +92,18 @@ export default function Calendar() {
   }
 
   const filteredEvents = useMemo(() => {
-    return events.filter(e => {
-      const typeGroup = e.type.startsWith('contract') ? 'contract' : e.type.startsWith('dsp') ? 'dsp' : e.type
-      return activeFilters.has(typeGroup)
-    })
+    return events.filter(e => activeFilters.has(groupOf(e.type)))
   }, [events, activeFilters])
+  // Per-group counts over EVERYTHING loaded, not the filtered list — a legend
+  // row has to keep saying how many it would show after it is clicked.
+  const groupCounts = useMemo(() => {
+    const m = {}
+    for (const e of events) { const g = groupOf(e.type); m[g] = (m[g] || 0) + 1 }
+    return m
+  }, [events])
+  // A source the server withheld by page permission. Unknown (older payload,
+  // mock adapter) reads as available.
+  const withheld = (g) => !!(g.source && sources && sources[g.source] === false)
 
   // Build calendar grid
   const firstDay = new Date(year, month, 1)
@@ -178,7 +193,11 @@ export default function Calendar() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-black text-gray-900">Calendar</h1>
-          <p className="text-sm text-gray-400 mt-0.5">{filteredEvents.length} events</p>
+          <p className="text-sm text-gray-400 mt-0.5" data-event-count>
+            {filteredEvents.length} event{filteredEvents.length === 1 ? '' : 's'}
+            {filteredEvents.length !== events.length && <span className="text-gray-300"> · {events.length - filteredEvents.length} hidden by the legend</span>}
+            {sources?.tasks === 'own' && <span className="text-gray-300"> · your tasks only</span>}
+          </p>
         </div>
         <div className="flex items-center gap-2">
           <button onClick={() => setShowAddForm(v => !v)}
@@ -209,20 +228,13 @@ export default function Calendar() {
         </div>
       )}
 
-      {/* Filters */}
-      <div className="flex items-center gap-2 flex-wrap">
-        {FILTER_GROUPS.map(f => (
-          <button key={f.key} onClick={() => toggleFilter(f.key)}
-            className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full border transition-all ${
-              activeFilters.has(f.key)
-                ? 'bg-card border-rule text-gray-700 shadow-sm'
-                : 'bg-gray-50 border-divider text-gray-300'
-            }`}>
-            <span className={`w-2 h-2 rounded-full ${f.dot} ${activeFilters.has(f.key) ? '' : 'opacity-30'}`} />
-            {f.label}
-          </button>
-        ))}
-      </div>
+      {events.length === 0 && (
+        <EmptyState compact icon={CalendarIcon}
+          title="Nothing on the calendar yet"
+          body="Release dates, task due dates, payment due dates and contract renewals appear here as they are entered on their own pages."
+          action={{ label: 'Add an event', onClick: () => setShowAddForm(true) }}
+          source={{ label: 'Releases', to: '/releases' }} />
+      )}
 
       <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
         {/* Calendar Grid */}
@@ -306,7 +318,9 @@ export default function Calendar() {
                         <div className="flex items-start gap-2">
                           <Icon size={14} className={`${style.text} mt-0.5 flex-shrink-0`} />
                           <div className="flex-1 min-w-0">
-                            <p className={`text-xs font-semibold ${style.text}`}>{ev.title}</p>
+                            {ev.to
+                              ? <Link to={ev.to} data-event-link className={`text-xs font-semibold ${style.text} hover:underline inline-flex items-center gap-1`}>{ev.title} <ArrowUpRight size={10} /></Link>
+                              : <p className={`text-xs font-semibold ${style.text}`}>{ev.title}</p>}
                             {ev.subtitle && <p className="text-[10px] text-gray-500 mt-0.5">{ev.subtitle}</p>}
                             {ev.meta && <p className="text-[10px] text-gray-400 mt-0.5">{ev.meta}</p>}
                           </div>
@@ -357,17 +371,38 @@ export default function Calendar() {
             </div>
           )}
 
-          {/* Legend */}
-          <div className="card p-4">
-            <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Legend</h3>
-            <div className="space-y-1.5">
-              {FILTER_GROUPS.map(f => (
-                <div key={f.key} className="flex items-center gap-2">
-                  <span className={`w-2.5 h-2.5 rounded-full ${f.dot}`} />
-                  <span className="text-xs text-gray-600">{f.label}</span>
-                </div>
-              ))}
+          {/* Legend — each row toggles its source; a withheld source says so */}
+          <div className="card p-4" data-legend>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider">Showing</h3>
+              {activeFilters.size !== FILTER_GROUPS.length && (
+                <button onClick={() => setActiveFilters(new Set(FILTER_GROUPS.map(f => f.key)))} className="text-[11px] text-gray-400 hover:text-gray-700 underline" data-legend-all>Show all</button>
+              )}
             </div>
+            <div className="space-y-1">
+              {FILTER_GROUPS.map(f => {
+                const off = withheld(f)
+                const on = activeFilters.has(f.key)
+                const n = groupCounts[f.key] || 0
+                if (off) return (
+                  <div key={f.key} className="flex items-center gap-2 px-1.5 py-1 text-gray-300" title={`${f.what} — the page is not in your pages`} data-legend-row={f.key} data-withheld>
+                    <Lock size={10} className="flex-shrink-0" />
+                    <span className="text-xs flex-1">{f.label}</span>
+                    <span className="text-[10px]">not in your pages</span>
+                  </div>
+                )
+                return (
+                  <button key={f.key} onClick={() => toggleFilter(f.key)} aria-pressed={on} data-legend-row={f.key}
+                    title={`${on ? 'Hide' : 'Show'} ${f.what}`}
+                    className={`w-full flex items-center gap-2 px-1.5 py-1 rounded-md text-left transition-colors hover:bg-gray-50 ${on ? '' : 'opacity-50'}`}>
+                    <span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${f.dot} ${on ? '' : 'opacity-40'}`} />
+                    <span className={`text-xs flex-1 ${on ? 'text-gray-700' : 'text-gray-400 line-through'}`}>{f.label}</span>
+                    <span className="text-[10px] tabular-nums text-gray-400" data-legend-count>{n}</span>
+                  </button>
+                )
+              })}
+            </div>
+            <p className="text-[10px] text-gray-400 mt-3">Click a row to hide or show it. Every date links to the page it came from.</p>
           </div>
         </div>
       </div>

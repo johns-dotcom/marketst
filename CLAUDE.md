@@ -124,6 +124,26 @@ Authoritative project guide: **`boom-dashboard/CLAUDE.md`** — read it before m
   (smoke's HOOK_AFTER_RETURN caught it), and a stub answering `[]` for
   `/artists/*` making an empty list truthy — the hook now accepts only an
   object with an id.
+  **Phase D shipped (2026-09-18):** the calendar is the TEAM calendar. `GET
+  /calendar` (routes/calendar.js) is one typed feed — release dates, DSP
+  dates, contract signings, contract expiries as **renewals**, task due dates,
+  and **payment due dates** (approved unpaid family roots on
+  `scheduled_payment_date`, the Payments queue's own predicate; on hold and
+  rush carried in `meta`), plus manual events — every event carrying `to`,
+  the page it came from (`/releases`, `/contracts`, `/renewals`, `/my-work`
+  or `/team/:id`, `/bk/payments`). Gated by `pagesReachable`, never by role
+  name: a source the caller cannot open is not queried, and `sources` in the
+  payload says which feeds were withheld (`tasks` is `'team'` when `/team` is
+  reachable — everyone's open tasks — else `'own'`). On the page the legend IS
+  the filter: one toggle per source with its count over everything loaded, a
+  withheld source rendered locked as "not in your pages", a "Show all" reset,
+  the header counting what the legend hides; the old chip row is gone. Every
+  event in the day panel links to its page; an empty calendar is an
+  `EmptyState` naming the four things that fill it. Harnesses: `npm run
+  calendar-dom` (31, scenarios full · gated · empty) and
+  `server/scripts/calendar-fixture.cjs` (18, seeds both a Superadmin's and a
+  `/releases`-only User's view). `AdminRoute` on `/renewals` is a `canView`
+  gate, so a User granted the page reaches it from a renewal event.
 - **Bank-statement heuristics were tuned on Boom's Bank of America statements.** The own-name lists (`statements.js` stop-words, `funding-pairs.js` account-trailer strip) now say Market Street, but the layout parsers have not seen a Market Street statement yet. Expect the AI fallback to do the work until they do.
 
 ## Commands (run from `boom-dashboard/`)

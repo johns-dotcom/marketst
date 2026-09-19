@@ -1,6 +1,7 @@
 const express = require('express')
 const pool = require('../db')
 const authMiddleware = require('../middleware/auth')
+const { pagesReachable } = require('../middleware/pagePermission')
 
 const router = express.Router()
 
@@ -21,33 +22,58 @@ const d = (raw) => {
   return str.slice(0, 10)
 }
 
-// GET /api/calendar — fetch all events from every data source
+// GET /api/calendar — the team calendar: one feed of typed events, each with
+// the page it came from (`to`), so a date on the calendar is one click from
+// the thing it is about.
+//
+// Sources, and what admits each (2026-09-18, Phase D of the flow plan):
+//   release        releases.release_date          reachable /releases
+//   dsp_*          dsp_submissions dates           reachable /releases
+//   contract_signed contracts.date_signed         reachable /contracts
+//   contract_expiry contracts.expiration_date     reachable /renewals  (the Renewals page's own set)
+//   deadline       tasks.due_date, open           own tasks always; EVERYONE's when /team is reachable
+//   payment_due    expenses.scheduled_payment_date reachable /bk/payments — approved, unpaid family roots,
+//                                                 the Payments queue's own predicate (on hold shown, marked)
+//   manual         calendar_events                 always
+//
+// Gated by pagesReachable — the page-permission middleware's rules as a set,
+// the same gate Home's loop uses — never by role name: a bookkeeper User with a
+// Payments grant sees due dates, an A&R User without one gets no money at all.
+// `sources` says which feeds this caller received, so the legend can name a
+// source that is missing by permission instead of leaving a silent gap.
+const CAL_PAGES = { releases: '/releases', contracts: '/contracts', renewals: '/renewals', payments: '/bk/payments', team: '/team' }
+
+const fmtMoney = (amount, currency) => {
+  const n = Number(amount) || 0
+  const cur = (currency || 'USD').toUpperCase()
+  try { return new Intl.NumberFormat('en-US', { style: 'currency', currency: cur, maximumFractionDigits: 0 }).format(n) }
+  catch { return `${cur} ${n.toLocaleString('en-US')}` }
+}
+
 router.get('/', authMiddleware, async (req, res) => {
   try {
-    // Contracts events are admin-only — non-admin users get an empty contracts
-    // bucket so the rest of the calendar still works.
-    const userRole = (req.user?.role || '').toLowerCase();
-    const canSeeContracts = userRole === 'admin' || userRole === 'superadmin' || userRole === 'approver';
+    const reach = await pagesReachable(req.user, Object.values(CAL_PAGES))
+    const can = (k) => reach.has(CAL_PAGES[k])
+    const teamTasks = can('team')
+    const none = Promise.resolve({ rows: [] })
 
-    const [releases, contracts, dsps, tasks, manual] = await Promise.all([
-      safeQuery(`
+    const [releases, contracts, dsps, tasks, payments, manual] = await Promise.all([
+      can('releases') ? safeQuery(`
         SELECT r.id, r.project_name AS title, r.release_date AS date,
                a.name AS artist_name, r.release_type
         FROM releases r
         LEFT JOIN artists a ON r.artist_id = a.id
         WHERE r.release_date IS NOT NULL
         ORDER BY r.release_date
-      `),
-      canSeeContracts
-        ? safeQuery(`
-            SELECT c.id, a.name AS artist_name, c.type, c.expiration_date, c.date_signed
-            FROM contracts c
-            LEFT JOIN artists a ON c.artist_id = a.id
-            WHERE c.expiration_date IS NOT NULL OR c.date_signed IS NOT NULL
-            ORDER BY c.expiration_date
-          `)
-        : Promise.resolve({ rows: [] }),
-      safeQuery(`
+      `) : none,
+      (can('contracts') || can('renewals')) ? safeQuery(`
+        SELECT c.id, a.name AS artist_name, c.type, c.expiration_date, c.date_signed, c.status
+        FROM contracts c
+        LEFT JOIN artists a ON c.artist_id = a.id
+        WHERE c.expiration_date IS NOT NULL OR c.date_signed IS NOT NULL
+        ORDER BY c.expiration_date
+      `) : none,
+      can('releases') ? safeQuery(`
         SELECT ds.id, ds.dsp_name, ds.live_date, ds.submitted_date,
                r.id AS release_id, r.project_name,
                a.name AS artist_name
@@ -57,17 +83,31 @@ router.get('/', authMiddleware, async (req, res) => {
         WHERE ds.live_date IS NOT NULL
            OR ds.submitted_date IS NOT NULL
         ORDER BY ds.live_date
-      `),
+      `) : none,
       safeQuery(`
-        SELECT t.id, t.description, t.due_date, t.priority, t.status,
+        SELECT t.id, t.description, t.due_date, t.priority, t.status, t.user_id,
                u.name AS assignee_name
         FROM tasks t
         LEFT JOIN users u ON t.user_id = u.id
         WHERE t.due_date IS NOT NULL
           AND t.status != 'Done'
-          AND t.user_id = $1
+          ${teamTasks ? '' : 'AND t.user_id = $1'}
         ORDER BY t.due_date
-      `, [req.user.id]),
+      `, teamTasks ? [] : [req.user.id]),
+      can('payments') ? safeQuery(`
+        SELECT e.id, e.payee, e.amount, e.currency, e.artist, e.song,
+               e.scheduled_payment_date::date AS due,
+               COALESCE(e.rush_requested, false) AS rush,
+               COALESCE(e.on_hold, false) AS on_hold
+          FROM expenses e
+         WHERE e.status = 'approved'
+           AND e.payment_status IS DISTINCT FROM 'Paid'
+           AND (e.deleted = false OR e.deleted IS NULL)
+           AND (e.voided = false OR e.voided IS NULL)
+           AND e.parent_id IS NULL
+           AND e.scheduled_payment_date ~ '^\\d{4}-\\d{2}-\\d{2}'
+         ORDER BY e.scheduled_payment_date
+      `) : none,
       safeQuery(`
         SELECT id, title, event_date AS date, event_type, description, color
         FROM calendar_events
@@ -81,23 +121,24 @@ router.get('/', authMiddleware, async (req, res) => {
       events.push({
         id: `release-${r.id}`, type: 'release', title: r.title,
         subtitle: r.artist_name, date: d(r.date), meta: r.release_type,
-        status: r.status, sourceId: r.id,
+        sourceId: r.id, to: CAL_PAGES.releases,
       })
     }
 
     for (const c of contracts.rows) {
-      if (c.expiration_date) {
+      if (c.expiration_date && can('renewals')) {
         events.push({
           id: `contract-exp-${c.id}`, type: 'contract_expiry',
-          title: `${c.artist_name} — contract expires`, subtitle: c.type,
-          date: d(c.expiration_date), sourceId: c.id,
+          title: `${c.artist_name || 'Contract'} — ${c.type || 'contract'} expires`,
+          subtitle: c.status && c.status !== 'Active' ? c.status : null,
+          date: d(c.expiration_date), sourceId: c.id, to: CAL_PAGES.renewals,
         })
       }
-      if (c.date_signed) {
+      if (c.date_signed && can('contracts')) {
         events.push({
           id: `contract-sign-${c.id}`, type: 'contract_signed',
-          title: `${c.artist_name} — contract signed`, subtitle: c.type,
-          date: d(c.date_signed), sourceId: c.id,
+          title: `${c.artist_name || 'Contract'} — ${c.type || 'contract'} signed`,
+          subtitle: null, date: d(c.date_signed), sourceId: c.id, to: CAL_PAGES.contracts,
         })
       }
     }
@@ -107,23 +148,36 @@ router.get('/', authMiddleware, async (req, res) => {
         events.push({
           id: `dsp-live-${ds.id}`, type: 'dsp_live',
           title: `${ds.project_name} — live on ${ds.dsp_name}`,
-          subtitle: ds.artist_name, date: d(ds.live_date), sourceId: ds.release_id,
+          subtitle: ds.artist_name, date: d(ds.live_date), sourceId: ds.release_id, to: CAL_PAGES.releases,
         })
       }
       if (ds.submitted_date) {
         events.push({
           id: `dsp-submit-${ds.id}`, type: 'dsp_submitted',
           title: `${ds.project_name} — submitted to ${ds.dsp_name}`,
-          subtitle: ds.artist_name, date: d(ds.submitted_date), sourceId: ds.release_id,
+          subtitle: ds.artist_name, date: d(ds.submitted_date), sourceId: ds.release_id, to: CAL_PAGES.releases,
         })
       }
     }
 
     for (const t of tasks.rows) {
+      const mine = Number(t.user_id) === Number(req.user.id)
       events.push({
         id: `task-${t.id}`, type: 'deadline', title: t.description,
-        subtitle: t.assignee_name ? `Assigned to ${t.assignee_name}` : null,
+        subtitle: mine ? null : (t.assignee_name ? `Assigned to ${t.assignee_name}` : null),
         date: d(t.due_date), meta: t.priority, sourceId: t.id,
+        to: mine ? '/my-work' : `/team/${t.user_id}`,
+      })
+    }
+
+    for (const e of payments.rows) {
+      const flags = [e.rush ? 'Rush' : null, e.on_hold ? 'On hold' : null].filter(Boolean)
+      events.push({
+        id: `payment-${e.id}`, type: 'payment_due',
+        title: `${e.payee || 'Payment'} — ${fmtMoney(e.amount, e.currency)} due`,
+        subtitle: [e.artist, e.song].filter(Boolean).join(' · ') || null,
+        date: d(e.due), meta: flags.length ? flags.join(' · ') : null,
+        sourceId: e.id, to: CAL_PAGES.payments,
       })
     }
 
@@ -136,8 +190,17 @@ router.get('/', authMiddleware, async (req, res) => {
     }
 
     const filtered = events.filter(e => e.date)
-    console.log(`Calendar: ${releases.rows.length} releases, ${contracts.rows.length} contracts, ${tasks.rows.length} tasks → ${filtered.length} total events`)
-    res.json({ events: filtered })
+    res.json({
+      events: filtered,
+      // What this caller was given. false = withheld by page permission.
+      sources: {
+        releases: can('releases'),
+        contracts: can('contracts'),
+        renewals: can('renewals'),
+        payments: can('payments'),
+        tasks: teamTasks ? 'team' : 'own',
+      },
+    })
   } catch (err) {
     console.error('Calendar GET error:', err)
     res.status(500).json({ error: err.message })
