@@ -57,7 +57,7 @@ export default function Messages() {
   const [messages, setMessages] = useState(null)      // null = not loaded
   const [hasMore, setHasMore] = useState(false)
   const [loadingMore, setLoadingMore] = useState(false)
-  const [denied, setDenied] = useState(null)          // 'demo' | 'forbidden' | null
+  const [denied, setDenied] = useState(null)          // 'forbidden' | null
   const [typers, setTypers] = useState({})            // userId -> name
   const [thread, setThread] = useState(null)          // { root, replies } | null
   const [composerBusy, setComposerBusy] = useState(false)
@@ -72,13 +72,6 @@ export default function Messages() {
   const activeIdRef = useRef(null)
   activeIdRef.current = activeId
 
-  // A test account can't have this: middleware/testUserGuard.js 403s every
-  // /api/chat call with { test_mode: true }, and the socket handshake refuses
-  // too. The client's demo mock adapter (api.js) would intercept those calls
-  // first and hand back empty arrays, so we'd render an empty board rather than
-  // an explanation — hence the direct check as well as the 403 handling below.
-  const isDemo = !!user?.is_test
-
   const activeChannel = useMemo(
     () => (channels || []).find(c => c.id === activeId) || null,
     [channels, activeId]
@@ -87,26 +80,23 @@ export default function Messages() {
   // ── loading ───────────────────────────────────────────────────────────────
 
   const loadChannels = useCallback(async () => {
-    if (isDemo) { setChannels([]); return [] }
     try {
       const r = await api.get('/chat/channels')
       const list = r.data?.data || []
       setChannels(list)
       return list
     } catch (err) {
-      if (err.response?.data?.test_mode) setDenied('demo')
       setChannels([])
       return []
     }
-  }, [isDemo])
+  }, [])
 
   useEffect(() => {
-    if (isDemo) { setChannels([]); setRoster([]); return }
     loadChannels()
     api.get('/chat/users')
       .then(r => setRoster(r.data?.data || []))
       .catch(() => setRoster([]))
-  }, [isDemo, loadChannels])
+  }, [loadChannels])
 
   // Land on the most recent conversation when no channel is in the URL.
   useEffect(() => {
@@ -116,7 +106,7 @@ export default function Messages() {
   }, [activeId, channels, navigate])
 
   const loadMessages = useCallback(async (id) => {
-    if (!id || isDemo) return
+    if (!id) return
     setMessages(null)
     setDenied(null)
     try {
@@ -128,11 +118,10 @@ export default function Messages() {
       if (activeIdRef.current !== id) return
       setMessages([])
       setHasMore(false)
-      if (err.response?.data?.test_mode) setDenied('demo')
-      else if (err.response?.status === 403) setDenied('forbidden')
+      if (err.response?.status === 403) setDenied('forbidden')
       else toast.error(err.response?.data?.error || 'Could not load messages')
     }
-  }, [isDemo, toast])
+  }, [toast])
 
   useEffect(() => {
     setThread(null)
@@ -150,12 +139,12 @@ export default function Messages() {
   // otherwise only refetches on a route change and on `message:new`.
   const newestId = messages?.length ? messages[messages.length - 1].id : 0
   useEffect(() => {
-    if (!activeId || !newestId || isDemo) return
+    if (!activeId || !newestId) return
     api.post(`/chat/channels/${activeId}/read`)
       .then(() => window.dispatchEvent(new Event('chat:read')))
       .catch(() => {})
     setChannels(prev => (prev || []).map(c => (c.id === activeId ? { ...c, unread: 0 } : c)))
-  }, [activeId, newestId, isDemo])
+  }, [activeId, newestId])
 
   // Stick to the bottom as messages arrive.
   useEffect(() => {
@@ -445,9 +434,7 @@ export default function Messages() {
 
         {/* ── Message pane ──────────────────────────────────────────────── */}
         <section className={`${mobilePane === 'room' ? 'flex' : 'hidden'} sm:flex flex-1 min-w-0 flex-col`}>
-          {isDemo || denied === 'demo' ? (
-            <DemoPanel />
-          ) : denied === 'forbidden' ? (
+          {denied === 'forbidden' ? (
             <CenteredNote
               icon={Lock}
               title="You're not in this channel"
@@ -1306,24 +1293,6 @@ function CenteredNote({ icon: Icon, title, body }) {
         <p className="text-xs text-gray-500 mt-1 leading-relaxed">{body}</p>
       </div>
     </div>
-  )
-}
-
-/**
- * The demo-account panel.
- *
- * A test account is blocked from /api/chat by testUserGuard and refused at the
- * socket handshake, and that is deliberate — the alternative is piping real
- * internal staff conversation into a shared demo login. What is NOT acceptable
- * is a white screen or a spinner that never resolves, so the page says why.
- */
-function DemoPanel() {
-  return (
-    <CenteredNote
-      icon={Lock}
-      title="Messages isn't available in demo mode"
-      body="This is a real conversation between real people at the label, so the demo account can't open it. Everything else on the dashboard is showing sample data as usual."
-    />
   )
 }
 

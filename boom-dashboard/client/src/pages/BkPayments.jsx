@@ -550,8 +550,6 @@ export default function BkPayments() {
   }, [defaultCcEmails])
 
   // Team roster — fetched once for autocomplete suggestions on the CC field.
-  // Mocked for is_test users by /team matcher; passes through normally for
-  // real users. Always an array, even on fetch failure.
   const [teamRoster, setTeamRoster] = useState([])
   useEffect(() => {
     let cancelled = false

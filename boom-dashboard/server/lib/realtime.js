@@ -90,18 +90,13 @@ function init(server) {
       if (!decoded.id) return next(new Error('Malformed token'));
 
       const { rows } = await pool.query(
-        'SELECT token_version, role, name, is_test FROM users WHERE id = $1',
+        'SELECT token_version, role, name FROM users WHERE id = $1',
         [decoded.id]
       );
       if (!rows.length) return next(new Error('No such user'));
       if (decoded.tv !== undefined && rows[0].token_version !== decoded.tv) {
         return next(new Error('Stale session'));
       }
-      // Test accounts are blocked from every real-data endpoint by
-      // middleware/testUserGuard.js. A socket is a real-data endpoint: piping
-      // internal staff conversation into the demo account is exactly what that
-      // guard exists to prevent, so the handshake refuses here too.
-      if (rows[0].is_test === true) return next(new Error('Not available in demo mode'));
 
       socket.user = {
         id: decoded.id,

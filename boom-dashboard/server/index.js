@@ -1463,10 +1463,6 @@ await pool.query(`ALTER TABLE expenses ADD COLUMN IF NOT EXISTS ai_scan JSONB`).
   // Google SSO: password_hash is no longer required
   await pool.query(`ALTER TABLE users ALTER COLUMN password_hash DROP NOT NULL`);
 
-  // Test-user flag — Superadmin-only demo accounts that see mocked data,
-  // never real company data. Enforced server-side via testUserGuard and
-  // client-side via a mock axios adapter.
-  await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS is_test BOOLEAN DEFAULT FALSE`);
 
   // Market Street Reps registry — the canonical list of reps that appears in
   // every "Market Street Rep" dropdown (vendor submit, ledger filters, user
@@ -3235,7 +3231,7 @@ await pool.query(`ALTER TABLE expenses ADD COLUMN IF NOT EXISTS ai_scan JSONB`).
   await pool.query(`CREATE INDEX IF NOT EXISTS idx_chat_attachments_msg ON chat_attachments (message_id)`)
     .catch(err => console.error('[migration] idx_chat_attachments_msg failed:', err.message));
 
-  // Seed #general and #activity, and put every non-test user in both.
+  // Seed #general and #activity, and put every user in both.
   //
   // FIND-OR-CREATE on lower(name), not insert-when-the-table-is-empty: a
   // workspace that deletes #general has to get it back on the next boot, and an
@@ -3262,7 +3258,6 @@ await pool.query(`ALTER TABLE expenses ADD COLUMN IF NOT EXISTS ai_scan JSONB`).
     const { rowCount } = await pool.query(`
       INSERT INTO chat_members (channel_id, user_id, last_read_at)
       SELECT $1, u.id, NOW() FROM users u
-       WHERE (u.is_test = FALSE OR u.is_test IS NULL)
       ON CONFLICT (channel_id, user_id) DO NOTHING
     `, [rows[0].id]);
     if (rowCount > 0) console.log(`[migration] added ${rowCount} member(s) to #general`);

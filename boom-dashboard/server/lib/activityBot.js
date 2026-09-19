@@ -54,7 +54,7 @@ async function ensureActivityChannel() {
   await pool.query(
     `INSERT INTO chat_members (channel_id, user_id, last_read_at)
      SELECT $1, u.id, NOW() FROM users u
-      WHERE (u.is_test = FALSE OR u.is_test IS NULL)
+      WHERE TRUE
      ON CONFLICT (channel_id, user_id) DO NOTHING`,
     [channelId]
   );

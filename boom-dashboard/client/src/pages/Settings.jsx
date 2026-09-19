@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Users, Shield, Plus, Pencil, Trash2, X, Loader, CheckCircle2, Check, SlidersHorizontal, Sun, Moon, Monitor, FlaskConical, Archive, Download, FileSpreadsheet, FolderArchive, AlertTriangle, EyeOff, Search, ChevronRight, ChevronDown } from 'lucide-react'
+import { Users, Shield, Plus, Pencil, Trash2, X, Loader, CheckCircle2, Check, SlidersHorizontal, Sun, Moon, Monitor, Archive, Download, FileSpreadsheet, FolderArchive, AlertTriangle, EyeOff, Search, ChevronRight, ChevronDown } from 'lucide-react'
 import api from '../api'
 import { NAV_PAGES } from '../navConfig'
 import { PRESETS, DEPARTMENTS, presetsForDepartment, unionPaths, addPaths } from '../lib/navPresets'
@@ -1512,194 +1512,6 @@ function ThemeTab() {
   )
 }
 
-// ─── Test Users Tab (Superadmin-only) ────────────────────────────────────────
-function TestUsersTab() {
-  const [users, setUsers] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
-  const [showModal, setShowModal] = useState(false)
-  const [form, setForm] = useState({ id: null, name: '', email: '', password: '', role: 'Admin' })
-  const [saving, setSaving] = useState(false)
-  const [pendingEmail, setPendingEmail] = useState(null)
-  const [teamRoster, setTeamRoster] = useState([])
-  useEffect(() => {
-    api.get('/team').then(r => {
-      const list = Array.isArray(r.data?.data) ? r.data.data : (Array.isArray(r.data) ? r.data : [])
-      setTeamRoster(list.filter(u => u && u.email))
-    }).catch(() => {})
-  }, [])
-
-  const fetchUsers = async () => {
-    setLoading(true)
-    try {
-      const res = await api.get('/settings/test-users')
-      setUsers(res.data.data || [])
-      setError('')
-    } catch (err) { setError('Failed to load test users') }
-    finally { setLoading(false) }
-  }
-  useEffect(() => { fetchUsers() }, [])
-
-  const openNew = () => { setForm({ id: null, name: '', email: '', password: '', role: 'Admin' }); setShowModal(true) }
-  const openEdit = (u) => { setForm({ id: u.id, name: u.name, email: u.email, password: '', role: u.role }); setShowModal(true) }
-
-  const save = async () => {
-    if (!form.name || !form.email || (!form.id && !form.password)) { setError('Name, email, and password are required'); return }
-    setSaving(true)
-    try {
-      if (form.id) {
-        const body = { name: form.name, role: form.role }
-        if (form.password) body.password = form.password
-        await api.put(`/settings/test-users/${form.id}`, body)
-      } else {
-        const r = await api.post('/settings/test-users', {
-          name: form.name, email: form.email, password: form.password, role: form.role,
-        })
-        if (r.data?.pending_email) setPendingEmail(r.data.pending_email)
-      }
-      setShowModal(false)
-      await fetchUsers()
-      setError('')
-    } catch (err) {
-      setError(err.response?.data?.error || 'Save failed')
-    } finally { setSaving(false) }
-  }
-
-  const del = async (id) => {
-    if (!window.confirm('Delete this test user? This cannot be undone.')) return
-    try {
-      await api.delete(`/settings/test-users/${id}`)
-      await fetchUsers()
-    } catch (err) { setError(err.response?.data?.error || 'Delete failed') }
-  }
-
-  return (
-    <div>
-      <div className="card p-5 mb-4 bg-violet-50 border-violet-200 text-violet-900 text-sm">
-        <p className="font-semibold mb-1 flex items-center gap-2"><FlaskConical size={14} /> Demo accounts</p>
-        <p className="text-xs leading-relaxed">
-          Test users log in like any other account, but they see <strong>mocked sample data only</strong> — no real Market Street information is ever visible to them.
-          Use these accounts to demo the app to people outside the company. Only Superadmin can see this tab.
-        </p>
-      </div>
-
-      <div className="flex items-center justify-between mb-3">
-        <h3 className="text-sm font-bold text-gray-900">{users.length} test user{users.length === 1 ? '' : 's'}</h3>
-        <button onClick={openNew} className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg bg-boom-600 text-white hover:bg-boom-700">
-          <Plus size={13} /> New Test User
-        </button>
-      </div>
-
-      {error && <div className="mb-3 text-xs text-red-600 font-semibold">{error}</div>}
-
-      <div className="card overflow-hidden">
-        {loading ? (
-          <div className="p-8 text-center text-gray-500 text-sm"><Loader size={14} className="animate-spin inline mr-2" />Loading…</div>
-        ) : users.length === 0 ? (
-          <div className="p-8 text-center text-gray-500 text-sm">No test users yet. Click "New Test User" to add one.</div>
-        ) : (
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="text-[10px] uppercase text-gray-400 font-bold tracking-wider">
-                <th className="text-left px-4 py-3">Name</th>
-                <th className="text-left px-4 py-3">Email</th>
-                <th className="text-left px-4 py-3">Simulated Role</th>
-                <th className="text-left px-4 py-3">Created</th>
-                <th className="w-20"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {users.map(u => (
-                <tr key={u.id} className="border-t border-divider">
-                  <td className="px-4 py-2.5 font-semibold text-gray-900">{u.name}</td>
-                  <td className="px-4 py-2.5 text-gray-500 font-mono text-xs">{u.email}</td>
-                  <td className="px-4 py-2.5">
-                    <span className="inline-block px-2 py-0.5 bg-violet-100 text-violet-800 rounded text-[11px] font-bold">{u.role}</span>
-                  </td>
-                  <td className="px-4 py-2.5 text-gray-400 text-xs">{new Date(u.created_at).toLocaleDateString()}</td>
-                  <td className="px-4 py-2.5 text-right">
-                    <button onClick={() => openEdit(u)} title="Edit" className="p-1 text-gray-400 hover:text-gray-700"><Pencil size={13} /></button>
-                    <button onClick={() => del(u.id)} title="Delete" className="p-1 text-gray-400 hover:text-red-600"><Trash2 size={13} /></button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
-
-      {showModal && (
-        <div className="fixed inset-0 bg-overlay flex items-center justify-center z-50" onClick={() => !saving && setShowModal(false)}>
-          <div className="bg-card rounded-2xl shadow-xl p-6 w-[440px]" onClick={e => e.stopPropagation()}>
-            <h3 className="text-sm font-bold text-gray-900 mb-1">{form.id ? 'Edit test user' : 'New test user'}</h3>
-            <p className="text-xs text-gray-500 mb-4">They'll be able to log in and navigate the app — all data they see is mocked.</p>
-            <div className="space-y-3">
-              <div>
-                <label className="block text-[10px] font-bold uppercase tracking-wider text-gray-500 mb-1">Name</label>
-                <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-                  className="w-full border-2 border-rule rounded-lg px-3 py-2 text-sm outline-none focus:border-boom-500" />
-              </div>
-              <div>
-                <label className="block text-[10px] font-bold uppercase tracking-wider text-gray-500 mb-1">Email</label>
-                <input type="email" value={form.email} disabled={!!form.id}
-                  onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
-                  className="w-full border-2 border-rule rounded-lg px-3 py-2 text-sm outline-none focus:border-boom-500 disabled:bg-gray-50 disabled:text-gray-400" />
-                {form.id && <p className="text-[10px] text-gray-400 mt-1">Email is read-only after creation.</p>}
-              </div>
-              <div>
-                <label className="block text-[10px] font-bold uppercase tracking-wider text-gray-500 mb-1">
-                  Password {form.id && <span className="normal-case font-normal text-gray-400">— leave blank to keep current</span>}
-                </label>
-                <input type="text" value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
-                  placeholder={form.id ? 'New password (optional)' : 'Password'}
-                  className="w-full border-2 border-rule rounded-lg px-3 py-2 text-sm outline-none focus:border-boom-500" />
-              </div>
-              <div>
-                <label className="block text-[10px] font-bold uppercase tracking-wider text-gray-500 mb-1">Simulated Role</label>
-                <select value={form.role} onChange={e => setForm(f => ({ ...f, role: e.target.value }))}
-                  className="w-full border-2 border-rule rounded-lg px-3 py-2 text-sm outline-none focus:border-boom-500 bg-card">
-                  <option value="Admin">Admin (sees every page)</option>
-                  <option value="User">User (standard permissions)</option>
-                </select>
-              </div>
-            </div>
-            <div className="flex gap-2 justify-end mt-5">
-              <button onClick={() => setShowModal(false)} disabled={saving}
-                className="px-4 py-2 text-sm font-semibold rounded-lg bg-gray-100 text-gray-700 hover:bg-gray-200">Cancel</button>
-              <button onClick={save} disabled={saving}
-                className="px-4 py-2 text-sm font-semibold rounded-lg bg-boom-600 text-white hover:bg-boom-700 disabled:opacity-50">
-                {saving ? 'Saving…' : (form.id ? 'Save changes' : 'Create')}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-      {pendingEmail && (
-        <EmailPreviewModal
-          open
-          title="Send demo-account invitation"
-          subtitle={`New test user: ${pendingEmail.context?.name || pendingEmail.to}`}
-          previewKind={pendingEmail.kind}
-          previewContext={pendingEmail.context}
-          initialTo={pendingEmail.to}
-          initialCc={pendingEmail.cc}
-          initialSubject={pendingEmail.subject}
-          initialHtml={pendingEmail.html}
-          team={teamRoster}
-          onClose={() => setPendingEmail(null)}
-          onSent={() => setPendingEmail(null)}
-          onSkipped={() => setPendingEmail(null)}
-          skipLabel="Skip invitation"
-        />
-      )}
-    </div>
-  )
-}
-
-// ─── Archive Tab (Superadmin-only) ───────────────────────────────────────────
-// One-shot, comprehensive export of every business-relevant table and file
-// attachment in the system. Intended for end-of-tenure handoffs — the
-// resulting ZIP is meant to stand on its own without access to the app.
 function ArchiveTab() {
   const [confirming, setConfirming] = useState(false)
   const [downloading, setDownloading] = useState(false)
@@ -1844,7 +1656,6 @@ export default function Settings() {
       { id: 'permissions', label: 'Permissions',  icon: Shield },
     ] : []),
     ...(currentUserRole === 'Superadmin' ? [
-      { id: 'testusers', label: 'Test Users', icon: FlaskConical },
       { id: 'archive',   label: 'Archive',    icon: FolderArchive },
     ] : []),
     { id: 'mynav', label: 'My Nav', icon: SlidersHorizontal },
@@ -1882,7 +1693,6 @@ export default function Settings() {
 
       {tab === 'users'       && <UsersTab currentUserRole={currentUserRole} currentUserId={user?.id} />}
       {tab === 'permissions' && <PermissionsTab currentUserRole={currentUserRole} />}
-      {tab === 'testusers'   && <TestUsersTab />}
       {tab === 'archive'     && <ArchiveTab />}
       {tab === 'mynav'       && <MyNavTab />}
       {tab === 'theme'       && <ThemeTab />}

@@ -227,6 +227,15 @@ Authoritative project guide: **`boom-dashboard/CLAUDE.md`** — read it before m
   street. jsdom for the harnesses lives in `/tmp/domtest` and macOS prunes
   files there after three days — `cd /tmp/domtest && npm i jsdom` when a
   harness says "did not mount".
+- **Test users are gone (2026-09-19, John: "this feature is not needed").**
+  Deleted: `client/src/mock/` (the mock axios adapter + fake data — so the inner
+  guide's "mock adapter shape parity" rule no longer applies here),
+  `server/middleware/testUserGuard.js`, the `/settings/test-users` routes, the
+  Settings "Test Users" tab, the Demo Mode banner in Layout, the Messages demo
+  panel, and every `is_test` read in auth/chat/realtime/activityBot/index.js.
+  The `users.is_test` column is left in place, unread — dropping a column is
+  not reversible and nothing writes it any more. `GET /settings/users` lists
+  every user now.
 - **Bank-statement heuristics were tuned on Boom's Bank of America statements.** The own-name lists (`statements.js` stop-words, `funding-pairs.js` account-trailer strip) now say Market Street, but the layout parsers have not seen a Market Street statement yet. Expect the AI fallback to do the work until they do.
 
 ## Commands (run from `boom-dashboard/`)

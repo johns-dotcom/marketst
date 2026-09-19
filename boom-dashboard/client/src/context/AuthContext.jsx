@@ -29,12 +29,12 @@ export const AuthProvider = ({ children }) => {
       const userData = response.data.data
       setUser(userData)
       setPagePermissions(userData.pagePermissions ?? null)
-      // Cache is_test + role on localStorage so the api.js interceptor can
+      // Cache the role on localStorage so the api.js interceptor can
       // decide whether to route through the mock adapter before React state
       // is available on the next boot.
       try {
         localStorage.setItem('boom_user_cache', JSON.stringify({
-          id: userData.id, is_test: !!userData.is_test, role: userData.role,
+          id: userData.id, role: userData.role,
         }))
       } catch {}
     } catch (error) {
@@ -52,7 +52,7 @@ export const AuthProvider = ({ children }) => {
       localStorage.setItem('token', newToken)
       try {
         localStorage.setItem('boom_user_cache', JSON.stringify({
-          id: userData.id, is_test: !!userData.is_test, role: userData.role,
+          id: userData.id, role: userData.role,
         }))
       } catch {}
       setToken(newToken)
@@ -75,7 +75,7 @@ export const AuthProvider = ({ children }) => {
       localStorage.setItem('token', newToken)
       try {
         localStorage.setItem('boom_user_cache', JSON.stringify({
-          id: userData.id, is_test: !!userData.is_test, role: userData.role,
+          id: userData.id, role: userData.role,
         }))
       } catch {}
       setToken(newToken)
@@ -125,10 +125,10 @@ export const AuthProvider = ({ children }) => {
         setUser(userData)
         setPagePermissions(userData.pagePermissions ?? null)
         // Update boom_user_cache so the mock-adapter routing matches the
-        // impersonated identity (matters if the target is a test user).
+        // impersonated identity.
         try {
           localStorage.setItem('boom_user_cache', JSON.stringify({
-            id: userData.id, is_test: !!userData.is_test, role: userData.role,
+            id: userData.id, role: userData.role,
           }))
         } catch {}
       } catch (meErr) {
@@ -157,7 +157,7 @@ export const AuthProvider = ({ children }) => {
       setPagePermissions(userData.pagePermissions ?? null)
       try {
         localStorage.setItem('boom_user_cache', JSON.stringify({
-          id: userData.id, is_test: !!userData.is_test, role: userData.role,
+          id: userData.id, role: userData.role,
         }))
       } catch {}
     }).catch(() => logout())

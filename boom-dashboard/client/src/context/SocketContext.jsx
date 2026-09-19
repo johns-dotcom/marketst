@@ -30,10 +30,8 @@ export function SocketProvider({ children }) {
   const [connected, setConnected] = useState(false)
   const [online, setOnline] = useState(() => new Set())
 
-  const isTest = !!user?.is_test
-
   useEffect(() => {
-    if (!token || !user || isTest) {
+    if (!token || !user) {
       setSocket(null)
       setConnected(false)
       setOnline(new Set())
@@ -66,7 +64,7 @@ export function SocketProvider({ children }) {
       setSocket(null)
       setConnected(false)
     }
-  }, [token, user?.id, isTest])
+  }, [token, user?.id])
 
   // Returns its own unsubscribe function. Without calling it on cleanup,
   // navigating between channels stacks duplicate handlers and every incoming

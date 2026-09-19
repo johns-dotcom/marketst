@@ -1,6 +1,5 @@
 const jwt = require('jsonwebtoken');
 const pool = require('../db');
-const testUserGuard = require('./testUserGuard');
 
 // Ensure token_version column exists
 pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS token_version INT DEFAULT 0')
@@ -41,9 +40,7 @@ const authMiddleware = async (req, res, next) => {
       }
     }
 
-    // Test-user guard runs on every authenticated request — blocks test
-    // accounts from touching any real-data endpoint outside the allowlist.
-    return testUserGuard(req, res, next);
+    return next();
   } catch (error) {
     return res.status(401).json({ success: false, error: 'Invalid or expired token' });
   }

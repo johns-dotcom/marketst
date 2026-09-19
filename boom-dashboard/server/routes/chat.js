@@ -37,10 +37,6 @@ const { ensureActivityChannel } = require('../lib/activityBot');
 
 const router = express.Router();
 
-// authMiddleware also runs testUserGuard, which 403s every /api/* call from a
-// `users.is_test` account with { test_mode: true }. /api/chat is deliberately
-// NOT on that allowlist — a demo account must not see internal staff
-// conversation. The Messages page renders a demo panel for that case.
 router.use(authMiddleware);
 
 const BODY_MAX = 8000;
@@ -242,7 +238,7 @@ async function recordMentions({ channelId, messageId, roomTitle, body, actor }) 
 
   const { rows: roster } = await pool.query(
     `SELECT id, name FROM users
-      WHERE (is_test = FALSE OR is_test IS NULL) AND name IS NOT NULL AND name <> ''`
+      WHERE name IS NOT NULL AND name <> ''`
   );
   const lower = body.toLowerCase();
   // Longest name first, so "@Chase Bank" is not consumed by a user called
@@ -536,7 +532,7 @@ router.post('/channels', async (req, res) => {
     const memberIds = new Set([req.user.id]);
     if (invited.length) {
       const { rows: valid } = await client.query(
-        `SELECT id FROM users WHERE id = ANY($1::int[]) AND (is_test = FALSE OR is_test IS NULL)`,
+        `SELECT id FROM users WHERE id = ANY($1::int[])`,
         [invited]
       );
       valid.forEach(r => memberIds.add(r.id));
@@ -606,7 +602,7 @@ router.post('/dm', async (req, res) => {
   }
   try {
     const { rows: who } = await pool.query(
-      `SELECT id, name FROM users WHERE id = $1 AND (is_test = FALSE OR is_test IS NULL)`,
+      `SELECT id, name FROM users WHERE id = $1`,
       [target]
     );
     if (!who.length) return res.status(404).json({ success: false, error: 'User not found' });
@@ -1064,7 +1060,7 @@ router.get('/users', async (req, res) => {
   try {
     const { rows } = await pool.query(
       `SELECT id, name, email, role FROM users
-        WHERE (is_test = FALSE OR is_test IS NULL) AND name IS NOT NULL AND name <> ''
+        WHERE name IS NOT NULL AND name <> ''
         ORDER BY name`
     );
     res.json({ success: true, data: rows });

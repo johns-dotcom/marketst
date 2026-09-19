@@ -36,7 +36,7 @@ router.post('/login', async (req, res) => {
     }
 
     const token = jwt.sign(
-      { id: user.id, email: user.email, name: user.name, role: user.role, department: user.department, hierarchy_level: user.hierarchy_level, is_test: !!user.is_test, tv: user.token_version || 0 },
+      { id: user.id, email: user.email, name: user.name, role: user.role, department: user.department, hierarchy_level: user.hierarchy_level, tv: user.token_version || 0 },
       process.env.JWT_SECRET,
       { expiresIn: '8h' }
     );
@@ -64,7 +64,6 @@ router.post('/login', async (req, res) => {
           role: user.role,
           department: user.department,
           hierarchy_level: user.hierarchy_level,
-          is_test: !!user.is_test,
         },
       },
     });
@@ -106,7 +105,7 @@ router.post('/google', async (req, res) => {
     }
 
     const token = jwt.sign(
-      { id: user.id, email: user.email, name: user.name, role: user.role, department: user.department, hierarchy_level: user.hierarchy_level, is_test: !!user.is_test, tv: user.token_version || 0 },
+      { id: user.id, email: user.email, name: user.name, role: user.role, department: user.department, hierarchy_level: user.hierarchy_level, tv: user.token_version || 0 },
       process.env.JWT_SECRET,
       { expiresIn: '8h' }
     );
@@ -134,7 +133,6 @@ router.post('/google', async (req, res) => {
           role: user.role,
           department: user.department,
           hierarchy_level: user.hierarchy_level,
-          is_test: !!user.is_test,
         },
       },
     });
@@ -181,7 +179,7 @@ router.post('/register', authMiddleware, async (req, res) => {
 router.get('/me', authMiddleware, async (req, res) => {
   try {
     const result = await pool.query(
-      'SELECT id, name, email, role, department, hierarchy_level, is_test, boom_rep, created_at FROM users WHERE id = $1',
+      'SELECT id, name, email, role, department, hierarchy_level, boom_rep, created_at FROM users WHERE id = $1',
       [req.user.id]
     );
 
@@ -222,7 +220,7 @@ router.post('/impersonate/:userId', authMiddleware, async (req, res) => {
     }
 
     const result = await pool.query(
-      'SELECT id, name, email, role, department, hierarchy_level, is_test, boom_rep, token_version FROM users WHERE id = $1',
+      'SELECT id, name, email, role, department, hierarchy_level, boom_rep, token_version FROM users WHERE id = $1',
       [targetId]
     );
     const target = result.rows[0];
@@ -231,7 +229,7 @@ router.post('/impersonate/:userId', authMiddleware, async (req, res) => {
     }
 
     const token = jwt.sign(
-      { id: target.id, email: target.email, name: target.name, role: target.role, department: target.department, hierarchy_level: target.hierarchy_level, is_test: !!target.is_test, tv: target.token_version || 0 },
+      { id: target.id, email: target.email, name: target.name, role: target.role, department: target.department, hierarchy_level: target.hierarchy_level, tv: target.token_version || 0 },
       process.env.JWT_SECRET,
       { expiresIn: '2h' }
     );

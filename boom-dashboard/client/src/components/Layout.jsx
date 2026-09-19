@@ -388,7 +388,7 @@ export default function Layout() {
 
   // Page-view ping for the admin Analytics page. Fire-and-forget — a
   // failed ping must never affect navigation. Consecutive duplicates
-  // skipped; test users are intercepted by the mock adapter anyway.
+  // skipped.
   const lastViewedPathRef = useRef(null)
   useEffect(() => {
     const path = location.pathname
@@ -480,16 +480,12 @@ export default function Layout() {
   // GET /api/chat/unread already excludes muted channels, so #activity (phase 4)
   // can be loud without owning this number.
   const refreshChatUnread = useCallback(() => {
-    // A demo account 403s on every /api/chat call by design, and the client's
-    // mock adapter would answer it with an empty array anyway — either way the
-    // badge is always zero, so don't ask.
-    if (user?.is_test) { setChatUnread(0); return }
     import('../api').then(({ default: api }) => {
       api.get('/chat/unread')
         .then(r => setChatUnread(r.data?.data?.total || 0))
         .catch(() => {})
     })
-  }, [user?.is_test])
+  }, [])
 
   useEffect(() => { refreshChatUnread() }, [location.pathname, refreshChatUnread])
 
@@ -880,13 +876,6 @@ export default function Layout() {
             >
               <X size={12} /> Exit
             </button>
-          </div>
-        )}
-        {/* Demo-mode banner — test account, all data is mocked */}
-        {user?.is_test && (
-          <div className="flex items-center gap-2 px-6 py-2 bg-violet-600 text-white text-xs font-semibold flex-shrink-0">
-            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-white/20 text-[10px] uppercase tracking-wider">Demo Mode</span>
-            <span>You're signed in to a test account. Every screen shows sample data — no real Market Street information is visible.</span>
           </div>
         )}
         {/* Top header */}

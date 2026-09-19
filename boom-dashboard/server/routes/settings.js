@@ -24,7 +24,7 @@ const adminOnly = [authMiddleware, (req, res, next) => {
 
 // ─── Users ───────────────────────────────────────────────────────────────────
 
-// GET /api/settings/users — list real users (test users live under /test-users)
+// GET /api/settings/users — list users
 // Ordered by role tier (Superadmin → Admin → Approver → User → anything else),
 // then by hierarchy_level, then by name. Makes the Settings and Permissions
 // lists easier to scan when you're looking for a specific tier.
@@ -33,7 +33,6 @@ router.get('/users', adminOnly, async (req, res) => {
     const result = await pool.query(
       `SELECT id, name, email, role, department, hierarchy_level, boom_rep, created_at
        FROM users
-       WHERE is_test IS NOT TRUE
        ORDER BY
          CASE role
            WHEN 'Superadmin' THEN 1
@@ -537,137 +536,6 @@ router.patch('/reps/:name', adminOnly, async (req, res) => {
     res.json({ success: true });
   } catch (err) {
     console.error('PATCH /api/settings/reps/:name:', err);
-    res.status(500).json({ success: false, error: 'Internal server error' });
-  }
-});
-
-// ─── Test Users (Superadmin only) ────────────────────────────────────────────
-// Test users are demo accounts that see mocked data only — they never read or
-// write real company data. The testUserGuard middleware blocks all /api/*
-// routes for them except a tiny allowlist; the frontend renders mocked data
-// for every screen.
-
-const superadminOnly = [authMiddleware, (req, res, next) => {
-  if (!isSuperadmin(req.user.role)) {
-    return res.status(403).json({ success: false, error: 'Superadmin only' });
-  }
-  next();
-}];
-
-// GET /api/settings/test-users
-router.get('/test-users', superadminOnly, async (req, res) => {
-  try {
-    const result = await pool.query(
-      `SELECT id, name, email, role, department, created_at
-       FROM users
-       WHERE is_test = true
-       ORDER BY created_at DESC`
-    );
-    res.json({ success: true, data: result.rows });
-  } catch (err) {
-    console.error('Settings list test users error:', err);
-    res.status(500).json({ success: false, error: 'Internal server error' });
-  }
-});
-
-// POST /api/settings/test-users — create a test user with email + password
-router.post('/test-users', superadminOnly, async (req, res) => {
-  try {
-    const { name, email, password, role } = req.body;
-    if (!name || !email || !password) {
-      return res.status(400).json({ success: false, error: 'Name, email, and password are required' });
-    }
-    // Test users can be "Admin" or "User" — that's the experience they simulate
-    const simulatedRole = (role === 'Admin' || role === 'Superadmin') ? 'Admin' : 'User';
-
-    const passwordHash = await bcrypt.hash(password, 10);
-    const result = await pool.query(
-      `INSERT INTO users (name, email, password_hash, role, department, hierarchy_level, is_test, created_at)
-       VALUES ($1, $2, $3, $4, 'Demo', 999, true, NOW())
-       RETURNING id, name, email, role, department, created_at`,
-      [name, email, passwordHash, simulatedRole]
-    );
-
-    // Build preview payload. Client opens EmailPreviewModal so the
-    // superadmin can review the plaintext password being sent.
-    let pending_email = null;
-    try {
-      const preview = await prepareEmailPayload('test_invitation', {
-        name, email, password, role: simulatedRole,
-      });
-      pending_email = {
-        kind: 'test_invitation',
-        context: { name, email, password, role: simulatedRole },
-        ...preview,
-      };
-    } catch (err) {
-      console.warn('test_invitation preview prepare failed:', err.message);
-    }
-
-    res.status(201).json({ success: true, data: result.rows[0], pending_email });
-  } catch (err) {
-    if (err.code === '23505') {
-      return res.status(400).json({ success: false, error: 'A user with that email already exists' });
-    }
-    console.error('Settings create test user error:', err);
-    res.status(500).json({ success: false, error: 'Internal server error' });
-  }
-});
-
-// PUT /api/settings/test-users/:id — update name, role, or reset password
-router.put('/test-users/:id', superadminOnly, async (req, res) => {
-  try {
-    const id = parseInt(req.params.id, 10);
-    const { name, role, password } = req.body;
-
-    // Guardrails: refuse to touch non-test rows from this endpoint
-    const { rows: existing } = await pool.query('SELECT is_test FROM users WHERE id=$1', [id]);
-    if (!existing.length) return res.status(404).json({ success: false, error: 'Not found' });
-    if (!existing[0].is_test) return res.status(400).json({ success: false, error: 'Not a test user' });
-
-    const updates = [];
-    const params = [];
-    if (name)  { params.push(name);  updates.push(`name = $${params.length}`); }
-    if (role)  {
-      const simulatedRole = (role === 'Admin' || role === 'Superadmin') ? 'Admin' : 'User';
-      params.push(simulatedRole); updates.push(`role = $${params.length}`);
-    }
-    if (password) {
-      const passwordHash = await bcrypt.hash(password, 10);
-      params.push(passwordHash); updates.push(`password_hash = $${params.length}`);
-      // Bump token_version to invalidate any existing sessions
-      updates.push('token_version = COALESCE(token_version, 0) + 1');
-    }
-    if (!updates.length) return res.json({ success: true });
-
-    params.push(id);
-    await pool.query(
-      `UPDATE users SET ${updates.join(', ')} WHERE id = $${params.length} AND is_test = true`,
-      params
-    );
-    res.json({ success: true });
-  } catch (err) {
-    console.error('Settings update test user error:', err);
-    res.status(500).json({ success: false, error: 'Internal server error' });
-  }
-});
-
-// DELETE /api/settings/test-users/:id
-router.delete('/test-users/:id', superadminOnly, async (req, res) => {
-  try {
-    const id = parseInt(req.params.id, 10);
-    const { rows } = await pool.query('SELECT is_test FROM users WHERE id=$1', [id]);
-    if (!rows.length) return res.status(404).json({ success: false, error: 'Not found' });
-    if (!rows[0].is_test) return res.status(400).json({ success: false, error: 'Not a test user' });
-
-    // Login is allowlisted by the test-user guard, so activity_log can still
-    // accumulate rows. Clear FK references before deleting the user.
-    await pool.query('DELETE FROM user_page_permissions WHERE user_id = $1', [id]);
-    await pool.query('UPDATE activity_log SET user_id = NULL WHERE user_id = $1', [id]);
-    await pool.query('DELETE FROM users WHERE id = $1 AND is_test = true', [id]);
-    res.json({ success: true });
-  } catch (err) {
-    console.error('Settings delete test user error:', err);
     res.status(500).json({ success: false, error: 'Internal server error' });
   }
 });
