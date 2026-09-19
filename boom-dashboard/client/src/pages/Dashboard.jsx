@@ -394,7 +394,7 @@ export default function Dashboard() {
           that resolves it, each rendered only if the server returned the
           section AND this user can open the destination. */}
       {loopAllClear ? (
-        <div className="card px-5 py-3 flex items-center gap-3" data-loop-clear>
+        <div className="card px-5 py-3 flex items-center gap-3" data-loop-clear data-tour="home-loop">
           <CheckCircle2 size={18} className="text-emerald-500 flex-shrink-0" strokeWidth={1.5} />
           <p className="text-sm text-gray-700">
             <span className="font-semibold">All clear.</span>{' '}
@@ -410,7 +410,7 @@ export default function Dashboard() {
           <span className="ml-auto text-[11px] text-gray-400 whitespace-nowrap">Tiles return when something needs doing</span>
         </div>
       ) : (
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4" data-tour="home-loop">
         <LoopTile
           to="/my-work" icon={CheckSquare} label="My tasks" testId="tasks"
           value={myTasks?.total || 0}

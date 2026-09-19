@@ -639,7 +639,7 @@ export default function ArtistProfile() {
       )}
 
       {/* Tabs */}
-      <div className="flex gap-1 border-b border-rule">
+      <div className="flex gap-1 border-b border-rule" data-tour="artist-tabs">
         {TABS.map(t => (
           <button key={t.id} onClick={() => setTab(t.id)} className={TAB_STYLE(tab === t.id)}>
             <span className="flex items-center gap-1.5">

@@ -341,6 +341,24 @@ Authoritative project guide: **`boom-dashboard/CLAUDE.md`** — read it before m
   "Email it", People "email it". Integrations' Mail row now reads the mailboxes
   table. Fixtures: `mail-fixture.cjs` (21, needs `MAIL_DRY_RUN=1` on the
   server), `gmail-transport-fixture.cjs` now tests lib/gmail-transport directly.
+- **Click-through tours (2026-09-19, John: "updated every time something in
+  the dashboard is updated").** `client/src/tours/index.js` is THE list: a
+  welcome tour (auto-starts on first sign-in) and one short tour per page
+  (auto-starts the first time that page is opened, after welcome; replay any
+  from the `?` help modal's Tours section). `components/Tour.jsx` is the
+  spotlight engine, mounted once in Layout (`TourProvider` wraps
+  `LayoutInner`); steps point at elements by CSS selector — `data-tour="…"` on
+  the element (PageHeader takes a `tour` prop) or a data-attribute the page
+  already has — and a step whose target is not on screen is skipped, never
+  shown empty. Tours are gated by `canView(tour.path)`, the sidebar's gate.
+  Completion is per user, per VERSION: `users.tours_done` JSONB via `PUT/DELETE
+  /settings/me/tours`; a person who finished an older version sees the tour
+  offered again as "updated". **THE RULE: a change to a page changes its tour
+  in the same commit and bumps that tour's `version` (a date).**
+  `npm run tours-fixture` (`client/scripts/tours-fixture.mjs`) fails when a
+  tour names a page not in the nav or a selector no page renders — run it with
+  nav-fixture before pushing. `npm run tour-dom` drives the engine (fresh ·
+  done). Adding a page: add its tour, or the page has no first-open help.
 - **Bank-statement heuristics were tuned on Boom's Bank of America statements.** The own-name lists (`statements.js` stop-words, `funding-pairs.js` account-trailer strip) now say Market Street, but the layout parsers have not seen a Market Street statement yet. Expect the AI fallback to do the work until they do.
 
 ## Commands (run from `boom-dashboard/`)

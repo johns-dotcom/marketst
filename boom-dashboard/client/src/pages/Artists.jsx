@@ -824,6 +824,7 @@ export default function Artists() {
     <div className="space-y-5">
       {/* Header */}
       <PageHeader
+        tour="artists-header"
         title="Roster"
         subtitle={loading ? '—' : `${filtered.length} artist${filtered.length !== 1 ? 's' : ''}${genreFilter !== 'All' ? ` · ${genreFilter}` : ''}${releaseFilter !== 'All' ? ` · ${releaseFilter}` : ''}${activeOnly ? ' · Active only' : ''}`}
         actions={<>
@@ -1173,7 +1174,7 @@ function renderArtistCard(artist, { isArchived, onArchive, onView, genreColor, a
   const initials = artistInitials(artist.name)
   const releaseCount = artist.total_releases || 0
   return (
-    <div key={artist.id} className="relative group">
+    <div key={artist.id} className="relative group" data-tour="artist-card">
       <button
         type="button"
         onClick={() => onView(artist.id)}

@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { useTour } from './Tour'
 
 const KEY_DISPLAY = {
   ArrowLeft: '←', ArrowRight: '→', ArrowUp: '↑', ArrowDown: '↓',
@@ -119,6 +120,7 @@ const SHORTCUT_GROUPS = [
 ]
 
 export default function KeyboardShortcutsHelp({ open, onClose }) {
+  const { tours, startTour, isDone, doneVersion, pageTour } = useTour()
   useEffect(() => {
     if (!open) return
     const handler = (e) => { if (e.key === 'Escape') { e.preventDefault(); onClose() } }
@@ -162,6 +164,26 @@ export default function KeyboardShortcutsHelp({ open, onClose }) {
         </div>
 
         <div style={{ padding: '8px 24px 24px' }}>
+          {tours.length > 0 && (
+            <div style={{ marginBottom: 18 }} data-tours-section>
+              <div style={{ fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.05em', color: '#9ca3af', marginBottom: 8 }}>Tours</div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                {pageTour && (
+                  <button onClick={() => { onClose(); setTimeout(() => startTour(pageTour.id), 150) }} data-tour-this-page
+                    style={{ fontSize: 12, fontWeight: 700, padding: '5px 10px', borderRadius: 8, border: '1px solid #111827', background: '#111827', color: '#fff', cursor: 'pointer' }}>
+                    Tour this page{isDone(pageTour) ? '' : doneVersion(pageTour.id) ? ' · updated' : ' · new'}
+                  </button>
+                )}
+                {tours.filter((t) => t.id !== pageTour?.id).map((t) => (
+                  <button key={t.id} onClick={() => { onClose(); setTimeout(() => startTour(t.id), 150) }} data-tour-start={t.id}
+                    style={{ fontSize: 12, fontWeight: 600, padding: '5px 10px', borderRadius: 8, border: '1px solid #d1d5db', background: '#fff', color: '#374151', cursor: 'pointer' }}>
+                    {t.title}{isDone(t) ? '' : doneVersion(t.id) ? ' · updated' : ''}
+                  </button>
+                ))}
+              </div>
+              <p style={{ fontSize: 11, color: '#9ca3af', margin: '8px 0 0' }}>A page's tour plays once the first time you open it. “Updated” means the page changed since you last took it.</p>
+            </div>
+          )}
           {SHORTCUT_GROUPS.map(group => (
             <div key={group.title} style={{ marginTop: 16 }}>
               <h3 style={{

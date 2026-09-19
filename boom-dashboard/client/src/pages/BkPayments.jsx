@@ -3592,7 +3592,7 @@ export default function BkPayments() {
   }
 
   return (
-    <div style={{ height: 'calc(100vh - 120px)', background: C.pageBg, display: 'flex', flexDirection: 'column' }}>
+    <div style={{ height: 'calc(100vh - 120px)', background: C.pageBg, display: 'flex', flexDirection: 'column' }} data-tour="payments">
       {/* Scrollable middle: all chrome + the invoices card scroll together
           inside this area, leaving the action bar below permanently visible. */}
       <div style={{ flex: 1, minHeight: 0, overflow: 'auto' }}>

@@ -486,7 +486,7 @@ const NOTIFY_KEYS = ['approvals_waiting', 'payments_due', 'tasks_assigned', 'ren
 router.get('/me', authMiddleware, async (req, res) => {
   try {
     const { rows: [u] } = await pool.query(
-      'SELECT id, name, email, role, department, title, phone, notification_prefs, created_at FROM users WHERE id = $1', [req.user.id]);
+      'SELECT id, name, email, role, department, title, phone, notification_prefs, tours_done, created_at FROM users WHERE id = $1', [req.user.id]);
     if (!u) return res.status(404).json({ success: false, error: 'User not found' });
     res.json({ success: true, data: u });
   } catch (err) { console.error('settings/me error:', err); res.status(500).json({ success: false, error: 'Internal server error' }); }
@@ -535,6 +535,22 @@ router.put('/me/notifications', authMiddleware, async (req, res) => {
     await pool.query('UPDATE users SET notification_prefs = $2::jsonb WHERE id = $1', [req.user.id, JSON.stringify(prefs)]);
     res.json({ success: true, data: prefs });
   } catch (err) { console.error('settings/me/notifications update error:', err); res.status(500).json({ success: false, error: 'Internal server error' }); }
+});
+
+// Tours: which click-through tours this person finished, and at which version.
+router.put('/me/tours', authMiddleware, async (req, res) => {
+  try {
+    const id = String(req.body?.id || '').trim(); const version = String(req.body?.version || '').trim();
+    if (!/^[a-z0-9-]{2,40}$/.test(id) || !version) return res.status(400).json({ success: false, error: 'id and version required' });
+    const { rows: [u] } = await pool.query(
+      `UPDATE users SET tours_done = COALESCE(tours_done, '{}'::jsonb) || jsonb_build_object($2::text, jsonb_build_object('version', $3::text, 'at', NOW(), 'skipped', $4::boolean)) WHERE id = $1 RETURNING tours_done`,
+      [req.user.id, id, version, req.body?.skipped === true]);
+    res.json({ success: true, data: u?.tours_done || {} });
+  } catch (err) { console.error('tours update error:', err); res.status(500).json({ success: false, error: 'Internal server error' }); }
+});
+router.delete('/me/tours', authMiddleware, async (req, res) => {
+  try { const { rows: [u] } = await pool.query(`UPDATE users SET tours_done = '{}'::jsonb WHERE id = $1 RETURNING tours_done`, [req.user.id]); res.json({ success: true, data: u?.tours_done || {} }); }
+  catch (err) { console.error('tours reset error:', err); res.status(500).json({ success: false, error: 'Internal server error' }); }
 });
 
 // ── People (2026-09-19) ─────────────────────────────────────────────────────

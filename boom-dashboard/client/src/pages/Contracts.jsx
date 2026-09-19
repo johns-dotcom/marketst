@@ -755,6 +755,7 @@ export default function Contracts() {
   return (
     <div className="space-y-6">
       <PageHeader
+        tour="contracts-header"
         title="Contracts"
         subtitle="Manage your artist contracts"
         actions={

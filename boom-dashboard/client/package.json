@@ -27,7 +27,9 @@
     "hub-dom": "node scripts/hub-dom-run.mjs",
     "calendar-dom": "node scripts/calendar-dom-run.mjs",
     "onboarding-dom": "node scripts/onboarding-dom-run.mjs",
-    "settings-dom": "node scripts/settings-dom-run.mjs"
+    "settings-dom": "node scripts/settings-dom-run.mjs",
+    "tour-dom": "node scripts/tour-dom-run.mjs",
+    "tours-fixture": "node scripts/tours-fixture.mjs"
   },
   "dependencies": {
     "@react-oauth/google": "^0.13.4",

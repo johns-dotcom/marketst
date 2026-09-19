@@ -30,6 +30,7 @@ import { useTheme } from '../context/ThemeContext'
 import GlobalSearch from './GlobalSearch'
 import EmailPreviewModal from './EmailPreviewModal'
 import KeyboardShortcutsHelp from './KeyboardShortcutsHelp'
+import { TourProvider } from './Tour'
 import BottomNav from './BottomNav'
 import FAB from './FAB'
 import NotificationBell from './NotificationBell'
@@ -359,7 +360,12 @@ function ViewAsDropdown() {
   )
 }
 
+// The tour engine wraps the whole shell so any page's anchors are in reach.
 export default function Layout() {
+  return <TourProvider><LayoutInner /></TourProvider>
+}
+
+function LayoutInner() {
   const { user, logout, impersonating, exitImpersonation, canView } = useAuth()
   const labelInfo = useLabel()
   const { on } = useSocket()
@@ -644,7 +650,7 @@ export default function Layout() {
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 px-3 py-4 overflow-y-auto space-y-4">
+        <nav className="flex-1 px-3 py-4 overflow-y-auto space-y-4" data-tour="sidebar">
           {navGroups.map((group, gi) => (
             <div key={gi}>
               {group.label && (
@@ -670,6 +676,7 @@ export default function Layout() {
                       <Link
                         key={item.key}
                         to={first.path}
+                        data-tour={item.key === 'settings' ? 'sidebar-settings' : undefined}
                         className={`group flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-150 ${
                           isActive ? 'bg-boom-50 text-boom-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
                         }`}
@@ -888,12 +895,14 @@ export default function Layout() {
               <Menu size={20} />
             </button>
           )}
-          <GlobalSearch />
-          <NotificationBell />
+          <span data-tour="search" className="inline-flex"><GlobalSearch /></span>
+          <span data-tour="notifications" className="inline-flex"><NotificationBell /></span>
           <span className="hidden sm:block"><ViewAsDropdown /></span>
           {/* Shortcuts button */}
           <button
             onClick={() => setShowShortcuts(v => !v)}
+            data-tour="help"
+            title="Shortcuts, help and tours (?)"
             className={`hidden sm:inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg border transition-all ${
               showShortcuts
                 ? 'bg-gray-900 text-white border-gray-900'

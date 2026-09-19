@@ -545,6 +545,7 @@ export default function Releases() {
     <div className="space-y-6">
       {/* Header */}
       <PageHeader
+        tour="releases-header"
         title="Release Tracker"
         subtitle="Manage your release checklist"
         actions={<>
@@ -625,7 +626,7 @@ export default function Releases() {
             <p className="text-xs text-gray-400 font-medium">{filteredReleases.length} releases</p>
           </div>
           <div className="overflow-x-auto">
-            <table className="w-full">
+            <table className="w-full" data-tour="releases-list">
               <thead>
                 <tr className="border-b border-divider bg-gray-50/50">
                   <th className="pl-4 pr-1 py-3 w-8" title="Select for merge"></th>

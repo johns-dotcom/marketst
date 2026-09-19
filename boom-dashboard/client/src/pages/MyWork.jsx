@@ -833,7 +833,7 @@ export default function MyWork() {
 
   if (loading) {
     return (
-      <div className="space-y-6">
+      <div className="space-y-6" data-tour="my-work">
         <Skeleton.PageHeader />
         <div className="card p-6">
           <div className="flex gap-6 mb-4">

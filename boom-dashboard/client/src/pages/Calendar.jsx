@@ -241,7 +241,7 @@ export default function Calendar() {
 
       <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
         {/* Calendar Grid */}
-        <div className="xl:col-span-3 card overflow-hidden">
+        <div className="xl:col-span-3 card overflow-hidden" data-tour="calendar-grid">
           {/* Month nav */}
           <div className="flex items-center justify-between px-5 py-3 border-b border-divider">
             <div className="flex items-center gap-3">

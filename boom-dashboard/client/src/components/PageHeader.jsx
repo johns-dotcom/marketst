@@ -8,9 +8,9 @@
  *   badge={27}
  * />
  */
-export default function PageHeader({ title, subtitle, actions, badge, back }) {
+export default function PageHeader({ title, subtitle, actions, badge, back, tour }) {
   return (
-    <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 sm:gap-4 mb-6">
+    <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 sm:gap-4 mb-6" data-tour={tour}>
       <div className="min-w-0">
         <div className="flex items-center gap-3">
           <h1 className="text-xl sm:text-2xl font-bold text-gray-900 tracking-tight">{title}</h1>

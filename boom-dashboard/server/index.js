@@ -1535,7 +1535,7 @@ await pool.query(`ALTER TABLE expenses ADD COLUMN IF NOT EXISTS ai_scan JSONB`).
     )`).catch(err => console.error('user_invites migration failed:', err.message));
 
   // My settings (2026-09-19): profile fields and notification preferences.
-  for (const col of [`title TEXT`, `phone TEXT`, `notification_prefs JSONB`]) {
+  for (const col of [`title TEXT`, `phone TEXT`, `notification_prefs JSONB`, `tours_done JSONB`]) {
     await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS ${col}`)
       .catch(err => console.error(`users.${col.split(' ')[0]} migration failed:`, err.message));
   }

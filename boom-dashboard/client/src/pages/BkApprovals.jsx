@@ -771,7 +771,7 @@ export default function BkApprovals() {
   }
 
   return (
-    <div style={{ minHeight: '100%', background: C.pageBg }}>
+    <div style={{ minHeight: '100%', background: C.pageBg }} data-tour="approvals">
       <div style={{ maxWidth: 1060, margin: '0 auto', padding: isMobileView ? '16px 12px 80px' : '32px 24px' }}>
 
         {/* ── Header ── */}

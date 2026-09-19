@@ -292,6 +292,7 @@ export default function DealPipeline() {
     <div className="space-y-5">
       {/* Header */}
       <PageHeader
+        tour="deals-header"
         title="Deal Pipeline"
         subtitle={`${deals.length} deal${deals.length !== 1 ? 's' : ''} across ${STAGES.length} stages`}
         actions={<button onClick={() => setShowForm(!showForm)} className="btn-primary"><Plus size={16} /> New Deal</button>}
@@ -345,7 +346,7 @@ export default function DealPipeline() {
       <NextStepPrompt prompt={nextStep} onClose={clearNextStep} />
 
       {/* Kanban Board */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3" data-tour="deal-board">
         {STAGES.map(stage => {
           const isDropTarget = dragOverStage === stage && draggedDealId != null
           const draggedDeal = deals.find(d => d.id === draggedDealId)
