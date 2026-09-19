@@ -40,7 +40,7 @@ ok(NAV_PAGES.length === 48, "NAV_PAGES flattens to 48 — Settings' permission m
 // never by deletion. A hidden page is still grantable, still searchable, and
 // still a known page for the permission walk.
 const hiddenRows = NAV_PAGES.filter(p => p.hidden).map(p => p.path).sort()
-const expectHidden = ['/analytics', '/bk/bulk-deals', '/bk/invoices', '/bk/ledger-matching', '/bk/reimburse', '/budget', '/financials', '/salary'].sort()
+const expectHidden = ['/activity', '/admin/vendor-lab', '/analytics', '/bk/bulk-deals', '/bk/invoices', '/bk/ledger-matching', '/bk/reimburse', '/budget', '/financials', '/salary', '/team'].sort()
 ok(JSON.stringify(hiddenRows) === JSON.stringify(expectHidden), `exactly these pages are hidden from the sidebar: ${hiddenRows.join(', ')}`)
 const famKeys = NAV_GROUPS.flatMap(g => g.items.filter(i => i.tabbed).map(i => i.key))
 ok(new Set(famKeys).size === famKeys.length, `tab family keys are unique (${famKeys.join(', ')})`)
@@ -136,7 +136,7 @@ const groupOf = (p) => NAV_GROUPS.find(g => flat(g).some(i => i.path === p))?.la
 const familyOf = (p) => families.find(f => f.children.some(c => c.path === p))?.key
 for (const [path, want] of [['/', 'Home'], ['/releases', 'Pipeline'], ['/deals', 'Deals'], ['/contracts', 'Active'],
                             ['/bk/add', 'Add'], ['/bk/creators', 'Creators'], ['/create-invoice', 'Invoice'],
-                            ['/artist-budgets', 'Budgets'], ['/team', 'Members']]) {
+                            ['/artist-budgets', 'Budgets'], ['/team', 'People']]) {
   ok(labelOf(path) === want, `${path.padEnd(18)} is "${labelOf(path)}"`)
 }
 for (const [path, fam] of [['/deals', 'contracts'], ['/create-invoice', 'documents'], ['/bk/creators', 'invoices'],

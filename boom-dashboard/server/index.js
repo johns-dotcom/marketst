@@ -1485,6 +1485,19 @@ await pool.query(`ALTER TABLE expenses ADD COLUMN IF NOT EXISTS ai_scan JSONB`).
     )`).catch(err => console.error('label_settings migration failed:', err.message));
   await pool.query(`INSERT INTO label_settings (id, display_name, legal_name) VALUES (1, 'Market Street', 'Market Street') ON CONFLICT (id) DO NOTHING`).catch(() => {});
 
+  // Invites (2026-09-19): a person is created with no password and a one-time
+  // link (token hashed here) that sets it. Seven days; resend voids the old one.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS user_invites (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      token_hash TEXT NOT NULL UNIQUE,
+      created_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      expires_at TIMESTAMPTZ NOT NULL,
+      used_at TIMESTAMPTZ
+    )`).catch(err => console.error('user_invites migration failed:', err.message));
+
   // My settings (2026-09-19): profile fields and notification preferences.
   for (const col of [`title TEXT`, `phone TEXT`, `notification_prefs JSONB`]) {
     await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS ${col}`)

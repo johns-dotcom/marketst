@@ -9,6 +9,47 @@ const router = express.Router();
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 // POST /api/auth/login
+// ── Invites (public) ────────────────────────────────────────────────────────
+// GET  /auth/invite/:token   who this link is for, or why it cannot be used
+// POST /auth/invite/:token   { password } → sets it, marks the invite used, signs in
+const { lookupInvite } = require('../lib/invites');
+const INVITE_MESSAGES = {
+  invalid: 'This invite link is not valid.',
+  used: 'This invite link has already been used. Sign in instead, or ask an admin to resend.',
+  expired: 'This invite link has expired. Ask an admin to resend it.',
+};
+router.get('/invite/:token', async (req, res) => {
+  try {
+    const r = await lookupInvite(req.params.token);
+    if (r.error) return res.status(r.error === 'invalid' ? 404 : 410).json({ success: false, error: INVITE_MESSAGES[r.error], reason: r.error });
+    res.json({ success: true, data: { name: r.invite.name, email: r.invite.email, expires_at: r.invite.expires_at } });
+  } catch (err) { console.error('invite lookup error:', err); res.status(500).json({ success: false, error: 'Internal server error' }); }
+});
+router.post('/invite/:token', async (req, res) => {
+  try {
+    const { password } = req.body || {};
+    if (!password || String(password).length < 8) return res.status(400).json({ success: false, error: 'Choose a password of at least 8 characters.' });
+    const r = await lookupInvite(req.params.token);
+    if (r.error) return res.status(r.error === 'invalid' ? 404 : 410).json({ success: false, error: INVITE_MESSAGES[r.error], reason: r.error });
+    const hashPw = await bcrypt.hash(String(password), 10);
+    const client = await pool.connect();
+    let user;
+    try {
+      await client.query('BEGIN');
+      const { rows: [u] } = await client.query(
+        `UPDATE users SET password_hash = $2, token_version = COALESCE(token_version, 0) + 1 WHERE id = $1
+         RETURNING id, email, name, role, department, hierarchy_level, token_version`, [r.invite.user_id, hashPw]);
+      await client.query('UPDATE user_invites SET used_at = NOW() WHERE id = $1', [r.invite.id]);
+      await client.query('COMMIT'); user = u;
+    } catch (e) { await client.query('ROLLBACK').catch(() => {}); throw e; } finally { client.release(); }
+    const token = jwt.sign(
+      { id: user.id, email: user.email, name: user.name, role: user.role, department: user.department, hierarchy_level: user.hierarchy_level, tv: user.token_version || 0 },
+      process.env.JWT_SECRET, { expiresIn: '8h' });
+    await pool.query('INSERT INTO user_login_logs (user_id, ip_address, user_agent) VALUES ($1, $2, $3)', [user.id, req.ip || null, req.headers['user-agent'] || null]).catch(() => {});
+    res.json({ success: true, data: { token, user: { id: user.id, name: user.name, email: user.email, role: user.role, department: user.department, hierarchy_level: user.hierarchy_level } } });
+  } catch (err) { console.error('invite accept error:', err); res.status(500).json({ success: false, error: 'Internal server error' }); }
+});
+
 router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -24,10 +65,11 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ success: false, error: 'Invalid credentials' });
     }
 
-    // Google-SSO-only accounts have no password_hash — bcrypt.compare(pw, null)
-    // throws, which surfaced as a 500 instead of a clean 401.
+    // No password yet: the account is waiting on its invite link (or is
+    // Google-only). Say so — a generic "invalid credentials" sends a new
+    // teammate off to reset a password they never had.
     if (!user.password_hash) {
-      return res.status(401).json({ success: false, error: 'Invalid credentials' });
+      return res.status(401).json({ success: false, error: 'This account has no password yet. Use the invite link you were sent, sign in with Google, or ask an admin to resend the invite.' });
     }
 
     const passwordMatch = await bcrypt.compare(password, user.password_hash);

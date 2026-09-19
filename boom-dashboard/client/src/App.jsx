@@ -10,6 +10,7 @@ import BankShell from './components/BankShell'
 import BkCreators from './pages/BkCreators'
 import Bk1099 from './pages/Bk1099'
 import Login from './pages/Login'
+import SetPassword from './pages/SetPassword'
 import Dashboard from './pages/Dashboard'
 import Releases from './pages/Releases'
 import Artists from './pages/Artists'
@@ -159,6 +160,8 @@ function AppContent() {
     if (!token) return <Login />
     return <VendorSubmitLab />
   }
+  // A new teammate's invite link — public, before the login gate.
+  if (window.location.pathname.startsWith('/invite/')) return <SetPassword />
   if (window.location.pathname === '/privacy') return <Privacy />
   if (window.location.pathname === '/eula') return <EULA />
 

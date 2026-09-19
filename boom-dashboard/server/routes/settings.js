@@ -7,6 +7,7 @@ const { sendWelcomeEmail } = require('../services/email');
 const { prepareEmail: prepareEmailPayload } = require('../services/emailDispatch');
 const { clearForeignKeyRefs } = require('../lib/fkSweep');
 const { postEvent } = require('../lib/activityBot');
+const { createInvite } = require('../lib/invites');
 
 const router = express.Router();
 
@@ -68,13 +69,14 @@ router.post('/users', adminOnly, async (req, res) => {
     // a meaningless '' that would never match any expense's rep field.
     const repValue = boom_rep && String(boom_rep).trim() ? String(boom_rep).trim() : null;
 
-    // Users authenticate via Google SSO — generate a random unusable password hash
-    const passwordHash = await bcrypt.hash(crypto.randomBytes(32).toString('hex'), 10);
+    // No password yet: the person sets it through a one-time invite link (or
+    // signs in with Google, which needs no password). Login refuses a
+    // password-less account with a sentence that says so.
     const result = await pool.query(
       `INSERT INTO users (name, email, password_hash, role, department, hierarchy_level, boom_rep, created_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
+       VALUES ($1, $2, NULL, $3, $4, $5, $6, NOW())
        RETURNING id, name, email, role, department, hierarchy_level, boom_rep, created_at`,
-      [name, email, passwordHash, role || 'User', department || 'Operations', hierarchy_level || 99, repValue]
+      [name, email, role || 'User', department || 'Operations', hierarchy_level || 99, repValue]
     );
 
     const newUser = result.rows[0];
@@ -139,7 +141,9 @@ router.post('/users', adminOnly, async (req, res) => {
       console.warn('welcome preview prepare failed:', err.message);
     }
 
-    res.status(201).json({ success: true, data: newUser, pending_email });
+    let invite = null;
+    try { invite = await createInvite(newUser.id, req.user.id); } catch (e) { console.error('invite create failed:', e.message); }
+    res.status(201).json({ success: true, data: newUser, pending_email, invite });
   } catch (err) {
     if (err.code === '23505') {
       return res.status(400).json({ success: false, error: 'Email already exists' });
@@ -562,6 +566,35 @@ router.post('/users/:id(\\d+)/logout-all', adminOnly, async (req, res) => {
     await pool.query('UPDATE users SET token_version = COALESCE(token_version, 0) + 1 WHERE id = $1', [t.id]);
     res.json({ success: true });
   } catch (err) { console.error('settings logout-all error:', err); res.status(500).json({ success: false, error: 'Internal server error' }); }
+});
+
+// POST /api/settings/users/:id/invite — a fresh one-time link (voids the old one)
+router.post('/users/:id(\\d+)/invite', adminOnly, async (req, res) => {
+  try {
+    const { rows: [t] } = await pool.query('SELECT id, role, email, name FROM users WHERE id = $1', [req.params.id]);
+    if (!t) return res.status(404).json({ success: false, error: 'User not found' });
+    if (!isSuperadmin(req.user.role) && isAdminOrSuperadmin(t.role)) return res.status(403).json({ success: false, error: 'Only Superadmin can invite an Admin' });
+    const invite = await createInvite(t.id, req.user.id);
+    res.json({ success: true, data: invite });
+  } catch (err) { console.error('settings invite error:', err); res.status(500).json({ success: false, error: 'Internal server error' }); }
+});
+
+// GET /api/settings/integrations — what is configured, read from the
+// environment; status only, never a key. `powers` says what breaks without it.
+router.get('/integrations', adminOnly, async (req, res) => {
+  try {
+    const has = (...keys) => keys.every((k) => !!process.env[k]);
+    const lastAudit = async (like) => (await pool.query(`SELECT MAX(created_at) AS t FROM bk_audit_log WHERE action ILIKE $1`, [like]).catch(() => ({ rows: [{ t: null }] }))).rows[0]?.t || null;
+    const rows = [
+      { key: 'gmail', label: 'Gmail', configured: has('GMAIL_CLIENT_ID', 'GMAIL_CLIENT_SECRET', 'GMAIL_REFRESH_TOKEN', 'GMAIL_USER'), powers: 'payment confirmations, welcome and invite emails, notifications', detail: process.env.GMAIL_USER ? `sends as ${process.env.GMAIL_USER}` : null, last_used: await lastAudit('%confirmation%') },
+      { key: 'google_signin', label: 'Google sign-in', configured: has('GOOGLE_CLIENT_ID'), powers: 'one-click login for the team (the client also needs VITE_GOOGLE_CLIENT_ID at build time)', detail: null, last_used: null },
+      { key: 'spotify', label: 'Spotify', configured: has('SPOTIFY_CLIENT_ID', 'SPOTIFY_CLIENT_SECRET'), powers: 'cover art and artist lookup on releases', detail: null, last_used: null },
+      { key: 'storage', label: 'File storage (R2)', configured: has('R2_ACCOUNT_ID', 'R2_ACCESS_KEY_ID', 'R2_SECRET_ACCESS_KEY', 'R2_BUCKET_NAME'), powers: 'invoices, W-9s, proofs, contracts and documents', detail: process.env.R2_BUCKET_NAME ? `bucket ${process.env.R2_BUCKET_NAME}` : null, last_used: null },
+      { key: 'ai', label: 'AI (Anthropic)', configured: has('ANTHROPIC_API_KEY'), powers: 'invoice reading, W-9 checks, statement parsing fallback, contract scans', detail: null, last_used: await lastAudit('ai%') },
+      { key: 'encryption', label: 'Encryption key', configured: has('PAYMENT_DETAILS_KEY'), powers: 'storing vendor and label bank details, EINs and TINs', detail: null, last_used: null },
+    ];
+    res.json({ success: true, data: rows });
+  } catch (err) { console.error('settings integrations error:', err); res.status(500).json({ success: false, error: 'Internal server error' }); }
 });
 
 module.exports = router;

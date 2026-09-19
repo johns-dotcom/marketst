@@ -26,7 +26,8 @@
     "handoff-dom": "node scripts/handoff-dom-run.mjs",
     "hub-dom": "node scripts/hub-dom-run.mjs",
     "calendar-dom": "node scripts/calendar-dom-run.mjs",
-    "onboarding-dom": "node scripts/onboarding-dom-run.mjs"
+    "onboarding-dom": "node scripts/onboarding-dom-run.mjs",
+    "settings-dom": "node scripts/settings-dom-run.mjs"
   },
   "dependencies": {
     "@react-oauth/google": "^0.13.4",

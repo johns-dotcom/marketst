@@ -22,7 +22,7 @@ Authoritative project guide: **`boom-dashboard/CLAUDE.md`** — read it before m
 ## Fork rules
 
 - **Internal identifiers are NOT renamed**: `boom_rep`, `BOOM_REPS`, `BoomRepsContext`, the `boom-*` Tailwind accent classes, `boom_invoices` / `boom_ndas` / `boom_label_waivers` tables, `BOOM_INFO`, `BOOM_DEFAULTS`. Only user-visible strings, emails, the domain, package names and colours changed. Keep it that way so patches port.
-- **Placeholders are marked `TODO(marketst)`** — grep for it. They print on real documents (invoice remittance block, NDA owner address), so fill them before the first document goes out.
+- **The label's own details live in Settings › Label**, not in code (since 2026-09-19). Fill them there before the first invoice or NDA goes out; the invoice page counts the blanks.
 - **The accent palette is a slate placeholder** — `boom` in `client/tailwind.config.js`, `--color-brand*` in `client/src/styles/tokens.css`, the favicon, and the hex fills in server-side Excel/email templates (`#334155`). Swap values, not class names.
 - **No Market Street domain yet** — `marketst-production.up.railway.app` stands in wherever `boom-ap.com` was (`FRONTEND_URL` fallbacks, `client/.env.production`, og tags, the user manual). Replace when a domain exists.
 - **Seed = one account.** `server/seed.js` and `syncUsers` in `server/index.js` create `john@deanst.co` (Superadmin) from `PW_JOHN`. `server/data.json` and `server/data/pending-contracts.js` are empty shells; the payroll and category seeds carry no Boom rows.
@@ -236,17 +236,49 @@ Authoritative project guide: **`boom-dashboard/CLAUDE.md`** — read it before m
   The `users.is_test` column is left in place, unread — dropping a column is
   not reversible and nothing writes it any more. `GET /settings/users` lists
   every user now.
-- **Settings plan (2026-09-19, designed, NOT built):**
-  https://claude.ai/code/artifact/6b91930c-f930-40c7-bbe2-696c2ac4599c — two
-  halves (My settings: Profile · Sign-in · Notifications · Theme · My Nav;
-  Label settings: People · Label · Integrations · Activity · Sandbox · Archive);
-  `/team` becomes the one People page with an Access panel per person
-  (Users tab + Permissions matrix + templates routes retire); a `label_settings`
-  record replaces `BOOM_INFO` / `BOOM_DEFAULTS` / the TODO(marketst)
-  placeholders (EIN + bank numbers encrypted, masked reads); invite links
-  (`user_invites`, public set-password page); read-only Integrations status;
-  family shrinks to Settings · Admin docs. NO PATH CHANGES. Five build stages in
-  the plan.
+- **Settings, rebuilt (2026-09-19):**
+  https://claude.ai/code/artifact/6b91930c-f930-40c7-bbe2-696c2ac4599c is the
+  design; all five stages shipped. **Two halves** in `pages/Settings.jsx`: My
+  settings (Profile · Sign-in · Notifications · Theme · My Nav) for everyone,
+  Label settings (People · Label · Integrations · Activity · Sandbox · Archive)
+  for Admin/Superadmin; People/Activity/Sandbox are LINKS to `/team`,
+  `/activity`, `/admin/vendor-lab` (paths unchanged, grants unchanged; those
+  three are `hidden: true` in navConfig so the sidebar family is Settings ·
+  Admin docs). `?tab=` deep-links. Routes: `GET/PUT /settings/me`,
+  `GET /settings/me/sessions` (user_login_logs), `GET/PUT
+  /settings/me/notifications` (`users.notification_prefs` JSONB — stored, not
+  sent until Gmail; the tab says so), `POST /auth/change-password` +
+  `/auth/logout-all` finally have screens. **People** = `/team`
+  (`pages/Team.jsx`, admins land on the Directory view: `GET /settings/people`
+  → role, department, rows→presets, last sign-in, open tasks, invite pending)
+  + `/team/:id` Access tab (`components/PeopleAdmin.jsx`: `PersonModal`,
+  `DeleteConfirm`, `BoomRepsPanel` extracted from Settings, new `AccessEditor`
+  — additive presets, page checkboxes, reachable pages via the real
+  `canViewPath`; view-as, `POST /settings/users/:id/logout-all`, remove). The
+  Users tab, the Permissions matrix and the permission-templates routes are
+  GONE. **Label** = `label_settings` (one row; `routes/label.js`: `GET /label`
+  masked for everyone, `PUT /label` Admin — EIN and bank account number
+  Superadmin-only, encrypted with `PAYMENT_DETAILS_KEY`, last four shown; `GET
+  /label/remittance` bookkeeping roles, decrypted, one `bk_audit_log` row per
+  read). Consumers: CreateInvoice `BOOM_INFO` (filled by `applyLabel` from the
+  remittance read, gaps banner), NDA `BOOM_DEFAULTS` (`applyLabelDefaults`),
+  CreateLabelWaiver, Layout billing-address copy, the approval-summary
+  greeting — via `hooks/useLabel.js`. **The TODO(marketst) placeholders are
+  gone**; a blank Label field prints blank. **Invites** = `user_invites`
+  (`lib/invites.js`: token in the URL, SHA-256 in the table, 7 days, resend
+  voids unused); `POST /settings/users` creates with `password_hash NULL` and
+  returns `invite.path`; `PersonModal` shows the link with Copy; People rows
+  flagged pending offer "copy a new link" (`POST /settings/users/:id/invite`);
+  public `GET/POST /auth/invite/:token` + `pages/SetPassword.jsx` at
+  `/invite/:token` (before the login gate in App.jsx); login refuses a
+  password-less account with a sentence naming the invite. **Integrations** =
+  `GET /settings/integrations` (env presence only: gmail, google_signin,
+  spotify, storage, ai, encryption; never a key). Harnesses: `npm run
+  settings-dom` (admin · user · people), `server/scripts/settings-fixture.cjs`
+  (17), `label-fixture.cjs` (14), `invite-fixture.cjs` (19); nav-fixture's
+  hidden list and `/team` label updated. Left open: avatars (initials only),
+  editable departments, whether Admins may see the label's bank block (today:
+  see masked, only Superadmin writes).
 - **Bank-statement heuristics were tuned on Boom's Bank of America statements.** The own-name lists (`statements.js` stop-words, `funding-pairs.js` account-trailer strip) now say Market Street, but the layout parsers have not seen a Market Street statement yet. Expect the AI fallback to do the work until they do.
 
 ## Commands (run from `boom-dashboard/`)
@@ -266,7 +298,7 @@ No lint, no formatter, no test runner — verify changes by running `dev:server`
 
 - **Dev DB:** Neon project `marketst-dashboard-dev` (`misty-fog-44061928`, us-west-2, pg17), database `marketst_dashboard`. Connection string in `server/.env` (gitignored).
 - **GitHub:** `github.com/johns-dotcom/marketst`, pushed over the `github.com-marketst` SSH alias (deploy key `~/.ssh/marketst_deploy`).
-- **Not provisioned:** Railway service, Cloudflare R2 bucket, Gmail sender, Anthropic key, Google OAuth client. The env var names the server reads are listed as comments at the bottom of `server/.env`.
+- **Provisioned:** Railway service (`marketst-production.up.railway.app`, root dir `boom-dashboard`, auto-deploy on `main`), Cloudflare R2, Anthropic key, `PAYMENT_DETAILS_KEY`. **Not yet:** Gmail sender, Google OAuth client. Settings › Integrations shows which is which; the env var names the server reads are listed as comments at the bottom of `server/.env`.
 
 ## Root-Level Files
 

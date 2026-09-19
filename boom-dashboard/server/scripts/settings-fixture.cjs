@@ -25,6 +25,7 @@ const api = async (method, path, token, body) => {
     const T = login.body?.data?.token; check('login', !!T);
 
     // ── my settings ──
+    await pool.query(`UPDATE users SET notification_prefs = NULL WHERE email = 'john@deanst.co'`);
     const me = await api('GET', '/settings/me', T);
     check('GET /settings/me returns the profile with title and phone fields', me.status === 200 && 'title' in me.body.data && 'phone' in me.body.data);
     originalTitle = me.body.data.title;
@@ -50,7 +51,7 @@ const api = async (method, path, token, body) => {
     const john = (people.body?.data || []).find((p) => p.email === 'john@deanst.co');
     check('GET /settings/people lists everyone with rows, last sign-in and open tasks', people.status === 200 && row && Array.isArray(row.pages) && row.pages.length === 2 && 'last_sign_in' in row && typeof row.open_tasks === 'number', JSON.stringify(row).slice(0, 160));
     check('John has no rows (Superadmin) and a last sign-in', john && john.pages === null && !!john.last_sign_in);
-    check('a person created by an admin (random hash) is not flagged invite-pending', row && row.invite_pending === false);
+    check('a person created by an admin has no password yet, so People flags the invite as pending', row && row.invite_pending === true);
     const { rows: [u] } = await pool.query('SELECT id, email, name, role, token_version FROM users WHERE id = $1', [uid]);
     const theirs = jwt.sign({ id: u.id, email: u.email, name: u.name, role: u.role, tv: u.token_version || 0 }, process.env.JWT_SECRET, { expiresIn: '1h' });
     check('their token works before', (await api('GET', '/auth/me', theirs)).status === 200);
@@ -65,7 +66,8 @@ const api = async (method, path, token, body) => {
     console.error('FIXTURE ERROR', err); results.push({ n: 'no exception', ok: false });
   } finally {
 
-    await pool.query(`UPDATE users SET title = $1, phone = NULL WHERE email = 'john@deanst.co'`, [originalTitle]).catch(() => {});
+    await pool.query(`UPDATE users SET title = $1, phone = NULL, notification_prefs = NULL WHERE email = 'john@deanst.co'`, [originalTitle]).catch(() => {});
+    await pool.query('DELETE FROM user_invites WHERE user_id = ANY($1)', [made.users]).catch(() => {});
     await pool.query(`DELETE FROM user_page_permissions WHERE user_id = ANY($1)`, [made.users]).catch(() => {});
     await pool.query(`DELETE FROM user_login_logs WHERE user_id = ANY($1)`, [made.users]).catch(() => {});
     await pool.query(`DELETE FROM users WHERE id = ANY($1)`, [made.users]).catch(() => {});

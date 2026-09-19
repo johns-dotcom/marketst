@@ -265,10 +265,12 @@ export const NAV_GROUPS = [
           icon: Settings,
           children: [
             { path: '/settings',            label: 'Settings',     icon: Settings, synonyms: 'preferences theme my nav permissions' },
-            { path: '/team',                label: 'Members',      icon: UserCheck, synonyms: 'staff people users team' },
-            { path: '/activity',            label: 'Activity',     icon: ScrollText, adminOnly: true, synonyms: 'audit log history who changed' },
+            // Settings' Label half links to these three (2026-09-19); hidden keeps
+            // them routed, grantable and ⌘K-searchable without a sidebar tab.
+            { path: '/team',                label: 'People',       icon: UserCheck, hidden: true, synonyms: 'staff people users team members accounts access' },
+            { path: '/activity',            label: 'Activity',     icon: ScrollText, adminOnly: true, hidden: true, synonyms: 'audit log history who changed' },
             { path: '/admin',               label: 'Admin docs',   icon: ShieldCheck, adminOnly: true, synonyms: 'documentation admin runbook' },
-            { path: '/admin/vendor-lab',    label: 'Sandbox',      icon: Send, adminOnly: true, external: true, synonyms: 'vendor form sandbox lab test preview' },
+            { path: '/admin/vendor-lab',    label: 'Sandbox',      icon: Send, adminOnly: true, external: true, hidden: true, synonyms: 'vendor form sandbox lab test preview' },
             { path: '/analytics',           label: 'Analytics',    icon: BarChart2, adminOnly: true, hidden: true, synonyms: 'usage pageviews logins' },
           ],
         },

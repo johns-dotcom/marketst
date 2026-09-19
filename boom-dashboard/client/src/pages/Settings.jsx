@@ -549,6 +549,31 @@ function LabelTab() {
     </form>
   )
 }
+// ─── Integrations — status only; keys live in Railway ───────────────────────
 function IntegrationsTab() {
-  return <p className="text-sm text-gray-400" data-tab-integrations>Integration status is coming next.</p>
+  const [rows, setRows] = useState(null)
+  useEffect(() => { api.get('/settings/integrations').then((r) => setRows(r.data.data || [])).catch(() => setRows([])) }, [])
+  if (!rows) return <p className="text-sm text-gray-400">Loading…</p>
+  const off = rows.filter((r) => !r.configured).length
+  return (
+    <div className="max-w-2xl" data-tab-integrations>
+      <p className="text-xs text-gray-500 mb-3">{off ? `${off} of ${rows.length} not configured. ` : 'Everything is configured. '}Read from the server's environment; nothing here accepts a key. Keys are set on Railway.</p>
+      <ul className="divide-y divide-divider border border-rule rounded-lg">
+        {rows.map((r) => (
+          <li key={r.key} className="px-4 py-3 flex items-start gap-3" data-integration={r.key} data-configured={r.configured ? '1' : '0'}>
+            <span className={`mt-1.5 w-2 h-2 rounded-full flex-shrink-0 ${r.configured ? 'bg-emerald-500' : 'bg-gray-300'}`} />
+            <div className="flex-1 min-w-0">
+              <div className="flex items-baseline gap-2 flex-wrap">
+                <p className="text-sm font-semibold text-gray-900">{r.label}</p>
+                <span className={`text-[11px] font-semibold ${r.configured ? 'text-emerald-700' : 'text-gray-400'}`}>{r.configured ? 'configured' : 'not configured'}</span>
+                {r.detail && <span className="text-[11px] text-gray-400">· {r.detail}</span>}
+                {r.last_used && <span className="text-[11px] text-gray-400">· last used {new Date(r.last_used).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>}
+              </div>
+              <p className="text-xs text-gray-500">{r.configured ? 'Powers' : 'Without it there are no'} {r.powers}.</p>
+            </div>
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
 }

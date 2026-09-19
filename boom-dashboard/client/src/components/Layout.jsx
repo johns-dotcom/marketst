@@ -52,7 +52,7 @@ const PAGE_LABELS = {
   '/financials':         'Financials',
   '/reports':            'Reports',
   '/budget':             'Recording Budgets',
-  '/team':               'Members',
+  '/team':               'People',
   '/activity':           'Activity History',
   '/analytics':          'Analytics',
   '/admin':              'Admin Docs',

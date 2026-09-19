@@ -161,6 +161,9 @@ export function PersonModal({ user, onClose, onSaved, currentUserRole }) {
   const [repToggling, setRepToggling] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError]   = useState(null)
+  // After creating: the one-time invite link to hand over (copied, or emailed once Gmail exists)
+  const [invite, setInvite] = useState(null)
+  const [copied, setCopied] = useState(false)
 
   // Page permissions (for new users only)
   //
@@ -240,6 +243,12 @@ export function PersonModal({ user, onClose, onSaved, currentUserRole }) {
         })
         userId = res.data.data.id
         onSaved(res.data.data, res.data.pending_email || null)
+        if (res.data.invite?.path) {
+          // Stay open to show the link — closing here would lose the only copy.
+          setInvite({ ...res.data.invite, url: `${window.location.origin}${res.data.invite.path}`, name: form.name, email: form.email })
+          setSaving(false)
+          return
+        }
       }
 
       // Save permissions for non-admin new users
@@ -257,6 +266,28 @@ export function PersonModal({ user, onClose, onSaved, currentUserRole }) {
     }
   }
 
+  if (invite) {
+    const copy = async () => { try { await navigator.clipboard.writeText(invite.url); setCopied(true); setTimeout(() => setCopied(false), 2500) } catch { /* the field below is selectable */ } }
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
+        <div className="bg-card rounded-2xl shadow-2xl border border-divider w-[480px]" data-invite-panel>
+          <div className="flex items-center justify-between px-6 py-4 border-b border-divider">
+            <h3 className="text-sm font-bold text-gray-900">{invite.name} is added</h3>
+            <button onClick={onClose} className="text-gray-400 hover:text-gray-600 p-1 rounded-lg hover:bg-gray-100"><X size={16} /></button>
+          </div>
+          <div className="p-6 space-y-3">
+            <p className="text-sm text-gray-700">Send {invite.name.split(' ')[0]} this link. It sets their password and signs them in; it works once and expires {new Date(invite.expires_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}.</p>
+            <div className="flex items-center gap-2">
+              <input readOnly value={invite.url} onFocus={(e) => e.target.select()} className="input-base flex-1 text-xs font-mono" data-invite-url />
+              <button type="button" onClick={copy} className="text-xs font-semibold px-3 py-2 rounded-lg bg-gray-900 text-white hover:bg-gray-800 whitespace-nowrap" data-copy-invite>{copied ? 'Copied' : 'Copy link'}</button>
+            </div>
+            <p className="text-[11px] text-gray-400">Until Gmail is connected the link is handed over by you. From People you can resend a fresh one at any time; resending voids this one.</p>
+            <div className="flex justify-end pt-1"><button onClick={onClose} className="text-sm font-semibold bg-gray-100 text-gray-700 px-4 py-2 rounded-xl hover:bg-gray-200">Done</button></div>
+          </div>
+        </div>
+      </div>
+    )
+  }
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
       <div className="bg-card rounded-2xl shadow-2xl border border-divider w-[480px] max-h-[90vh] overflow-y-auto">
