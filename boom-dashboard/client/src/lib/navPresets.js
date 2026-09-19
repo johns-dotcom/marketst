@@ -25,7 +25,8 @@ const ALL_PATHS = NAV_PAGES.map((p) => p.path)
 // BASE_WHITELIST anyway; they are listed so a preset reads as a complete answer.
 // Flags is here by John's call (2026-09-18: "Everyone") — its money-shaped
 // sections are gated server-side by role, so the row itself is safe to show.
-const COMMON = ['/', '/my-work', '/messages', '/calendar', '/flags']
+// '/brand' (2026-09-19): the logo and photo library is for everyone.
+const COMMON = ['/', '/my-work', '/messages', '/calendar', '/flags', '/brand']
 
 export const PRESETS = [
   {

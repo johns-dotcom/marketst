@@ -11,6 +11,7 @@ import BkCreators from './pages/BkCreators'
 import Bk1099 from './pages/Bk1099'
 import Login from './pages/Login'
 import SetPassword from './pages/SetPassword'
+import Brand from './pages/Brand'
 import SettingsShell from './components/SettingsShell'
 import Dashboard from './pages/Dashboard'
 import Releases from './pages/Releases'
@@ -206,6 +207,7 @@ function AppContent() {
         <Route path="/duplicates" element={<Navigate to="/flags" replace />} />
         <Route path="/create-invoice" element={<TabbedShell family="documents"><CreateInvoice /></TabbedShell>} />
         <Route path="/create-nda" element={<TabbedShell family="documents"><CreateNDA /></TabbedShell>} />
+        <Route path="/brand" element={<TabbedShell family="documents"><Brand /></TabbedShell>} />
         <Route path="/create-nda/:template" element={<TabbedShell family="documents"><CreateNDA /></TabbedShell>} />
         <Route path="/create-label-waiver" element={<TabbedShell family="documents"><CreateLabelWaiver /></TabbedShell>} />
         <Route path="/create-artist-clearance" element={<TabbedShell family="documents"><ArtistClearance /></TabbedShell>} />

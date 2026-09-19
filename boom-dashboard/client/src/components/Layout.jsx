@@ -58,6 +58,7 @@ const PAGE_LABELS = {
   '/admin':              'Admin Docs',
   '/contracts/create':   'Create Contract',
   '/create-nda':         'Create NDA',
+  '/brand':              'Brand',
   '/create-label-waiver': 'Create Label Waiver',
   '/create-artist-clearance': 'Create Artist Clearance',
   '/bk/ledger':          'Ledger',

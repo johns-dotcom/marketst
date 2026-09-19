@@ -33,9 +33,9 @@ const flat = (g) => g.items.flatMap(i => (i.collapsible || i.tabbed) ? i.childre
 const allPaths = NAV_GROUPS.flatMap(flat).map(i => i.path)
 
 console.log('1. no page can go missing')
-ok(allPaths.length === 48, `48 paths across ${NAV_GROUPS.length} groups (got ${allPaths.length}) — Boom's 53 minus the five John had removed outright on 2026-09-18 (bulk upload, re-upload, QuickBooks, master sheet, Legal)`)
+ok(allPaths.length === 49, `49 paths across ${NAV_GROUPS.length} groups (got ${allPaths.length}) — Boom's 53 minus the five John removed outright on 2026-09-18, plus Brand (2026-09-19)`)
 ok(new Set(allPaths).size === allPaths.length, 'no path appears twice')
-ok(NAV_PAGES.length === 48, "NAV_PAGES flattens to 48 — Settings' permission matrix renders from it, so a new page must appear here or nobody can ever be granted it")
+ok(NAV_PAGES.length === 49, "NAV_PAGES flattens to 49 — Settings' permission matrix renders from it, so a new page must appear here or nobody can ever be granted it")
 // Market Street regroup (2026-09-18): pages leave the SIDEBAR with `hidden`,
 // never by deletion. A hidden page is still grantable, still searchable, and
 // still a known page for the permission walk.

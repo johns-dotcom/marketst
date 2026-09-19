@@ -286,6 +286,20 @@ Authoritative project guide: **`boom-dashboard/CLAUDE.md`** — read it before m
   hidden list and `/team` label updated. Left open: avatars (initials only),
   editable departments, whether Admins may see the label's bank block (today:
   see masked, only Superadmin writes).
+- **Brand (2026-09-19, John: "a brand page where users can upload and download
+  company photos and logos").** `/brand` is a child of the Documents family
+  (`pages/Brand.jsx`, `routes/brand.js`), in COMMON so every preset grants it.
+  Files are `entity_files` rows (`entity_type 'brand'`, `entity_id 1`, `label`
+  = category logo · photo · other), bytes in R2 when configured else the
+  legacy `file_data` column (dev has no bucket), downloaded through the same
+  `/uploads/:filename` route as every attachment — which serves SVG and
+  unknown types as ATTACHMENTS, so a vector logo can hold script and never
+  run on our origin; only raster images preview inline. Its own multer filter
+  allows png/jpg/gif/webp/svg/pdf/ai/eps/zip/tiff (secureFileFilter blocks SVG
+  on purpose for vendor files). Anyone signed in uploads and downloads;
+  removing is the uploader or an admin. NAV_PAGES is 49 now.
+  `server/scripts/brand-fixture.cjs` (12) covers upload, the HTML refusal, the
+  byte-identical download, the SVG-as-attachment rule and the delete gate.
 - **Bank-statement heuristics were tuned on Boom's Bank of America statements.** The own-name lists (`statements.js` stop-words, `funding-pairs.js` account-trailer strip) now say Market Street, but the layout parsers have not seen a Market Street statement yet. Expect the AI fallback to do the work until they do.
 
 ## Commands (run from `boom-dashboard/`)
