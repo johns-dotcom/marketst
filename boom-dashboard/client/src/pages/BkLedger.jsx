@@ -865,7 +865,8 @@ function DuplicateInvoicesFlag({ C }) {
     let cancelled = false
     api.get('/flags').then(res => {
       if (cancelled) return
-      const cats = res.data?.data?.categories || []
+      // GET /flags returns the category ARRAY as `data` (never `data.categories`).
+      const cats = Array.isArray(res.data?.data) ? res.data.data : []
       const dup = cats.find(c => c.kind === 'duplicate_invoices')
       // Server already filters dismissed groups by default; the redundant
       // filter here protects against future behavior changes.

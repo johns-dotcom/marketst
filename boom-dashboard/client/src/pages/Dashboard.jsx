@@ -12,7 +12,7 @@ import {
   Pie,
   Cell
 } from 'recharts'
-import { AlertCircle, AlertTriangle, Info, CalendarDays, ChevronRight, Filter, X, CheckSquare, ExternalLink, Music2, RefreshCw, Inbox, CreditCard, Landmark, Disc3, UserPlus, FilePlus2, TrendingUp, Music, Activity, CheckCircle2 } from 'lucide-react'
+import { AlertCircle, AlertTriangle, Info, CalendarDays, ChevronRight, Filter, X, CheckSquare, ExternalLink, Music2, RefreshCw, Inbox, CreditCard, Landmark, Disc3, UserPlus, FilePlus2, TrendingUp, Music, Activity, CheckCircle2, Flag } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import api from '../api'
 import { formatDate, isPastLocal, daysUntilLocal } from '../utils'
@@ -347,6 +347,7 @@ export default function Dashboard() {
     && (!loop.bank || (loop.bank.open === 0 && !(loop.bank.overdue_accounts?.length)))
     && (!loop.releases || loop.releases.count === 0)
     && (!loop.onboarding || loop.onboarding.count === 0)
+    && (!loop.flags || loop.flags.count === 0)
   // Everyone's recent work except mine: what the rest of the team did.
   const teamActivity = activity.filter((a) => Number(a.user_id) !== Number(user?.id)).slice(0, 20)
   const quickActions = [
@@ -405,6 +406,7 @@ export default function Dashboard() {
               loop.bank && 'no bank lines to review',
               loop.releases && 'nothing releasing in 30 days',
               loop.onboarding && 'nobody mid-onboarding',
+              loop.flags && 'nothing flagged',
             ].filter(Boolean).join(', ')}.
           </p>
           <span className="ml-auto text-[11px] text-gray-400 whitespace-nowrap">Tiles return when something needs doing</span>
@@ -451,6 +453,21 @@ export default function Dashboard() {
               ? `${loop.onboarding.steps_open} step${loop.onboarding.steps_open === 1 ? '' : 's'} open${loop.onboarding.next ? ` · next: ${loop.onboarding.next.name}` : ''}`
               : null}
             empty="Nobody is mid-onboarding. A deal moved to Signed starts it."
+          />
+        )}
+        {/* Flags — the register's open count for this person (only kinds whose
+            page they could open), and how many appeared since they last opened
+            Flags. The one push the register has besides My Work. */}
+        {loop?.flags && canView('/flags') && (
+          <LoopTile
+            to={loop.flags.to || '/flags'} icon={Flag} label="Flags" testId="flags" tone="text-rose-500"
+            value={loop.flags.count} money={loop.flags.usd}
+            sub={[
+              loop.flags.new ? `${loop.flags.new} new since you looked` : null,
+              loop.flags.high ? `${loop.flags.high} high` : null,
+              loop.flags.setup ? `${loop.flags.setup} setup` : null,
+            ].filter(Boolean).join(' · ') || (loop.flags.oldest_days ? `oldest ${loop.flags.oldest_days} day${loop.flags.oldest_days === 1 ? '' : 's'}` : null)}
+            empty="Nothing flagged. Every check ran clean; the sweep runs hourly."
           />
         )}
         {loop?.releases && canView('/releases') && (

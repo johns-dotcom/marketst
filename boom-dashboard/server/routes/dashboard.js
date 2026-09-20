@@ -369,6 +369,7 @@ const LOOP_PAGES = {
   bank:      '/bk/bank-matching',
   releases:  '/releases',
   onboarding: '/artists',
+  flags:     '/flags',
 };
 const round2 = (n) => Math.round(Number(n || 0) * 100) / 100;
 const sumUsd = (rows) => round2(rows.reduce((t, r) => t + (usdOf(r.amount, r.currency, r.fx_rate_to_usd) || 0), 0));
@@ -376,7 +377,7 @@ const sumUsd = (rows) => round2(rows.reduce((t, r) => t + (usdOf(r.amount, r.cur
 router.get('/loop', authMiddleware, async (req, res) => {
   try {
     const reach = await pagesReachable(req.user, Object.values(LOOP_PAGES));
-    const data = { approvals: null, payments: null, bank: null, releases: null, onboarding: null };
+    const data = { approvals: null, payments: null, bank: null, releases: null, onboarding: null, flags: null };
     const jobs = [];
 
     // Awaiting approval — the same predicate as /bk/pending-count and the
@@ -494,6 +495,17 @@ router.get('/loop', authMiddleware, async (req, res) => {
         next: rows[0] ? { id: rows[0].artist_id, name: rows[0].name, open: rows[0].open } : null,
         to: `${LOOP_PAGES.onboarding}?onboarding=1`,
       };
+    })());
+
+    // Flags — the register's open count for THIS viewer (only kinds whose page
+    // they could open), how many are new since they last looked, the money on
+    // them. lib/flags-register.summaryFor is the one definition; the Flags
+    // page header and My Work read the same figures.
+    if (reach.has(LOOP_PAGES.flags)) jobs.push((async () => {
+      try {
+        const { rows: [u] } = await pool.query('SELECT flags_seen_at FROM users WHERE id = $1', [req.user.id]);
+        data.flags = await require('../lib/flags-register').summaryFor({ ...req.user, flags_seen_at: u?.flags_seen_at || null });
+      } catch (e) { console.warn('loop flags:', e.message); data.flags = null; }
     })());
 
     await Promise.all(jobs);

@@ -100,12 +100,14 @@ async function main() {
     assert('ADMIN: the alert sits above the activity rows', !!act.querySelector('[data-alerts]') && /Release checklist/.test(textOf(act.querySelector('[data-alerts]'))) && act.querySelector('[data-alerts]').compareDocumentPosition(act.querySelector('[data-activity-row]')) & Node.DOCUMENT_POSITION_FOLLOWING)
     assert('ADMIN: no chart renders while there is nothing to chart', !/Releases per Month|Releases by Genre/.test(body))
     assert('ADMIN: the old Notifications and Upcoming Releases panels are gone', !/All clear — no alerts|No releases in the next two weeks/.test(body))
+    assert('ADMIN: the flags tile renders with the open count, what is new, and links to /flags', !!byId.flags && /6/.test(textOf(byId.flags)) && /3 new since you looked/.test(textOf(byId.flags)) && byId.flags.getAttribute('href') === '/flags')
     assert('ADMIN: the onboarding tile counts artists mid-onboarding and the steps open', !!byId.onboarding && /2/.test(textOf(byId.onboarding)) && /5 steps open/.test(textOf(byId.onboarding)) && /next: Rosa Vale/.test(textOf(byId.onboarding)))
     assert('ADMIN: it opens the roster narrowed to them', byId.onboarding?.getAttribute('href') === '/artists?onboarding=1')
   }
   if (scenario === 'anr') {
     assert('ANR: no money tile renders', !byId.approvals && !byId.payments && !byId.bank)
     assert('ANR: the releases tile renders', !!byId.releases)
+    assert('ANR: no flags tile when the server withheld the section', !byId.flags)
     assert('ANR: no dollar figure reaches the page', !/\$\d/.test(body))
     assert('ANR: charts stay hidden with no data', !/Releases per Month/.test(body))
     assert('ANR: quick actions are gated — release and deal, no invoice', !host.querySelector('[data-action="add-invoice"]') && !!host.querySelector('[data-action="add-release"]') && !!host.querySelector('[data-action="new-deal"]'))

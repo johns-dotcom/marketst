@@ -25,7 +25,7 @@ const api = {
       { id: 'release-10', type: 'release', title: 'Not mine', date: iso(2), to: '/releases', sourceId: 10 },
       { id: 'payment-5', type: 'payment_due', title: 'Northgate — $1,500 due', date: iso(4), to: '/bk/payments', sourceId: 5 },
     ], sources: {} } })
-    if (url.startsWith('/dashboard/loop')) return ok({ approvals: scenario() === 'empty' ? { count: 0 } : { count: 3, usd: 900, to: '/bk/approvals' } })
+    if (url.startsWith('/dashboard/loop')) return ok({ approvals: scenario() === 'empty' ? { count: 0 } : { count: 3, usd: 900, to: '/bk/approvals' }, flags: scenario() === 'empty' ? { count: 0, new: 0, to: '/flags' } : { count: 5, new: 2, to: '/flags' } })
     if (url.startsWith('/notifications')) return ok({ mentions: scenario() === 'empty' ? [] : [{ id: 1 }] })
     if (url === '/settings/me') return ok({ tours_done: { welcome: { version: '2026-09-19' }, 'my-work': { version: '2026-09-19' } } })
     return ok([])

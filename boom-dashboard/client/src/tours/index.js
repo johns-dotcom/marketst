@@ -16,7 +16,7 @@
 import { NAV_GROUPS } from '../navConfig'
 const PAGE_TOURS = [
   {
-    id: 'home', title: 'Home', path: '/', version: '2026-09-19',
+    id: 'home', title: 'Home', path: '/', version: '2026-09-21',
     steps: [
       { target: '[data-tour="home-loop"]', title: 'The loop', body: 'Invoices arrive, get approved, get paid, the bank statement proves it, reports read from that. One tile per step.' },
       { target: '[data-quick-actions]', title: 'Start something', body: 'Add an invoice, add a release, open a new deal. Only the actions for pages you can open.' },
@@ -134,10 +134,12 @@ const PAGE_TOURS = [
     ],
   },
   {
-    id: 'flags', title: 'Flags', path: '/flags', version: '2026-09-20',
+    id: 'flags', title: 'Flags', path: '/flags', version: '2026-09-21',
     steps: [
-      { target: '[data-tour="flags-header"]', title: 'Things that need a decision', body: 'Duplicates, incomplete fields, bank lines nobody explained — every category the app flags, with a count. The subtitle says how many are waiting.' },
-      { target: '[data-tour="flags-overview"], [data-tour="flags-nav"], [data-tour="flags-header"]', title: 'Pick a category', body: 'Each card is a category; open one to work through its rows. Merge and rename controls appear for executives and admins. Low-severity and dismissed flags are hidden until you toggle them on.' },
+      { target: '[data-tour="flags-header"]', title: 'Everything that needs a decision', body: 'One register for the whole label: setup gaps, stalled approvals and payments, signatures out too long, compliance holes, duplicates and blanks. The subtitle counts what needs a decision and what is new since you last looked.' },
+      { target: '[data-flags-meta], [data-flags-refresh], [data-tour="flags-header"]', title: 'Checked every hour', body: 'Every check runs hourly and this line says when it last ran. A check that could not run is named here — silence never means clear. Admins can run the checks now.' },
+      { target: '[data-tour="flags-nav"], [data-tour="flags-overview"], [data-tour="flags-header"]', title: 'Groups, only what has something in it', body: 'Setup first (it blocks everything else on a new label), then Money, Workflow, Compliance, Ledger, Catalog, Artists. Zero-count checks fold into one "checks clear" line; a dot marks a category with something new.' },
+      { target: '[data-tour="flags-overview"], [data-register-section], [data-tour="flags-nav"]', title: 'Open a category', body: 'Each row says what, how old, how much, and who holds it. Open goes to the page that resolves it; Assign makes a task in someone\'s My Work that closes itself when the flag clears; Snooze and Dismiss remember the value, so a row that changes comes back.' },
     ],
   },
   // ─── Releases family ────────────────────────────────────────────────────

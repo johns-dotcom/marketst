@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { Copy, Archive, RefreshCw, AlertTriangle, Tag, FileText, ChevronRight, X, Check, ExternalLink, Undo2, EyeOff, Eye, RotateCcw, Pencil, Loader, Landmark } from 'lucide-react'
 import api from '../api'
@@ -12,6 +12,7 @@ import FilePreview from '../components/FilePreview'
 import { DOC_TYPES, pickDoc, fileUrl } from '../utils/entryFiles'
 import { PAYMENT_METHODS } from '../constants'
 import { useAuth } from '../context/AuthContext'
+import RegisterSection, { AssignControl, ageLabel } from '../components/flags/RegisterSection'
 
 // The global Flags hub — served at /flags. (/duplicates redirects here; the
 // filename is unchanged from when this page only did duplicate detection,
@@ -53,7 +54,21 @@ const SEVERITY_STYLE = {
 // `group` drives the sidebar. Money first because a duplicated invoice costs
 // real money; an empty ISRC does not.
 const MONEY = 'Money', LEDGER = 'Ledger', CATALOG = 'Catalog', ARTISTS = 'Artists'
-const GROUP_ORDER = [MONEY, LEDGER, CATALOG, ARTISTS]
+// Register groups (server/lib/flags-register.js): the category carries its
+// `group`, so nothing here has to be taught a new kind. Setup leads — on a
+// fresh label it is the only group with anything in it, and it blocks the rest.
+const SETUP = 'Setup', WORKFLOW = 'Workflow', COMPLIANCE = 'Compliance'
+const GROUP_ORDER = [SETUP, MONEY, WORKFLOW, COMPLIANCE, LEDGER, CATALOG, ARTISTS]
+// What fills each group — for the empty state and the rail's "all clear" line.
+const GROUP_FILLS = {
+  [SETUP]: 'the label record, mail, integrations, invites',
+  [MONEY]: 'duplicate invoices and vendors, bank lines nobody explained, statements that never came',
+  [WORKFLOW]: 'approvals and payments that stall, signatures out too long, releases with nobody on them, overdue tasks',
+  [COMPLIANCE]: 'W-9s, payment details, scans that disagree with the form, rows with no document or category',
+  [LEDGER]: 'artist and song problems on ledger rows',
+  [CATALOG]: 'duplicate releases and empty catalog fields',
+  [ARTISTS]: 'duplicate artists and empty roster fields',
+}
 
 // Module scope on purpose: MultiArtistCard has its own `fmtUsd`, but it is a
 // component-local const and invisible here.
@@ -94,7 +109,18 @@ const CATEGORY_CLASS = {
 // defined server-side in routes/flags.js, so a new check added there must show
 // up here rather than silently vanish because this map hadn't heard of it.
 const classify = (kind) => CATEGORY_CLASS[kind] || { group: LEDGER, nature: 'problem' }
-const isProblem = (cat) => classify(cat.kind).nature === 'problem'
+// A register category names its own group; everything else is looked up.
+const classifyCat = (cat) => (cat?.group ? { group: cat.group, nature: 'problem' } : classify(cat?.kind))
+const isProblem = (cat) => classifyCat(cat).nature === 'problem'
+const timeAgo = (iso) => {
+  if (!iso) return null
+  const m = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60000))
+  if (m < 1) return 'just now'
+  if (m < 60) return `${m} min ago`
+  const h = Math.round(m / 60)
+  if (h < 48) return `${h} hour${h === 1 ? '' : 's'} ago`
+  return `${Math.round(h / 24)} days ago`
+}
 
 // Shorter labels for the sidebar. The full label stays on the section header;
 // "Potential Duplicate Releases" in a 200px rail just truncates.
@@ -134,6 +160,23 @@ export default function Duplicates() {
   const [categories, setCategories] = useState([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
+  // The register's facts about the whole page: when it last swept, which
+  // checks could not run, and when THIS viewer last looked. `seenRef` holds
+  // the seen-at from the FIRST load — the page stamps a new one right after,
+  // so reading the server's value on a refetch would make every "new" vanish
+  // the moment you fixed something.
+  const [meta, setMeta] = useState(null)
+  const seenRef = useRef(undefined)
+  const [team, setTeam] = useState([])
+  const [sweeping, setSweeping] = useState(false)
+  const isNew = (firstSeen) => {
+    if (!firstSeen) return false
+    if (seenRef.current === undefined) return false
+    if (seenRef.current === null) return true // never looked before: it is all new to them
+    return new Date(firstSeen) > seenRef.current
+  }
+  const newIn = (cat) => (cat.register ? (cat.items || []).filter((i) => !i.dismissed && !i.snoozed && isNew(i.first_seen)).length
+    : [...(cat.items || []), ...(cat.groups || [])].filter((i) => !i.dismissed && isNew(i.first_seen)).length)
   const [mergeKeepIds, setMergeKeepIds] = useState({})
   const [artistMergeKeepIds, setArtistMergeKeepIds] = useState({})
   // Vendor merge keep-target — keyed by group index in the
@@ -281,7 +324,10 @@ export default function Duplicates() {
         // hub down.
         api.get('/statements/duplicate-pairs').catch(() => null),
       ])
-      const cats = res.data.data || []
+      const cats = Array.isArray(res.data.data) ? res.data.data : []
+      const m = res.data.meta || null
+      setMeta(m)
+      if (seenRef.current === undefined) seenRef.current = m?.seen_at ? new Date(m.seen_at) : null
       const bank = bankRes?.data?.data
       const bankFlags = Array.isArray(bank) ? bank : (bank?.flags || [])
       // "Paid but never seen leaving the bank" gets its own subpage. It was the
@@ -382,7 +428,30 @@ export default function Duplicates() {
       setRefreshing(false)
     }
   }
-  useEffect(() => { fetch(true) }, [])
+  // First load, then "I have looked" — so Home's "new since you looked" resets
+  // to now while THIS page keeps showing what was new when it opened.
+  useEffect(() => { fetch(true).then(() => api.post('/flags/seen').catch(() => {})) }, [])
+  useEffect(() => { api.get('/team').then((r) => setTeam((r.data?.data || []).map((u) => ({ id: u.id, name: u.name })))).catch(() => {}) }, [])
+  // ⟳: an admin runs the hourly sweep now, then everyone refetches.
+  const refresh = async () => {
+    if (isAdmin) { setSweeping(true); await api.post('/flags/sweep').catch(() => {}); setSweeping(false) }
+    fetch(false)
+  }
+  // Register verbs. Each refetches: the row should disappear because the
+  // server says so, not because we hid it.
+  const dismissRegister = async (kind, key, until, undo) => {
+    try { await api.post('/flags/register/dismiss', { kind, key, until: until || undefined, undo: !!undo }); await fetch(false) }
+    catch (e) { alert('Could not update the flag: ' + (e.response?.data?.error || e.message)) }
+  }
+  const assignFlag = async (body) => {
+    try { await api.post('/flags/assign', body); await fetch(false) }
+    catch (e) { alert('Could not assign: ' + (e.response?.data?.error || e.message)); throw e }
+  }
+  const unassignFlag = async (kind, key) => {
+    try { await api.delete('/flags/assign', { params: { kind, key } }); await fetch(false) }
+    catch (e) { alert('Could not unassign: ' + (e.response?.data?.error || e.message)) }
+  }
+  const focusKey = searchParams.get('focus')
   // Re-fetch when the show-dismissed toggle changes so the server can
   // include / exclude the dismissed groups from the main list.
   useEffect(() => { fetch(false) }, [showDismissed])
@@ -637,15 +706,21 @@ export default function Duplicates() {
     [visibleCategories],
   )
   const incompleteCount = totalFlags - problemCount
+  const totalNew = visibleCategories.reduce((s, c) => s + newIn(c), 0)
 
   // Sidebar model: groups in a fixed order, each with its categories sorted
   // problems-first then by size. Empty groups drop out entirely.
-  const navGroups = useMemo(() => GROUP_ORDER.map(name => ({
-    name,
-    cats: visibleCategories
-      .filter(c => classify(c.kind).group === name)
-      .sort((a, b) => (isProblem(b) - isProblem(a)) || (b.count || 0) - (a.count || 0)),
-  })).filter(g => g.cats.length), [visibleCategories])
+  // Only categories with something in them are rows; the rest of a group is
+  // one muted "N checks clear" line. Twenty-three zeros on an empty label
+  // read as a wall, and hid the three rows that mattered.
+  const navGroups = useMemo(() => GROUP_ORDER.map(name => {
+    const all = visibleCategories.filter(c => classifyCat(c).group === name)
+    return {
+      name,
+      cats: all.filter(c => c.count > 0).sort((a, b) => (isProblem(b) - isProblem(a)) || (b.count || 0) - (a.count || 0)),
+      clear: all.filter(c => !c.count).length,
+    }
+  }).filter(g => g.cats.length || g.clear), [visibleCategories])
 
   // ── Search within the active section ──────────────────────────────────────
   // The hub now spans catalog, ledger and bank flags, and a single section can
@@ -841,19 +916,36 @@ export default function Duplicates() {
             : [
                 problemCount ? `${problemCount.toLocaleString()} need${problemCount === 1 ? 's' : ''} a decision` : null,
                 incompleteCount ? `${incompleteCount.toLocaleString()} field${incompleteCount === 1 ? '' : 's'} incomplete` : null,
+                totalNew ? `${totalNew.toLocaleString()} new since you last looked` : null,
               ].filter(Boolean).join(' · ')
         }
         actions={
           <button
-            onClick={() => fetch(false)}
-            disabled={refreshing}
-            title="Re-scan for flags"
-            className="p-1.5 text-gray-300 hover:text-boom-600 rounded-lg hover:bg-boom-50 transition-colors disabled:opacity-40"
+            onClick={refresh}
+            disabled={refreshing || sweeping}
+            title={isAdmin ? 'Run every check now (the sweep otherwise runs hourly)' : 'Reload'}
+            data-flags-refresh
+            className="inline-flex items-center gap-1.5 px-2 py-1.5 text-[11px] font-semibold text-gray-400 hover:text-boom-600 rounded-lg hover:bg-boom-50 transition-colors disabled:opacity-40"
           >
-            <RefreshCw size={14} className={refreshing ? 'animate-spin' : ''} />
+            <RefreshCw size={14} className={(refreshing || sweeping) ? 'animate-spin' : ''} />
+            {isAdmin && (sweeping ? 'Checking…' : 'Check now')}
           </button>
         }
       />
+
+      {/* What the register knows about itself. A check that failed is NOT
+          clear — it is named here, or a broken detector reads as a clean label. */}
+      {meta && (
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-gray-400 -mt-3" data-flags-meta>
+          <span>{meta.swept_at ? `Checked ${timeAgo(meta.swept_at)}` : 'Not checked yet — the first sweep runs a few minutes after the server starts'}{meta.swept_at ? ' · every hour' : ''}</span>
+          {Object.keys(meta.sweep_errors || {}).length > 0 && (
+            <span className="text-amber-600 font-semibold" data-flags-sweep-errors title={Object.entries(meta.sweep_errors).map(([k, v]) => `${k}: ${v}`).join('\n')}>
+              {Object.keys(meta.sweep_errors).length} check{Object.keys(meta.sweep_errors).length === 1 ? '' : 's'} could not run: {Object.keys(meta.sweep_errors).join(', ')}
+            </span>
+          )}
+          {meta.register_error && <span className="text-rose-600 font-semibold">Register unavailable: {meta.register_error}</span>}
+        </div>
+      )}
 
       {/* Section picker for narrow screens. The old strip was an
           overflow-x-auto row of 22 tabs — five visible at a time and worst on
@@ -886,6 +978,7 @@ export default function Duplicates() {
           activeTab={activeTab}
           onPick={setTab}
           totalFlags={totalFlags}
+          newIn={newIn}
         />
 
         <div className="flex-1 min-w-0 space-y-4">
@@ -918,7 +1011,7 @@ export default function Duplicates() {
           both honour the low-severity toggle, so the body must too or the page
           says "896 need a decision" above a grid that shows more than that. */}
       {activeTab === 'overview' && (
-        <Overview categories={visibleCategories} totalFlags={totalFlags} onPick={setTab} />
+        <Overview categories={visibleCategories} totalFlags={totalFlags} onPick={setTab} newIn={newIn} meta={meta} />
       )}
 
       {/* Section header. The category's name and description used to REPLACE
@@ -931,6 +1024,17 @@ export default function Duplicates() {
             <span className={`w-2 h-2 rounded-full shrink-0 ${(SEVERITY_STYLE[activeCategory.severity] || SEVERITY_STYLE.medium).dot}`} />
             <h2 className="text-[15px] font-extrabold text-ink">{activeCategory.label}</h2>
             <span className="text-[12px] text-gray-400 tabular-nums">{(activeCategory.count || 0).toLocaleString()}</span>
+            {newIn(activeCategory) > 0 && <span className="text-[10px] font-bold uppercase tracking-wider text-boom-600 bg-boom-50 rounded px-1.5 py-0.5" data-section-new>{newIn(activeCategory)} new</span>}
+            {activeCategory.tracking?.oldest_days != null && activeCategory.tracking.oldest_days > 0 && (
+              <span className="text-[11px] text-gray-400" data-section-oldest>oldest {ageLabel(activeCategory.tracking.oldest_days)}</span>
+            )}
+            {/* Who works through this category. One task, in their My Work. */}
+            {!activeCategory.register && activeCategory.count > 0 && (
+              <span className="ml-2" data-section-owner>
+                <AssignControl kind={activeCategory.kind} flagKey="*" current={activeCategory.tracking?.owner} team={team}
+                  onAssign={assignFlag} onUnassign={unassignFlag} title={activeCategory.label} severity={activeCategory.severity} />
+              </span>
+            )}
             <button
               onClick={() => setTab('overview')}
               className="ml-auto text-[11px] font-semibold text-gray-400 hover:text-ink"
@@ -940,6 +1044,13 @@ export default function Duplicates() {
           </div>
           {activeCategory.description && (
             <p className="text-[12px] text-gray-400 mt-1.5 max-w-3xl">{activeCategory.description}</p>
+          )}
+          {/* A capped list says so — the header counts everything, the body
+              holds the first N, and the filter box only searches what loaded. */}
+          {activeCategory.truncated && (
+            <p className="text-[11px] text-amber-600 font-semibold mt-1.5" data-section-truncated>
+              Showing the first {activeCategory.shown.toLocaleString()} of {activeCategory.count.toLocaleString()}. The filter below searches only these; fix some and reload to reach the rest.
+            </p>
           )}
         </div>
       )}
@@ -980,6 +1091,12 @@ export default function Duplicates() {
         <CategoryBody
           cat={filteredCategory}
           isAdmin={isAdmin}
+          team={team}
+          focusKey={focusKey}
+          isNew={isNew}
+          onDismissRegister={dismissRegister}
+          onAssign={assignFlag}
+          onUnassign={unassignFlag}
           // Silent refetch after an in-place fix: the row should disappear
           // because the flag stopped being true, not because we hid it.
           onRefresh={() => fetch(false)}
@@ -1178,7 +1295,7 @@ function SourceChip({ source, className = '' }) {
 // span four unrelated things and an undifferentiated list of 22 reads as noise
 // no matter how it's styled. Problems sort above completeness inside each
 // group, so the money items sit at the top of the rail.
-function FlagsNav({ groups, activeTab, onPick, totalFlags }) {
+function FlagsNav({ groups, activeTab, onPick, totalFlags, newIn }) {
   return (
     <nav data-tour="flags-nav" className="hidden lg:block w-56 shrink-0 sticky top-4 self-start">
       <button
@@ -1212,10 +1329,14 @@ function FlagsNav({ groups, activeTab, onPick, totalFlags }) {
               >
                 <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${sev.dot} ${empty ? 'opacity-30' : ''}`} />
                 <span className="truncate flex-1 text-left">{shortLabel(cat)}</span>
+                {newIn?.(cat) > 0 && <span className="w-1.5 h-1.5 rounded-full bg-boom-500 shrink-0" title={`${newIn(cat)} new`} data-nav-new />}
                 <span className={`text-[11px] tabular-nums shrink-0 ${empty ? 'text-gray-300' : 'text-gray-400'}`}>{cat.count}</span>
               </button>
             )
           })}
+          {g.clear > 0 && (
+            <p className="px-3 py-1 text-[11px] text-gray-300" data-nav-clear={g.name}>{g.clear} check{g.clear === 1 ? '' : 's'} clear</p>
+          )}
         </div>
       ))}
     </nav>
@@ -1229,24 +1350,41 @@ function FlagsNav({ groups, activeTab, onPick, totalFlags }) {
 // completeness strip — they are bulk data entry, and rendering 473 missing
 // ISRCs as an alarming red card next to 76 duplicated invoices is what made
 // this page unreadable.
-function Overview({ categories, totalFlags, onPick }) {
+function Overview({ categories, totalFlags, onPick, newIn, meta }) {
   const problems = categories.filter(c => isProblem(c) && c.count > 0)
   const incomplete = categories.filter(c => !isProblem(c) && c.count > 0)
 
   if (totalFlags === 0) {
+    // Say what is watched, by group, with the count of checks — "nothing
+    // flagged" over a list of what would flag is a different sentence from
+    // "nothing flagged" over a blank card.
+    const byGroup = GROUP_ORDER.map((name) => ({ name, n: categories.filter((c) => classifyCat(c).group === name).length })).filter((g) => g.n)
     return (
-      <div data-tour="flags-overview" className="card p-12 text-center">
-        <AlertTriangle size={28} className="text-emerald-300 mx-auto mb-3" />
-        <p className="text-sm text-gray-500">No flagged data right now.</p>
-        <p className="text-xs text-gray-400 mt-1">We check the catalog (duplicate releases / artists, missing genre, UPC, ISRC, Spotify links), the ledger (duplicate vendors and invoices, artist-column problems, rows flagged by hand), and the bank (reconciliation mismatches and transactions flagged in review).</p>
+      <div data-tour="flags-overview" className="card p-10" data-flags-all-clear>
+        <div className="flex items-center gap-3 mb-4">
+          <AlertTriangle size={24} className="text-emerald-400 shrink-0" />
+          <div>
+            <p className="text-sm font-semibold text-ink">Nothing flagged right now.</p>
+            <p className="text-xs text-gray-400">{meta?.swept_at ? `Every check ran ${timeAgo(meta.swept_at)}; the sweep runs hourly and a new flag shows on Home the next time you open it.` : 'The first sweep runs a few minutes after the server starts.'}</p>
+          </div>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-2">
+          {byGroup.map((g) => (
+            <div key={g.name} className="flex items-baseline gap-2 text-[12px]">
+              <span className="font-bold text-ink w-24 shrink-0">{g.name}</span>
+              <span className="text-gray-400"><span className="tabular-nums text-gray-500">{g.n}</span> check{g.n === 1 ? '' : 's'} · {GROUP_FILLS[g.name]}</span>
+            </div>
+          ))}
+        </div>
       </div>
     )
   }
 
-  // Problems ordered by domain, Money first — a duplicated invoice costs real
-  // money, a duplicate release costs attention.
+  // Problems ordered by domain: Setup first (it blocks everything else on a
+  // new label), then Money — a duplicated invoice costs real money, a
+  // duplicate release costs attention.
   const ordered = GROUP_ORDER.flatMap(name =>
-    problems.filter(c => classify(c.kind).group === name)
+    problems.filter(c => classifyCat(c).group === name)
       .sort((a, b) => (b.count || 0) - (a.count || 0)))
 
   return (
@@ -1274,9 +1412,15 @@ function Overview({ categories, totalFlags, onPick }) {
                         visual noise on this page. */}
                     <span className={`w-2 h-2 rounded-full shrink-0 ${sev.dot}`} />
                     <p className="text-[12px] font-bold text-ink truncate flex-1">{cat.label}</p>
+                    <span className="text-[10px] font-semibold uppercase tracking-wider text-gray-300 shrink-0">{classifyCat(cat).group}</span>
                     <ChevronRight size={14} className="text-gray-300 group-hover:text-boom-500 shrink-0" />
                   </div>
-                  <p className="text-2xl font-black text-ink mt-2 tabular-nums">{cat.count.toLocaleString()}</p>
+                  <div className="flex items-baseline gap-2 mt-2">
+                    <p className="text-2xl font-black text-ink tabular-nums">{cat.count.toLocaleString()}</p>
+                    {newIn?.(cat) > 0 && <span className="text-[10px] font-bold uppercase tracking-wider text-boom-600 bg-boom-50 rounded px-1.5 py-0.5" data-card-new>{newIn(cat)} new</span>}
+                    {cat.tracking?.owner && <span className="text-[10.5px] text-violet-600 font-semibold truncate" data-card-owner>→ {cat.tracking.owner.user_name}</span>}
+                    {cat.tracking?.oldest_days > 0 && <span className="text-[10.5px] text-gray-400 ml-auto">oldest {ageLabel(cat.tracking.oldest_days)}</span>}
+                  </div>
                   <p className="text-[11px] text-gray-400 mt-1 line-clamp-2">{cat.description}</p>
                 </button>
               )
@@ -1347,7 +1491,15 @@ function CategoryBody({
   // which made every dismiss/restore button below throw a ReferenceError
   // on click.
   onToggleGroupDismiss,
+  team, focusKey, isNew, onDismissRegister, onAssign, onUnassign,
 }) {
+  // Register categories (workflow · compliance · setup) share ONE renderer.
+  if (cat.register) {
+    return (
+      <RegisterSection cat={cat} team={team} focusKey={focusKey} isNew={isNew}
+        onDismiss={onDismissRegister} onAssign={onAssign} onUnassign={onUnassign} />
+    )
+  }
   // Ledger-row issues (artist column + missing song) share one renderer;
   // the per-kind quick-fix affordance varies based on what `suggestion` looks
   // artist_multi_normalize has its own group-based section — must

@@ -8,7 +8,7 @@
 // holds only what this person can unblock and hides when empty.
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Plus, Check, Circle, Trash2, AtSign, ChevronDown, ChevronRight, Calendar as CalendarIcon, Inbox, MessageSquare, Hourglass, Mail, Footprints, Loader } from 'lucide-react'
+import { Plus, Check, Circle, Trash2, AtSign, ChevronDown, ChevronRight, Calendar as CalendarIcon, Inbox, MessageSquare, Hourglass, Mail, Footprints, Loader, Flag } from 'lucide-react'
 import api from '../api'
 import { isPastLocal, daysUntilLocal } from '../utils'
 import { useAuth } from '../context/AuthContext'
@@ -116,6 +116,9 @@ export default function MyWork() {
   const waiting = [
     loop?.approvals && canView('/bk/approvals') && loop.approvals.count > 0 && { icon: Inbox, text: `${loop.approvals.count} invoice${loop.approvals.count === 1 ? '' : 's'} awaiting approval`, to: '/bk/approvals' },
     mentions > 0 && { icon: MessageSquare, text: `${mentions} unread mention${mentions === 1 ? '' : 's'}`, to: '/messages' },
+    // Flags new since this person last opened the page — the register's push
+    // (lib/flags-register summaryFor, via the Home loop). Only kinds they can act on.
+    loop?.flags && canView('/flags') && loop.flags.new > 0 && { icon: Flag, text: `${loop.flags.new} flag${loop.flags.new === 1 ? '' : 's'} new since you looked`, sub: loop.flags.count > loop.flags.new ? `${loop.flags.count} open in all` : null, to: '/flags' },
     (data?.invites_pending || []).length > 0 && { icon: Mail, text: `${data.invites_pending.length} invite${data.invites_pending.length === 1 ? '' : 's'} you sent, not yet used`, sub: data.invites_pending.map((i) => i.name).join(', '), to: '/team' },
     canView('/bk/statements') && cutoffDays <= 7 && { icon: Hourglass, text: `Statement cutoff ${cutoffDays === 0 ? 'today' : `in ${cutoffDays} day${cutoffDays === 1 ? '' : 's'}`}`, sub: 'the 20th', to: '/bk/statements' },
     updatedTours.length > 0 && { icon: Footprints, text: `${updatedTours.length} walkthrough${updatedTours.length === 1 ? '' : 's'} updated since you took ${updatedTours.length === 1 ? 'it' : 'them'}`, sub: updatedTours.map((t) => t.title).join(', '), to: null },
@@ -296,6 +299,7 @@ function TaskRow({ task: t, expanded, onToggleExpand, onToggleDone, onPatch, onD
             {fromOther && t.assigned_by_name && <span>· from {t.assigned_by_name.split(' ')[0]}</span>}
             {t.status === 'In Progress' && <span className="text-blue-600">· in progress</span>}
             {t.release_name && <span>· {t.release_name}</span>}
+            {t.flag_kind && <span className="text-boom-600">· <Link to={`/flags?tab=${t.flag_kind}${t.flag_key && t.flag_key !== '*' ? `&focus=${encodeURIComponent(t.flag_key)}` : ''}`} onClick={(e) => e.stopPropagation()} data-task-flag-link>open flag</Link></span>}
           </p>
         </button>
         {/* Notes live NEXT TO the task, always visible (John: "I liked the notes

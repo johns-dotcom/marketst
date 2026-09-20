@@ -71,6 +71,7 @@ async function main() {
   const waiting = host.querySelector('[data-waiting]')
   assert('Waiting on you: approvals, the mention, the unused invite', !!waiting && /3 invoices awaiting approval/.test(textOf(waiting)) && /1 unread mention/.test(textOf(waiting)) && /1 invite you sent/.test(textOf(waiting)) && /Rosa Lind/.test(textOf(waiting)))
   assert('each item links to its page', [...waiting.querySelectorAll('a')].map((a) => a.getAttribute('href')).includes('/bk/approvals'))
+  assert('Waiting on you: flags new since I looked, linking to /flags', /2 flags new since you looked/.test(textOf(waiting)) && [...waiting.querySelectorAll('a')].map((a) => a.getAttribute('href')).includes('/flags'))
   assert('nothing threw', errors.length === 0)
   if (errors.length) say('  ' + errors.join('\n  '))
   say('DONE'); globalThis.__DONE__ = true

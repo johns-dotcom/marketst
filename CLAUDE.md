@@ -564,6 +564,58 @@ Authoritative project guide: **`boom-dashboard/CLAUDE.md`** — read it before m
   delete, the full archive. Page rows never bind a Superadmin, bind an Admin
   once curated, and bind an Approver/User always. When a gate changes, change
   roles.js in the same commit.
+- **Flags is the exception REGISTER, with memory (2026-09-20, John: "improve the
+  flags page so that nothing is missed from the get go"; his calls: absorb
+  workflow stalls + setup/ops health + compliance, push via Home tile + My Work,
+  Assign makes a task, sweep HOURLY).** `server/lib/flags-register.js` is the
+  engine: `flag_register (kind, key)` rows upserted by a SWEEP that runs every
+  detector — ~35 new ones in `DETECTORS` (Setup: label blanks, encryption key,
+  mail/QuickBooks/DocuSign health, failed sends and pushes, unmapped QuickBooks
+  categories, stale artist stats, statement never came, unused invites, never
+  signed in · Workflow: approvals stale, payments overdue / unscheduled, holds
+  and rushes aging, envelopes stuck, Signed deal with no contract, onboarding
+  stalled, expired contract with no replacement, contract with no file, artist
+  releasing with no contract, release unassigned / behind, tasks overdue ·
+  Compliance: invoice scan discrepancies, no W-9, approved with no payment
+  details, zero/negative amounts, no category, no document, foreign paid with
+  no rate, advance with no artist) PLUS the data-quality detectors exported as
+  `router.detectors` from routes/flags.js. A row keeps `first_seen`, gets
+  `resolved_at` when a sweep stops seeing it, and is NEW to a viewer when
+  first_seen > `users.flags_seen_at` (`POST /flags/seen`, stamped by the page
+  AFTER its first load; the page keeps the first seen-at in a ref so a refetch
+  does not erase "new"). **Dismiss and snooze bind to a fingerprint of the
+  flagged VALUE** — a changed row resurfaces; the old row-level
+  `flag_dismissals` gained `value_fingerprint` for the same reason.
+  **A detector that throws does not clear its rows**; the error lands in
+  `flag_sweeps.errors` and the page names the check ("2 checks could not run").
+  Thresholds are `DAYS` at the top of the lib. Gating is the loop's: every kind
+  carries the `page` that resolves it and is shown only under `pagesReachable`;
+  Setup and bank kinds also carry `roles`. Hourly: `integrations-worker` claims
+  `flags_sweep` per hour; `POST /flags/sweep` (Admin) is the page's "Check now".
+  `GET /flags` returns `{ data, meta }` — register categories carry
+  `register: true` and render through ONE component
+  (`components/flags/RegisterSection.jsx`: Open · Assign · Snooze · Dismiss);
+  data-quality categories carry `tracking` {new, oldest_days, owner} and
+  `truncated`/`shown` when the body is capped (the header used to say 1,240
+  over 500 rows with nothing admitting it). **Assign** (`POST /flags/assign`,
+  key `'*'` = the whole category) makes ONE task (`tasks.flag_kind/flag_key`,
+  `flag_assignments`) in the assignee's My Work, linked back, and the sweep
+  closes it with a note when the flag clears. Push: Home loop section `flags`
+  (`summaryFor`) → the Flags tile; My Work "Waiting on you" row. The rail lists
+  only categories with something in them plus "N checks clear" per group; the
+  all-clear card lists every group with its count of checks. Order: Setup ·
+  Money · Workflow · Compliance · Ledger · Catalog · Artists. **Boom-tuned rules
+  made data:** `bk_categories.artist_required` (seeded from the ten hard-coded
+  names; missing artist/song read it), socials scope = Campaigns'
+  `CAMPAIGN_CATEGORIES` + PR. Left alone on purpose: `unknown` stays a real
+  artist name (John's Boom call, recorded in lib/artist-key.js — ask before
+  changing); the statements engine's 31 flag types are not in the register
+  (they keep fingerprint acks on Statements); 1099 readiness, the recoupment
+  audit's five checks and `/statements/unattributed` are not detectors yet (their
+  logic is embedded in route handlers). Harnesses: `server/scripts/flags-register-fixture.cjs`
+  (45), `npm run flags-dom` (35, admin · section · empty · user); home-dom (51)
+  and mywork-dom (24) grew the tile and the rail row. Tours `flags` and `home`
+  bumped to 2026-09-21.
 - **Bank-statement heuristics were tuned on Boom's Bank of America statements.** The own-name lists (`statements.js` stop-words, `funding-pairs.js` account-trailer strip) now say Market Street, but the layout parsers have not seen a Market Street statement yet. Expect the AI fallback to do the work until they do.
 
 ## Commands (run from `boom-dashboard/`)

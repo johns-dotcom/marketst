@@ -3,6 +3,7 @@
 // jobs must run regardless.
 //
 //   every 10 min  QuickBooks queue (lib/qbo.processQueue) · DocuSign envelope poll
+//   hourly        the flag register sweep (lib/flags-register.sweep)
 //   daily 06:00 LA  artist stats refresh (Spotify Web API + Chartmetric), claimed
 //                   once per day in integration_jobs so two instances never both run it
 const pool = require('../db');
@@ -26,6 +27,12 @@ async function tick(now = new Date()) {
       out.stats = await require('./artist-stats').refreshAll();
       await pool.query('UPDATE integration_jobs SET result = $3::jsonb WHERE job = $1 AND period = $2', ['artist_stats', date, JSON.stringify(out.stats)]).catch(() => {});
     } catch (e) { console.warn('[integrations] artist stats:', e.message); }
+  }
+  // The flag register sweeps HOURLY (John, 2026-09-19), claimed per hour so two
+  // instances never both run it. lib/flags-register writes flag_sweeps either way.
+  if (await claim('flags_sweep', `${date}T${String(hour).padStart(2, '0')}`)) {
+    try { out.flags = await require('./flags-register').sweep({ trigger: 'hourly' }); }
+    catch (e) { console.warn('[integrations] flags sweep:', e.message); }
   }
   return out;
 }

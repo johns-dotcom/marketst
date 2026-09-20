@@ -28,6 +28,7 @@ export const ROLES = [
       'Everything an Approver can do on invoices and payments',
       'Bank statements, bank matching and bank flags (these carry account balances, so Approvers do not see them)',
       'Label settings: the label record, integrations (mail, QuickBooks, DocuSign), Market Street reps',
+      'The Setup group on Flags (label record blanks, mail and integration health, invites) and Check now, which runs every check on the spot',
       'Admin documents (except Restricted), Activity log, Analytics',
       'Archive and merge artists and releases; delete anyone\'s chat message; see everyone\'s tasks',
       'Full TINs in the 1099 export and the deleted-rows ledger',

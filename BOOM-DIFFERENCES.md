@@ -249,14 +249,30 @@ theme layer using the same hooks, not this one.
 Client (`cd client && npm run …`): `home-dom`, `handoff-dom`, `hub-dom`,
 `calendar-dom`, `budgetsimple-dom`, `onboarding-dom`, `settings-dom`,
 `mywork-dom`, `tour-dom`, `tours-fixture`, `nav-fixture`, `navpresets-fixture`,
-`vendorform-dom`. Server (`server/scripts/*.cjs`, against a server on :3011):
+`vendorform-dom`, `flags-dom`. Server (`server/scripts/*.cjs`, against a server on :3011):
 `home-loop`, `calendar`, `signing`, `artist-budget-simple`,
 `artist-budget-name`, `settings`, `label`, `invite`, `brand`, `mail`,
-`gmail-transport`, `qbo`, `docusign`, `artist-stats`. Two harness lessons
+`gmail-transport`, `qbo`, `docusign`, `artist-stats`, `flags-register`. Two harness lessons
 worth carrying: migrations run AFTER listen, so fixtures sleep after `/health`;
 and jsdom for the client harnesses lives in `/tmp/domtest`, which macOS prunes.
 
 ---
+
+## 17. Flags is an exception register — PORT
+
+`server/lib/flags-register.js` (new), `routes/flags.js` (exports `detectors`,
+returns `{ data, meta }`, endpoints `/summary` `/seen` `/sweep`
+`/register/dismiss` `/assign`), `routes/dashboard.js` (loop section `flags`),
+`lib/integrations-worker.js` (hourly claim), `components/flags/RegisterSection.jsx`,
+`pages/Duplicates.jsx`, `Dashboard.jsx`, `MyWork.jsx`. Tables `flag_register`,
+`flag_sweeps`, `flag_assignments`; columns `users.flags_seen_at`,
+`tasks.flag_kind/flag_key`, `flag_dismissals.value_fingerprint`,
+`bk_categories.artist_required`. Root CLAUDE.md "Flags is the exception
+REGISTER" has the rules. Ports cleanly: nothing in it names Market Street; the
+Setup detectors read `label_settings`, `mailboxes`, `qbo_connection`,
+`docusign_account` which Cadence would map to its own tables. The LABEL-shaped
+part is the seed for `artist_required` (Boom's ten category names) and the
+`DAYS` thresholds.
 
 ## Suggested order for Cadence
 

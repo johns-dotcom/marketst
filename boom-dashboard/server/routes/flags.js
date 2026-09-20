@@ -678,12 +678,33 @@ const ARTIST_FLAG_KINDS = [
   'missing_socials',// promo-category row with no social_handles on file
 ];
 // Categories where an empty artist is reasonable (overhead, salary, etc.) and
-// not worth flagging.
-const ARTIST_REQUIRED_CATEGORIES = new Set([
+// not worth flagging. THE LIST IS DATA: `bk_categories.artist_required`,
+// seeded once from these Boom names by lib/flags-register.ensureSchema and
+// editable per label. Hard-coded here, a label whose categories are named
+// differently had "missing artist" and "missing song" firing on ZERO rows.
+// The literal survives only as the fallback for a database with no rows.
+const DEFAULT_ARTIST_REQUIRED = new Set([
   'Marketing', 'PR', 'Radio', 'Recording', 'Music Video',
   'Production', 'Sync/Licensing', 'Mixing & Mastering',
   'Distribution', 'Design',
 ]);
+async function artistRequiredSet() {
+  try {
+    const s = await require('../lib/flags-register').artistRequiredCategories();
+    if (s && s.size) return s;
+  } catch { /* fall through */ }
+  return DEFAULT_ARTIST_REQUIRED;
+}
+// Where creator / influencer payments live and social handles are expected:
+// the Campaigns page's own scope (one definition) plus PR.
+function socialsCategories() {
+  try { return [...new Set([...(require('./artist-campaigns').CAMPAIGN_CATEGORIES || []), 'PR'])]; }
+  catch { return ['Marketing', 'Advertisements', 'PR']; }
+}
+// What a row-level dismissal is bound to. A dismissal made when the artist
+// read "Unkown" must not survive the artist being changed to a different
+// wrong name — so the dismissal remembers the value and the detectors compare.
+const valueFp = (row) => require('../lib/flags-register').fp([String(row?.artist ?? ''), String(row?.song ?? '')]);
 // Multi-name separator pattern. We treat ',' or '&' or '/' or ' and ' as
 // indicators of multiple artists in one field. We DON'T treat ' x ' or ' feat '
 // — those are common in song titles but shouldn't appear in the artist column.
@@ -750,6 +771,7 @@ async function getMultiArtistGroups() {
 const normArtistKey = (s) => normalizeArtistName(s);
 
 async function getArtistFlags() {
+  const ARTIST_REQUIRED_CATEGORIES = await artistRequiredSet();
   // 1. Pull every approved, undeleted expense. We deliberately exclude
   // status='pending' (vendor-submitted but not yet reviewed) and 'rejected'
   // — vendors routinely type junk into the artist field on submission and
@@ -802,9 +824,17 @@ async function getArtistFlags() {
   const releaseById = new Map(releaseRows.map(r => [r.release_id, r]));
 
   // 4. Dismissals so we don't surface what's already been waved off.
-  const { rows: dismissals } = await pool.query(`SELECT entry_id, flag_kind FROM flag_dismissals`);
-  const dismissedSet = new Set(dismissals.map(d => `${d.entry_id}|${d.flag_kind}`));
-  const isDismissed = (id, kind) => dismissedSet.has(`${id}|${kind}`);
+  // A dismissal made before value_fingerprint existed (NULL) still holds; one
+  // made since holds only while the row's artist/song read what they read then.
+  const { rows: dismissals } = await pool.query(`SELECT entry_id, flag_kind, value_fingerprint FROM flag_dismissals`);
+  const dismissedMap = new Map(dismissals.map(d => [`${d.entry_id}|${d.flag_kind}`, d.value_fingerprint]));
+  const entryById = new Map(entries.map(e => [e.id, e]));
+  const isDismissed = (id, kind) => {
+    const k = `${id}|${kind}`;
+    if (!dismissedMap.has(k)) return false;
+    const vf = dismissedMap.get(k);
+    return !vf || vf === valueFp(entryById.get(id));
+  };
 
   // ── Detectors ──────────────────────────────────────────────────────────────
   const unknown      = [];
@@ -962,7 +992,7 @@ async function getArtistFlags() {
 // handled deliberately: a parent row with empty song is OK if its children
 // carry a song, because the parent is just the split container.
 async function getMissingSongFlags() {
-  const cats = Array.from(ARTIST_REQUIRED_CATEGORIES);
+  const cats = Array.from(await artistRequiredSet());
   const placeholders = cats.map((_, i) => `$${i + 1}`).join(', ');
   const { rows } = await pool.query(`
     SELECT e.id, e.invoice_date, e.payee, e.artist, e.song, e.category,
@@ -998,10 +1028,10 @@ async function getMissingSongFlags() {
      ORDER BY e.invoice_date DESC
   `, cats);
   const { rows: dismissals } = await pool.query(
-    `SELECT entry_id FROM flag_dismissals WHERE flag_kind = 'missing_song'`
+    `SELECT entry_id, value_fingerprint FROM flag_dismissals WHERE flag_kind = 'missing_song'`
   );
-  const dismissed = new Set(dismissals.map(d => d.entry_id));
-  return rows.filter(r => !dismissed.has(r.id));
+  const dismissed = new Map(dismissals.map(d => [d.entry_id, d.value_fingerprint]));
+  return rows.filter(r => !dismissed.has(r.id) || (dismissed.get(r.id) && dismissed.get(r.id) !== valueFp(r)));
 }
 
 // Ledger rows that should plausibly carry social handles but don't. Scoped to
@@ -1044,14 +1074,71 @@ async function getMissingSocialsFlags() {
          OR jsonb_typeof(e.social_handles) <> 'array'
          OR jsonb_array_length(e.social_handles) = 0
        )
-       AND (e.category IN ('Marketing', 'PR') OR e.cobrand = TRUE)
+       AND (e.category = ANY($1) OR e.cobrand = TRUE)
      ORDER BY e.invoice_date DESC NULLS LAST, e.id DESC
-  `);
+  `, [socialsCategories()]);
   const { rows: dismissals } = await pool.query(
-    `SELECT entry_id FROM flag_dismissals WHERE flag_kind = 'missing_socials'`
+    `SELECT entry_id, value_fingerprint FROM flag_dismissals WHERE flag_kind = 'missing_socials'`
   );
-  const dismissed = new Set(dismissals.map(d => d.entry_id));
-  return rows.filter(r => !dismissed.has(r.id));
+  const dismissed = new Map(dismissals.map(d => [d.entry_id, d.value_fingerprint]));
+  return rows.filter(r => !dismissed.has(r.id) || (dismissed.get(r.id) && dismissed.get(r.id) !== valueFp(r)));
+}
+
+// Human-raised review flags — the flag button on a ledger row, and the F key
+// in a bank review deck. Functions rather than inline queries so the register
+// sweep can run them too. LIMIT 300 attached; `total` is the uncapped count.
+async function getFlaggedExpenses() {
+  const [{ rows }, { rows: [{ n }] }] = await Promise.all([
+    pool.query(`
+      SELECT e.id, e.payee, e.amount, COALESCE(e.currency, 'USD') AS currency,
+             e.invoice_date, e.invoice_number, e.artist, e.category,
+             e.payment_status, e.flag_reason, e.flagged_at, e.entry_source,
+             COALESCE(e.parent_id, e.id) AS file_entry_id,
+             e.proof_filename, e.receipt_filename,
+             ((e.proof_data IS NOT NULL AND e.proof_data != '')
+               OR e.proof_r2_key IS NOT NULL) AS has_proof,
+             (e.receipt_data IS NOT NULL AND e.receipt_data != '') AS has_receipt,
+             u.name AS flagged_by_name,
+             e.invoice_filename,
+             ((e.invoice_data IS NOT NULL AND e.invoice_data != '')
+               OR e.invoice_r2_key IS NOT NULL
+               OR EXISTS (
+                 SELECT 1 FROM expenses p
+                  WHERE p.id = e.parent_id
+                    AND ((p.invoice_data IS NOT NULL AND p.invoice_data != '')
+                         OR p.invoice_r2_key IS NOT NULL)
+               )) AS has_invoice
+        FROM expenses e
+        LEFT JOIN users u ON u.id = e.flagged_by
+       WHERE e.flagged = true
+         AND (e.deleted = false OR e.deleted IS NULL)
+         AND (e.voided = false OR e.voided IS NULL)
+       ORDER BY e.flagged_at DESC NULLS LAST, e.id DESC
+       LIMIT 300`),
+    pool.query(`SELECT COUNT(*)::int AS n FROM expenses e WHERE e.flagged = true AND (e.deleted = false OR e.deleted IS NULL) AND (e.voided = false OR e.voided IS NULL)`),
+  ]);
+  rows.total = n;
+  return rows;
+}
+async function getFlaggedTransactions() {
+  // Deck markers live on bank_transactions.flagged — a different column from
+  // expenses.flagged, set by the review deck's F key. Dismissed rows are
+  // excluded: a dismissed transaction is a closed decision.
+  const [{ rows }, { rows: [{ n }] }] = await Promise.all([
+    pool.query(`
+      SELECT t.id, t.txn_date, t.amount, COALESCE(t.currency, 'USD') AS currency,
+             t.description, t.payee_guess, t.direction, t.flagged_by,
+             t.statement_id, s.account, s.filename,
+             (t.matched_expense_id IS NOT NULL OR t.matched_income_id IS NOT NULL) AS is_booked
+        FROM bank_transactions t
+        JOIN bank_statements s ON s.id = t.statement_id AND s.status = 'ready'
+       WHERE t.flagged = true AND t.dismissed = false
+       ORDER BY t.txn_date DESC NULLS LAST, t.id DESC
+       LIMIT 300`),
+    pool.query(`SELECT COUNT(*)::int AS n FROM bank_transactions t JOIN bank_statements s ON s.id = t.statement_id AND s.status = 'ready' WHERE t.flagged = true AND t.dismissed = false`),
+  ]);
+  rows.total = n;
+  return rows;
 }
 
 // GET /api/flags/artist-issues — returns counted buckets per kind, optionally
@@ -1088,11 +1175,14 @@ router.post('/artist-issues/dismiss', authMiddleware, async (req, res) => {
     if (!entry_id || !ARTIST_FLAG_KINDS.includes(flag_kind)) {
       return res.status(400).json({ success: false, error: 'entry_id and a valid flag_kind required' });
     }
+    // Remember WHAT was waved off: the row's artist and song as they read now.
+    // The detectors ignore this dismissal once either changes.
+    const { rows: [row] } = await pool.query(`SELECT artist, song FROM expenses WHERE id = $1`, [entry_id]);
     await pool.query(
-      `INSERT INTO flag_dismissals (entry_id, flag_kind, dismissed_by)
-       VALUES ($1, $2, $3)
-       ON CONFLICT (entry_id, flag_kind) DO UPDATE SET dismissed_at = NOW(), dismissed_by = EXCLUDED.dismissed_by`,
-      [entry_id, flag_kind, req.user?.id || null]
+      `INSERT INTO flag_dismissals (entry_id, flag_kind, dismissed_by, value_fingerprint)
+       VALUES ($1, $2, $3, $4)
+       ON CONFLICT (entry_id, flag_kind) DO UPDATE SET dismissed_at = NOW(), dismissed_by = EXCLUDED.dismissed_by, value_fingerprint = EXCLUDED.value_fingerprint`,
+      [entry_id, flag_kind, req.user?.id || null, row ? valueFp(row) : null]
     );
     res.json({ success: true });
   } catch (err) {
@@ -1425,46 +1515,8 @@ router.get('/', authMiddleware, async (req, res) => {
     const isBankRole = role === 'Admin' || role === 'Superadmin';
     if (isBkRole) {
       const [flaggedExpenses, flaggedTxns] = await Promise.all([
-        pool.query(`
-          SELECT e.id, e.payee, e.amount, COALESCE(e.currency, 'USD') AS currency,
-                 e.invoice_date, e.invoice_number, e.artist, e.category,
-                 e.payment_status, e.flag_reason, e.flagged_at, e.entry_source,
-                 e.proof_filename, e.receipt_filename,
-                 ((e.proof_data IS NOT NULL AND e.proof_data != '')
-                   OR e.proof_r2_key IS NOT NULL) AS has_proof,
-                 (e.receipt_data IS NOT NULL AND e.receipt_data != '') AS has_receipt,
-                 u.name AS flagged_by_name,
-                 e.invoice_filename,
-                 ((e.invoice_data IS NOT NULL AND e.invoice_data != '')
-                   OR e.invoice_r2_key IS NOT NULL
-                   OR EXISTS (
-                     SELECT 1 FROM expenses p
-                      WHERE p.id = e.parent_id
-                        AND ((p.invoice_data IS NOT NULL AND p.invoice_data != '')
-                             OR p.invoice_r2_key IS NOT NULL)
-                   )) AS has_invoice
-            FROM expenses e
-            LEFT JOIN users u ON u.id = e.flagged_by
-           WHERE e.flagged = true
-             AND (e.deleted = false OR e.deleted IS NULL)
-             AND (e.voided = false OR e.voided IS NULL)
-           ORDER BY e.flagged_at DESC NULLS LAST, e.id DESC
-           LIMIT 300`),
-        // Deck markers live on bank_transactions.flagged — a different column
-        // from expenses.flagged, set by the review deck's F key. Dismissed
-        // rows are excluded: a dismissed transaction is a closed decision.
-        isBankRole
-          ? pool.query(`
-              SELECT t.id, t.txn_date, t.amount, COALESCE(t.currency, 'USD') AS currency,
-                     t.description, t.payee_guess, t.direction, t.flagged_by,
-                     t.statement_id, s.account, s.filename,
-                     (t.matched_expense_id IS NOT NULL OR t.matched_income_id IS NOT NULL) AS is_booked
-                FROM bank_transactions t
-                JOIN bank_statements s ON s.id = t.statement_id AND s.status = 'ready'
-               WHERE t.flagged = true AND t.dismissed = false
-               ORDER BY t.txn_date DESC NULLS LAST, t.id DESC
-               LIMIT 300`)
-          : Promise.resolve({ rows: [] }),
+        getFlaggedExpenses(),
+        isBankRole ? getFlaggedTransactions() : Promise.resolve(Object.assign([], { total: 0 })),
       ]);
 
       categories.push({
@@ -1472,8 +1524,8 @@ router.get('/', authMiddleware, async (req, res) => {
         label: 'Ledger — Flagged for Review',
         description: 'Ledger rows someone flagged with the flag button, with whatever reason they left. Clearing a flag is the same toggle on the row itself.',
         severity: 'medium',
-        items: flaggedExpenses.rows,
-        count: flaggedExpenses.rows.length,
+        items: flaggedExpenses,
+        count: flaggedExpenses.total ?? flaggedExpenses.length,
       });
       if (isBankRole) {
         categories.push({
@@ -1481,8 +1533,8 @@ router.get('/', authMiddleware, async (req, res) => {
           label: 'Statements — Flagged in Review',
           description: 'Bank transactions marked with F during a review deck run. Flagging is a marker, not a decision — these are still open and will come back around in the next deck run.',
           severity: 'medium',
-          items: flaggedTxns.rows,
-          count: flaggedTxns.rows.length,
+          items: flaggedTxns,
+          count: flaggedTxns.total ?? flaggedTxns.length,
         });
       }
     }
@@ -1498,12 +1550,114 @@ router.get('/', authMiddleware, async (req, res) => {
       if (t.of_total != null) cat.of_total = t.of_total;
       if (t.missing_total != null) cat.count = t.missing_total;
     }
+    // A capped list must SAY it is capped. The header used to read "1,240"
+    // over a body of 500 rows with nothing in between admitting the gap.
+    for (const cat of categories) {
+      const shown = (cat.items || cat.groups || []).length;
+      if (cat.count > shown) { cat.truncated = true; cat.shown = shown; }
+    }
 
-    res.json({ success: true, data: categories });
+    // ── The register: new / age / owner on these categories, plus the
+    // workflow, compliance and setup categories that live only there. ──
+    const register = require('../lib/flags-register');
+    const { rows: [seenRow] } = await pool.query(`SELECT flags_seen_at FROM users WHERE id = $1`, [req.user.id]).catch(() => ({ rows: [{}] }));
+    const viewer = { ...req.user, flags_seen_at: seenRow?.flags_seen_at || null };
+    let meta = { seen_at: viewer.flags_seen_at, swept_at: null, sweep_errors: {}, sweep_counts: {} };
+    try {
+      await register.annotate(categories, viewer);
+      const regCats = await register.categoriesFor(viewer, { includeDismissed });
+      categories.push(...regCats);
+      const last = await register.lastSweep();
+      if (last) meta = { ...meta, swept_at: last.ran_at, sweep_errors: last.errors || {}, sweep_counts: last.counts || {}, sweep_trigger: last.trigger };
+      meta.new_total = categories.reduce((n, c) => n + (c.tracking?.new || 0), 0);
+      meta.detectors = register.DETECTORS.map((d) => ({ kind: d.kind, label: d.label, group: d.group, page: d.page }));
+    } catch (e) {
+      // The register failing must not take the data-quality hub down.
+      console.error('GET /api/flags register:', e.message);
+      meta.register_error = e.message;
+    }
+
+    res.json({ success: true, data: categories, meta });
   } catch (err) {
     console.error('GET /api/flags:', err);
     res.status(500).json({ success: false, error: err.message });
   }
+});
+
+// ── The register's own endpoints (lib/flags-register) ────────────────────────
+
+// GET /api/flags/summary — the Home tile / My Work row figures for this viewer.
+router.get('/summary', authMiddleware, async (req, res) => {
+  try {
+    const register = require('../lib/flags-register');
+    const { rows: [u] } = await pool.query(`SELECT flags_seen_at FROM users WHERE id = $1`, [req.user.id]).catch(() => ({ rows: [{}] }));
+    res.json({ success: true, data: await register.summaryFor({ ...req.user, flags_seen_at: u?.flags_seen_at || null }) });
+  } catch (err) { console.error('GET /api/flags/summary:', err); res.status(500).json({ success: false, error: err.message }); }
+});
+
+// POST /api/flags/seen — "I have looked": what is new resets from now.
+router.post('/seen', authMiddleware, async (req, res) => {
+  try { await require('../lib/flags-register').markSeen(req.user.id); res.json({ success: true, seen_at: new Date().toISOString() }); }
+  catch (err) { res.status(500).json({ success: false, error: err.message }); }
+});
+
+// POST /api/flags/sweep — run the sweep now (Admin/Superadmin; the page's ⟳).
+router.post('/sweep', authMiddleware, async (req, res) => {
+  try {
+    if (!['Admin', 'Superadmin'].includes(req.user?.role)) return res.status(403).json({ success: false, error: 'Admin required' });
+    const out = await require('../lib/flags-register').sweep({ trigger: `manual:${req.user.id}` });
+    res.json({ success: true, data: out });
+  } catch (err) { console.error('POST /api/flags/sweep:', err); res.status(500).json({ success: false, error: err.message }); }
+});
+
+// POST /api/flags/register/dismiss — { kind, key, until?: 'YYYY-MM-DD', undo?: bool }
+// `until` snoozes; without it the flag is dismissed. Either binds to the
+// flagged VALUE: a changed row comes back on the next sweep.
+router.post('/register/dismiss', authMiddleware, async (req, res) => {
+  try {
+    const { kind, key, until, undo } = req.body || {};
+    if (!kind || key == null) return res.status(400).json({ success: false, error: 'kind and key required' });
+    const register = require('../lib/flags-register');
+    if (!(await register.visibleKinds(req.user)).has(kind)) return res.status(403).json({ success: false, error: 'Not a flag you can act on' });
+    let untilTs = null;
+    if (until) { const d = new Date(until); if (Number.isNaN(d.getTime())) return res.status(400).json({ success: false, error: 'until must be a date' }); untilTs = d.toISOString(); }
+    const ok = await register.dismiss({ kind, key: String(key), userId: req.user.id, until: untilTs, undo: !!undo });
+    if (!ok) return res.status(404).json({ success: false, error: 'No such flag' });
+    res.json({ success: true });
+  } catch (err) { console.error('POST /api/flags/register/dismiss:', err); res.status(500).json({ success: false, error: err.message }); }
+});
+
+// POST /api/flags/assign — { kind, key?: '*', user_id, due_date?, title?, to?, severity? }
+// Makes ONE task in the assignee's My Work, linked back to the flag. key '*'
+// (or omitted) owns the whole category — the shape for the data-quality
+// categories, whose rows are worked through in bulk.
+router.post('/assign', authMiddleware, async (req, res) => {
+  try {
+    const { kind, key = '*', user_id, due_date, title, to, severity } = req.body || {};
+    if (!kind || !user_id) return res.status(400).json({ success: false, error: 'kind and user_id required' });
+    const [{ rows: [assignee] }, { rows: [actor] }] = await Promise.all([
+      pool.query(`SELECT id, name, email, hierarchy_level, notification_prefs FROM users WHERE id = $1`, [user_id]),
+      pool.query(`SELECT id, name, hierarchy_level FROM users WHERE id = $1`, [req.user.id]),
+    ]);
+    if (!assignee) return res.status(404).json({ success: false, error: 'No such person' });
+    const register = require('../lib/flags-register');
+    const task = await register.assign({ kind, key: String(key), assignee, actor, due_date: due_date || null, title, to, severity });
+    // Same email the task form sends, when the assignee wants it. Best effort.
+    if (String(assignee.id) !== String(req.user.id)) {
+      require('../lib/notifier').notifyAssigned({ assignee, assigner: actor.name, description: task.description, priority: task.priority, due_date: task.due_date }).catch(() => {});
+    }
+    res.json({ success: true, data: task });
+  } catch (err) { console.error('POST /api/flags/assign:', err); res.status(500).json({ success: false, error: err.message }); }
+});
+
+// DELETE /api/flags/assign?kind=&key= — drop the owner; their task closes.
+router.delete('/assign', authMiddleware, async (req, res) => {
+  try {
+    const { kind, key = '*' } = req.query || {};
+    if (!kind) return res.status(400).json({ success: false, error: 'kind required' });
+    const ok = await require('../lib/flags-register').unassign({ kind, key: String(key) });
+    res.json({ success: true, removed: ok });
+  } catch (err) { res.status(500).json({ success: false, error: err.message }); }
 });
 
 // POST /api/flags/artist-multi/apply
@@ -1577,5 +1731,16 @@ router.post('/artist-multi/apply', authMiddleware, async (req, res) => {
     client.release();
   }
 });
+
+// The data-quality detectors, for lib/flags-register's hourly sweep — so
+// duplicates and blanks get first-seen / age / ownership like everything else.
+router.detectors = {
+  getDuplicateReleases, getDuplicateArtists, getDuplicateVendors, getDuplicateInvoices,
+  getReleasesMissingGenre, getReleasesMissingIdentifier, getReleasesMissingSpotify,
+  getArtistsMissingGenre, getArtistsMissingSpotify, getMultiArtistGroups,
+  getArtistFlags, getMissingSongFlags, getMissingSocialsFlags,
+  getFlaggedExpenses, getFlaggedTransactions,
+  groupKeyForArtists, groupKeyForVendors,
+};
 
 module.exports = router;

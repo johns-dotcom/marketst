@@ -1526,6 +1526,10 @@ await pool.query(`ALTER TABLE expenses ADD COLUMN IF NOT EXISTS ai_scan JSONB`).
   await require('./lib/mail').importEnvMailbox();
   // QuickBooks · DocuSign · artist stats tables (lib/integrations-schema.js)
   await require('./lib/integrations-schema').ensure();
+  // The flag register (lib/flags-register.js): flag_register, flag_sweeps,
+  // flag_assignments, users.flags_seen_at, tasks.flag_kind/flag_key,
+  // flag_dismissals.value_fingerprint, bk_categories.artist_required.
+  await require('./lib/flags-register').ensureSchema();
 
   // Invites (2026-09-19): a person is created with no password and a one-time
   // link (token hashed here) that sets it. Seven days; resend voids the old one.
