@@ -20,7 +20,8 @@ const laParts = (d = new Date()) => {
   return { date: `${g('year')}-${g('month')}-${g('day')}`, hour: Number(g('hour')) % 24, weekday: g('weekday') };
 };
 const usd = (n) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(Number(n) || 0);
-const wrap = (title, body) => `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:560px;margin:0 auto;color:#111;"><div style="background:#334155;padding:18px 26px;border-radius:12px 12px 0 0;"><p style="margin:0;font-size:11px;font-weight:700;letter-spacing:2px;color:rgba(255,255,255,.7);text-transform:uppercase;">Market Street</p><h1 style="margin:6px 0 0;font-size:18px;color:#fff;">${title}</h1></div><div style="background:#f9f9f9;padding:24px 26px;border:1px solid #e5e5e5;border-top:none;border-radius:0 0 12px 12px;font-size:14px;color:#333;line-height:1.55;">${body}</div></div>`;
+const L = require('./email-layout');
+const wrap = (title, body) => L.layout({ title, eyebrow: 'Notifications', accent: 'mustard', body: `<div style="font-family:${L.SANS};font-size:15px;line-height:1.6;color:${L.PALETTE.ink};">${body}</div>`, footerNote: 'You chose this notification under Settings › Notifications.' });
 
 async function subscribers(pref) {
   const { rows } = await pool.query(`SELECT id, name, email FROM users WHERE email IS NOT NULL AND (notification_prefs->>$1)::boolean IS TRUE`, [pref]);

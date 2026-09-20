@@ -337,6 +337,24 @@ Authoritative project guide: **`boom-dashboard/CLAUDE.md`** — read it before m
   (daily, contracts hitting exactly 90 days out), weekly_digest (Fri 16:00) —
   each claimed once per period in `mail_jobs`; `notifyAssigned` emails a task
   immediately when the assignee's pref is on (then no preview is offered).
+  **Every email renders inside `server/lib/email-layout.js`** (2026-09-20,
+  John: "make the emails more unique to market street"): `layout({ title,
+  eyebrow, body, cta, accent, preheader, footerNote })` is the Market Street
+  frame — paper ground, the green MARKET ST street sign, IBM Plex Mono
+  headings, a flat accent bar (forest · brick · royal · mustard by email
+  kind), a footer with the label's name/address/contact from Settings › Label
+  (cached in-process, refreshed every 5 min — `layout` is SYNC because every
+  builder is sync and the preview modal calls them inline). Helpers `rows`,
+  `p`, `button`, `esc`. Users: every builder in services/email.js, notifier's
+  `wrap`, routes/team.js (now calls `buildTaskAssignmentHtml`), the approval
+  summary in bookkeeping.js (its tables are the `body`), the invite mail in
+  settings.js, the test send in mail.js. The same palette as
+  client/src/styles/marketst-form.css. A new template goes through `layout`;
+  do not hand-roll a header. **My mailbox** says so when the person's own
+  address is already the label's SHARED mailbox (`data-shared-is-mine`) —
+  before, it read "No mailbox connected" while Integrations showed it active.
+  `mail-fixture.cjs` calls `sendMail` in-process, so run it with
+  `MAIL_DRY_RUN=1` on BOTH the server and the fixture command.
   Invites: `POST /settings/users/:id/invite?send=1` emails the link; PersonModal
   "Email it", People "email it". Integrations' Mail row now reads the mailboxes
   table. Fixtures: `mail-fixture.cjs` (21, needs `MAIL_DRY_RUN=1` on the

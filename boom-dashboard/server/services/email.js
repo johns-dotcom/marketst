@@ -3,31 +3,17 @@
 // became a second caller. Same code, same behaviour (a fresh token per call) —
 // the move exists so the two integrations can never drift apart on credentials.
 const { sendMail, isConnected } = require('../lib/mail');
+const L = require('../lib/email-layout'); // the Market Street frame every template renders inside
 
 const APP_URL = process.env.FRONTEND_URL || 'https://marketst-production.up.railway.app';
 
 function buildWelcomeHtml({ name, email, role, department }) {
-  return `
-      <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:560px;margin:0 auto;color:#111;">
-        <div style="background:#334155;padding:20px 28px;border-radius:12px 12px 0 0;">
-          <p style="margin:0;font-size:11px;font-weight:700;letter-spacing:2px;color:rgba(255,255,255,0.7);text-transform:uppercase;">Market Street Dashboard</p>
-          <h1 style="margin:6px 0 0;font-size:20px;font-weight:700;color:#fff;">Welcome, ${escapeHtml(name)}</h1>
-        </div>
-        <div style="background:#f9f9f9;padding:28px;border:1px solid #e5e5e5;border-top:none;border-radius:0 0 12px 12px;">
-          <p style="margin:0 0 20px;font-size:14px;color:#444;">Your account has been created. Sign in with your Google account (<strong>${escapeHtml(email)}</strong>) to get started.</p>
-          <table style="width:100%;border-collapse:collapse;margin-bottom:24px;">
-            <tr>
-              <td style="padding:8px 12px;background:#fff;border:1px solid #e5e5e5;font-size:12px;font-weight:600;color:#999;text-transform:uppercase;letter-spacing:0.5px;width:110px;">Role</td>
-              <td style="padding:8px 12px;background:#fff;border:1px solid #e5e5e5;border-left:none;font-size:14px;">${escapeHtml(role || '')}</td>
-            </tr>
-            <tr>
-              <td style="padding:8px 12px;background:#fff;border:1px solid #e5e5e5;border-top:none;font-size:12px;font-weight:600;color:#999;text-transform:uppercase;letter-spacing:0.5px;">Department</td>
-              <td style="padding:8px 12px;background:#fff;border:1px solid #e5e5e5;border-left:none;border-top:none;font-size:14px;">${escapeHtml(department || '')}</td>
-            </tr>
-          </table>
-          <a href="${APP_URL}" style="display:inline-block;background:#334155;color:#fff;text-decoration:none;padding:12px 24px;border-radius:6px;font-size:14px;font-weight:600;">Log in to Dashboard</a>
-        </div>
-      </div>`;
+  return L.layout({
+    title: `Welcome, ${name}`, eyebrow: 'Welcome aboard', accent: 'forest',
+    preheader: 'Your Market Street dashboard account is ready.',
+    body: L.p(`Your account has been created. Sign in with your Google account (${email}) to get started.`) + L.rows([['Role', role || ''], ['Department', department || '']]),
+    cta: { label: 'Open the dashboard', href: APP_URL },
+  });
 }
 
 /**
@@ -58,36 +44,17 @@ function buildVendorApprovedHtml({ vendorName, amount, currency, invoiceNumber, 
   const payBy = new Date(submittedDate);
   payBy.setDate(payBy.getDate() + 30);
   const payByStr = payBy.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
-  return `
-      <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:560px;margin:0 auto;color:#111;">
-        <div style="background:#334155;padding:20px 28px;border-radius:12px 12px 0 0;">
-          <p style="margin:0;font-size:11px;font-weight:700;letter-spacing:2px;color:rgba(255,255,255,0.7);text-transform:uppercase;">Market Street</p>
-          <h1 style="margin:6px 0 0;font-size:20px;font-weight:700;color:#fff;">Invoice Approved</h1>
-        </div>
-        <div style="background:#f9f9f9;padding:28px;border:1px solid #e5e5e5;border-top:none;border-radius:0 0 12px 12px;">
-          <p style="margin:0 0 16px;font-size:14px;color:#444;">Hi ${escapeHtml(vendorName)},</p>
-          <p style="margin:0 0 20px;font-size:14px;color:#444;">Your invoice has been <strong style="color:#16a34a;">approved</strong> and is being processed for payment.</p>
-          <table style="width:100%;border-collapse:collapse;margin-bottom:20px;">
-            ${invoiceNumber ? `<tr>
-              <td style="padding:8px 12px;background:#fff;border:1px solid #e5e5e5;font-size:12px;font-weight:600;color:#999;text-transform:uppercase;width:120px;">Invoice #</td>
-              <td style="padding:8px 12px;background:#fff;border:1px solid #e5e5e5;border-left:none;font-size:14px;">${escapeHtml(invoiceNumber)}</td>
-            </tr>` : ''}
-            ${fmtAmount ? `<tr>
-              <td style="padding:8px 12px;background:#fff;border:1px solid #e5e5e5;border-top:none;font-size:12px;font-weight:600;color:#999;text-transform:uppercase;width:120px;">Amount</td>
-              <td style="padding:8px 12px;background:#fff;border:1px solid #e5e5e5;border-left:none;border-top:none;font-size:14px;font-weight:700;">${fmtAmount}</td>
-            </tr>` : ''}
-            ${artist ? `<tr>
-              <td style="padding:8px 12px;background:#fff;border:1px solid #e5e5e5;border-top:none;font-size:12px;font-weight:600;color:#999;text-transform:uppercase;width:120px;">Artist</td>
-              <td style="padding:8px 12px;background:#fff;border:1px solid #e5e5e5;border-left:none;border-top:none;font-size:14px;">${escapeHtml(artist)}</td>
-            </tr>` : ''}
-          </table>
-          <div style="background:#fff;border:1px solid #e5e5e5;border-left:3px solid #334155;padding:12px 16px;margin:0 0 16px;border-radius:0 6px 6px 0;">
-            <p style="margin:0 0 4px;font-size:12px;font-weight:700;color:#334155;text-transform:uppercase;letter-spacing:0.5px;">Payment Schedule</p>
-            <p style="margin:0;font-size:13px;color:#444;">Market Street operates on a Net 30 payment schedule. You can expect your payment to hit by <strong>${payByStr}</strong>.</p>
-          </div>
-          <p style="margin:0;font-size:13px;color:#888;">You'll receive another email with proof of payment once the payment has been completed.</p>
-        </div>
-      </div>`;
+  const name = L.labelInfo().display_name || 'Market Street';
+  return L.layout({
+    title: 'Invoice approved', eyebrow: 'Accounts payable', accent: 'forest',
+    preheader: `Your invoice${invoiceNumber ? ` #${invoiceNumber}` : ''} is approved and scheduled for payment.`,
+    body: L.p(`Hi ${vendorName},`) + L.p(`Your invoice has been <strong style="color:${L.PALETTE.forest};">approved</strong> and is being processed for payment.`, { raw: true })
+      + L.rows([['Invoice #', invoiceNumber, { mono: true }], ['Amount', fmtAmount, { strong: true }], ['Artist', artist]])
+      + `<table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;margin:0 0 16px;"><tr><td style="border-left:4px solid ${L.PALETTE.mustard};background:#fff;padding:12px 16px;">
+           <p style="margin:0 0 4px;font-family:${L.MONO};font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:${L.PALETTE.muted};">Payment schedule</p>
+           <p style="margin:0;font-family:${L.SANS};font-size:14px;line-height:1.6;color:${L.PALETTE.ink};">${L.esc(name)} pays on a Net 30 schedule. Expect payment by <strong>${payByStr}</strong>.</p></td></tr></table>`
+      + L.p("You'll get another email with proof of payment once it has gone out.", { small: true, muted: true }),
+  });
 }
 
 /**
@@ -115,33 +82,16 @@ async function sendVendorApprovedEmail({ vendorName, vendorEmail, amount, curren
 
 function buildVendorRejectedHtml({ vendorName, amount, currency, invoiceNumber, reason }) {
   const fmtAmount = amount ? new Intl.NumberFormat('en-US', { style: 'currency', currency: currency || 'USD' }).format(amount) : '';
-  return `
-      <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:560px;margin:0 auto;color:#111;">
-        <div style="background:#334155;padding:20px 28px;border-radius:12px 12px 0 0;">
-          <p style="margin:0;font-size:11px;font-weight:700;letter-spacing:2px;color:rgba(255,255,255,0.7);text-transform:uppercase;">Market Street</p>
-          <h1 style="margin:6px 0 0;font-size:20px;font-weight:700;color:#fff;">Invoice Update</h1>
-        </div>
-        <div style="background:#f9f9f9;padding:28px;border:1px solid #e5e5e5;border-top:none;border-radius:0 0 12px 12px;">
-          <p style="margin:0 0 16px;font-size:14px;color:#444;">Hi ${escapeHtml(vendorName)},</p>
-          <p style="margin:0 0 20px;font-size:14px;color:#444;">Unfortunately, your invoice could not be approved at this time.</p>
-          ${reason ? `
-          <div style="background:#fef2f2;border-left:3px solid #dc2626;padding:12px 16px;margin:0 0 20px;border-radius:0 6px 6px 0;">
-            <p style="margin:0;font-size:12px;font-weight:700;color:#991b1b;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">Reason</p>
-            <p style="margin:0;font-size:14px;color:#991b1b;">${escapeHtml(reason)}</p>
-          </div>` : ''}
-          <table style="width:100%;border-collapse:collapse;margin-bottom:20px;">
-            ${invoiceNumber ? `<tr>
-              <td style="padding:8px 12px;background:#fff;border:1px solid #e5e5e5;font-size:12px;font-weight:600;color:#999;text-transform:uppercase;width:120px;">Invoice #</td>
-              <td style="padding:8px 12px;background:#fff;border:1px solid #e5e5e5;border-left:none;font-size:14px;">${escapeHtml(invoiceNumber)}</td>
-            </tr>` : ''}
-            ${fmtAmount ? `<tr>
-              <td style="padding:8px 12px;background:#fff;border:1px solid #e5e5e5;border-top:none;font-size:12px;font-weight:600;color:#999;text-transform:uppercase;width:120px;">Amount</td>
-              <td style="padding:8px 12px;background:#fff;border:1px solid #e5e5e5;border-left:none;border-top:none;font-size:14px;">${fmtAmount}</td>
-            </tr>` : ''}
-          </table>
-          <p style="margin:0;font-size:13px;color:#888;">Please review and resubmit your invoice, or contact us directly if you have questions.</p>
-        </div>
-      </div>`;
+  return L.layout({
+    title: 'Invoice update', eyebrow: 'Accounts payable', accent: 'brick',
+    preheader: `Your invoice${invoiceNumber ? ` #${invoiceNumber}` : ''} could not be approved.`,
+    body: L.p(`Hi ${vendorName},`) + L.p('Unfortunately, your invoice could not be approved at this time.')
+      + (reason ? `<table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;margin:0 0 16px;"><tr><td style="border-left:4px solid ${L.PALETTE.brick};background:#fff;padding:12px 16px;">
+           <p style="margin:0 0 4px;font-family:${L.MONO};font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:${L.PALETTE.brick};">Reason</p>
+           <p style="margin:0;font-family:${L.SANS};font-size:14px;line-height:1.6;color:${L.PALETTE.ink};">${L.esc(reason)}</p></td></tr></table>` : '')
+      + L.rows([['Invoice #', invoiceNumber, { mono: true }], ['Amount', fmtAmount]])
+      + L.p('Please review and resubmit your invoice, or reply to this email with questions.', { small: true, muted: true }),
+  });
 }
 
 /**
@@ -219,7 +169,7 @@ function buildPaymentConfirmationHtml({ vendorName, amount, currency, invoiceNum
   const fmtDate = paymentDate ? new Date(paymentDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : 'N/A';
 
   const greetingText = (greeting && String(greeting).trim()) || defaultGreeting(vendorName);
-  const greetingHtml = `<p style="margin:0 0 16px;font-size:14px;color:#444;">${escapeHtml(greetingText)}</p>`;
+  const greetingHtml = L.p(greetingText);
 
   // Intro paragraph(s). Default keeps the "paid" word green via a hand-
   // rolled inline span; user overrides render as plain escaped text so
@@ -231,46 +181,22 @@ function buildPaymentConfirmationHtml({ vendorName, amount, currency, invoiceNum
           .map(s => s + '</p>').join('') ||
         `<p>${escapeHtml(introTrimmed).replace(/\n/g, '<br/>')}</p>`
       }</div>`
-    : `<p style="margin:0 0 20px;font-size:14px;color:#444;">Your invoice has been <strong style="color:#16a34a;">paid</strong>. Please find the details and proof of payment attached.</p>`;
+    : L.p(`Your invoice has been <strong style="color:${L.PALETTE.forest};">paid</strong>. Please find the details and proof of payment attached.`, { raw: true });
 
   const noteHtml = personalMessage && String(personalMessage).trim()
-    ? `<p style="margin:0 0 16px;font-size:14px;color:#444;white-space:pre-wrap;">${escapeHtml(personalMessage).replace(/\n/g, '<br/>')}</p>`
+    ? L.p(escapeHtml(personalMessage).replace(/\n/g, '<br/>'), { raw: true, pre: true })
     : '';
 
   const closingText = (closing && String(closing).trim()) || DEFAULT_CLOSING_PLAIN;
-  const closingHtml = `<p style="margin:0;font-size:13px;color:#888;white-space:pre-wrap;">${escapeHtml(closingText).replace(/\n/g, '<br/>')}</p>`;
+  const closingHtml = L.p(escapeHtml(closingText).replace(/\n/g, '<br/>'), { raw: true, pre: true, small: true, muted: true });
 
-  return `
-      <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:560px;margin:0 auto;color:#111;">
-        <div style="background:#334155;padding:20px 28px;border-radius:12px 12px 0 0;">
-          <p style="margin:0;font-size:11px;font-weight:700;letter-spacing:2px;color:rgba(255,255,255,0.7);text-transform:uppercase;">Market Street</p>
-          <h1 style="margin:6px 0 0;font-size:20px;font-weight:700;color:#fff;">Payment Confirmation</h1>
-        </div>
-        <div style="background:#f9f9f9;padding:28px;border:1px solid #e5e5e5;border-top:none;border-radius:0 0 12px 12px;">
-          ${greetingHtml}
-          ${introHtml}
-          ${noteHtml}
-          <table style="width:100%;border-collapse:collapse;margin-bottom:20px;">
-            ${invoiceNumber ? `<tr>
-              <td style="padding:8px 12px;background:#fff;border:1px solid #e5e5e5;font-size:12px;font-weight:600;color:#999;text-transform:uppercase;width:130px;">Invoice #</td>
-              <td style="padding:8px 12px;background:#fff;border:1px solid #e5e5e5;border-left:none;font-size:14px;">${escapeHtml(invoiceNumber)}</td>
-            </tr>` : ''}
-            ${fmtAmount ? `<tr>
-              <td style="padding:8px 12px;background:#fff;border:1px solid #e5e5e5;border-top:none;font-size:12px;font-weight:600;color:#999;text-transform:uppercase;width:130px;">Amount Paid</td>
-              <td style="padding:8px 12px;background:#fff;border:1px solid #e5e5e5;border-left:none;border-top:none;font-size:14px;font-weight:700;color:#16a34a;">${fmtAmount}</td>
-            </tr>` : ''}
-            <tr>
-              <td style="padding:8px 12px;background:#fff;border:1px solid #e5e5e5;border-top:none;font-size:12px;font-weight:600;color:#999;text-transform:uppercase;width:130px;">Payment Date</td>
-              <td style="padding:8px 12px;background:#fff;border:1px solid #e5e5e5;border-left:none;border-top:none;font-size:14px;">${fmtDate}</td>
-            </tr>
-            ${paymentMethod ? `<tr>
-              <td style="padding:8px 12px;background:#fff;border:1px solid #e5e5e5;border-top:none;font-size:12px;font-weight:600;color:#999;text-transform:uppercase;width:130px;">Method</td>
-              <td style="padding:8px 12px;background:#fff;border:1px solid #e5e5e5;border-left:none;border-top:none;font-size:14px;">${escapeHtml(paymentMethod)}</td>
-            </tr>` : ''}
-          </table>
-          ${closingHtml}
-        </div>
-      </div>`;
+  return L.layout({
+    title: 'Payment confirmation', eyebrow: 'Accounts payable', accent: 'forest',
+    preheader: `${fmtAmount ? `${fmtAmount} paid` : 'Paid'}${invoiceNumber ? ` on invoice #${invoiceNumber}` : ''}.`,
+    body: greetingHtml + introHtml + noteHtml
+      + L.rows([['Invoice #', invoiceNumber, { mono: true }], ['Amount paid', fmtAmount, { strong: true, color: L.PALETTE.forest }], ['Payment date', fmtDate], ['Method', paymentMethod]])
+      + closingHtml,
+  });
 }
 
 function buildPaymentConfirmationSubject({ vendorName, invoiceNumber }) {
@@ -338,33 +264,23 @@ function buildBulkPaymentConfirmationHtml({ vendorName, items }) {
 
   const rowsHtml = items.map((it, i) => `
       <tr>
-        <td style="padding:8px 12px;background:#fff;border:1px solid #e5e5e5;${i > 0 ? 'border-top:none;' : ''}font-size:13px;color:#444;">
-          ${it.invoiceNumber ? `<strong>#${escapeHtml(it.invoiceNumber)}</strong>` : `Invoice ${i + 1}`}
-          ${it.paymentMethod ? ` <span style="color:#999;font-size:11px;">· ${escapeHtml(it.paymentMethod)}</span>` : ''}
-          <div style="font-size:11px;color:#999;margin-top:2px;">Paid ${fmtDate(it.paymentDate)}</div>
+        <td style="padding:9px 12px;background:#fff;border-bottom:${i < items.length - 1 ? `1px solid ${L.PALETTE.rule}` : 'none'};font-family:${L.SANS};font-size:13px;color:${L.PALETTE.ink};">
+          ${it.invoiceNumber ? `<strong style="font-family:${L.MONO};">#${escapeHtml(it.invoiceNumber)}</strong>` : `Invoice ${i + 1}`}
+          ${it.paymentMethod ? ` <span style="color:${L.PALETTE.muted};font-size:11px;">· ${escapeHtml(it.paymentMethod)}</span>` : ''}
+          <div style="font-size:11px;color:${L.PALETTE.muted};margin-top:2px;">Paid ${fmtDate(it.paymentDate)}</div>
         </td>
-        <td style="padding:8px 12px;background:#fff;border:1px solid #e5e5e5;${i > 0 ? 'border-top:none;' : ''}border-left:none;font-size:14px;font-weight:700;color:#16a34a;text-align:right;white-space:nowrap;">
-          ${fmtMoney(it.amount, it.currency)}
-        </td>
+        <td style="padding:9px 12px;background:#fff;border-bottom:${i < items.length - 1 ? `1px solid ${L.PALETTE.rule}` : 'none'};text-align:right;font-family:${L.MONO};font-size:14px;font-weight:700;color:${L.PALETTE.ink};white-space:nowrap;">${fmtMoney(it.amount, it.currency)}</td>
       </tr>`).join('');
-
-  return `
-      <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:580px;margin:0 auto;color:#111;">
-        <div style="background:#334155;padding:20px 28px;border-radius:12px 12px 0 0;">
-          <p style="margin:0;font-size:11px;font-weight:700;letter-spacing:2px;color:rgba(255,255,255,0.7);text-transform:uppercase;">Market Street</p>
-          <h1 style="margin:6px 0 0;font-size:20px;font-weight:700;color:#fff;">Payment Confirmation — ${items.length} invoice${items.length === 1 ? '' : 's'}</h1>
-        </div>
-        <div style="background:#f9f9f9;padding:28px;border:1px solid #e5e5e5;border-top:none;border-radius:0 0 12px 12px;">
-          <p style="margin:0 0 16px;font-size:14px;color:#444;">Hi ${escapeHtml(vendorName)},</p>
-          <p style="margin:0 0 20px;font-size:14px;color:#444;">The following ${items.length} invoice${items.length === 1 ? '' : 's'} ${items.length === 1 ? 'has' : 'have'} been <strong style="color:#16a34a;">paid</strong>. Proofs of payment are attached.</p>
-          <table style="width:100%;border-collapse:collapse;margin-bottom:16px;">${rowsHtml}</table>
-          <div style="background:#fff;border:1.5px solid #16a34a;border-radius:6px;padding:10px 14px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;">
-            <span style="font-size:12px;font-weight:700;color:#16a34a;text-transform:uppercase;letter-spacing:0.5px;">Total Paid</span>
-            <span style="font-size:16px;font-weight:800;color:#16a34a;">${totalLine}</span>
-          </div>
-          <p style="margin:0;font-size:13px;color:#888;">If you have any questions about these payments, please reply to this email.</p>
-        </div>
-      </div>`;
+  return L.layout({
+    title: `Payment confirmation — ${items.length} invoice${items.length === 1 ? '' : 's'}`, eyebrow: 'Accounts payable', accent: 'forest',
+    preheader: `${totalLine} paid across ${items.length} invoice${items.length === 1 ? '' : 's'}.`,
+    body: L.p(`Hi ${vendorName},`) + L.p(`The following ${items.length} invoice${items.length === 1 ? ' has' : 's have'} been <strong style="color:${L.PALETTE.forest};">paid</strong>. Proof of payment is attached.`, { raw: true })
+      + `<table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;margin:0 0 12px;border:1px solid ${L.PALETTE.rule};">${rowsHtml}</table>`
+      + `<table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;margin:0 0 16px;border:2px solid ${L.PALETTE.forest};"><tr>
+           <td style="padding:10px 14px;font-family:${L.MONO};font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:${L.PALETTE.forest};">Total paid</td>
+           <td style="padding:10px 14px;text-align:right;font-family:${L.MONO};font-size:16px;font-weight:700;color:${L.PALETTE.forest};">${totalLine}</td></tr></table>`
+      + L.p('If you have any questions about these payments, reply to this email.', { small: true, muted: true }),
+  });
 }
 
 function buildBulkPaymentConfirmationSubject({ vendorName, items }) {
@@ -425,34 +341,14 @@ async function sendBulkPaymentConfirmationEmail({ vendorName, vendorEmail, items
  */
 function buildTaskAssignmentHtml({ assigneeName, assignerName, description, priority, due_date }) {
   const due = due_date ? new Date(due_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : null;
-  return `
-      <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:560px;margin:0 auto;color:#111;">
-        <div style="background:#334155;padding:20px 28px;border-radius:12px 12px 0 0;">
-          <p style="margin:0;font-size:11px;font-weight:700;letter-spacing:2px;color:rgba(255,255,255,0.7);text-transform:uppercase;">Market Street</p>
-          <h1 style="margin:6px 0 0;font-size:20px;font-weight:700;color:#fff;">New Task Assigned</h1>
-        </div>
-        <div style="background:#f9f9f9;padding:28px;border:1px solid #e5e5e5;border-top:none;border-radius:0 0 12px 12px;">
-          <p style="margin:0 0 20px;font-size:14px;color:#444;">Hi ${escapeHtml(assigneeName || '')}, <strong>${escapeHtml(assignerName || '')}</strong> assigned you a task:</p>
-          <div style="background:#fff;border:1px solid #e5e5e5;border-radius:10px;padding:16px 20px;margin-bottom:20px;">
-            <p style="margin:0;font-size:16px;font-weight:600;color:#111;">${escapeHtml(description || '')}</p>
-          </div>
-          <table style="width:100%;border-collapse:collapse;">
-            <tr>
-              <td style="padding:6px 0;font-size:12px;font-weight:600;color:#999;text-transform:uppercase;letter-spacing:0.5px;width:100px;">Priority</td>
-              <td style="padding:6px 0;font-size:14px;color:#111;">${escapeHtml(priority || 'Medium')}</td>
-            </tr>
-            ${due ? `<tr>
-              <td style="padding:6px 0;font-size:12px;font-weight:600;color:#999;text-transform:uppercase;letter-spacing:0.5px;">Due</td>
-              <td style="padding:6px 0;font-size:14px;color:#111;">${due}</td>
-            </tr>` : ''}
-            <tr>
-              <td style="padding:6px 0;font-size:12px;font-weight:600;color:#999;text-transform:uppercase;letter-spacing:0.5px;">Assigned by</td>
-              <td style="padding:6px 0;font-size:14px;color:#111;">${escapeHtml(assignerName || '')}</td>
-            </tr>
-          </table>
-          <p style="margin:20px 0 0;font-size:12px;color:#aaa;">Log in to the Market Street Dashboard to view and manage your tasks.</p>
-        </div>
-      </div>`;
+  return L.layout({
+    title: 'New task for you', eyebrow: 'Team', accent: 'royal',
+    preheader: `${assignerName || 'A teammate'} assigned you: ${description || ''}`.slice(0, 140),
+    body: L.p(`Hi ${escapeHtml(assigneeName || '')}, <strong>${escapeHtml(assignerName || '')}</strong> assigned you a task:`, { raw: true })
+      + `<table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;margin:0 0 16px;"><tr><td style="border-left:4px solid ${L.PALETTE.royal};background:#fff;padding:14px 16px;font-family:${L.SANS};font-size:16px;font-weight:600;line-height:1.5;color:${L.PALETTE.ink};">${escapeHtml(description || '')}</td></tr></table>`
+      + L.rows([['Priority', priority || 'Medium'], ['Due', due], ['Assigned by', assignerName || '']]),
+    cta: { label: 'Open My Work', href: `${APP_URL}/my-work` },
+  });
 }
 
 function buildTaskAssignmentSubject({ assignerName, description }) {
@@ -484,46 +380,15 @@ async function sendTaskAssignmentEmail({ assigneeName, assigneeEmail, assignerNa
  * dashboard owner inbox.
  */
 function buildInternalRequestHtml({ typeLabel, userName, userEmail, userRole, page, title, details, timestamp }) {
-  return `
-      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 600px; margin: 0 auto; color: #111;">
-        <div style="background: #111; padding: 24px 32px; border-radius: 12px 12px 0 0;">
-          <p style="margin: 0; font-size: 11px; font-weight: 700; letter-spacing: 2px; color: #999; text-transform: uppercase;">Market Street Dashboard</p>
-          <h1 style="margin: 8px 0 0; font-size: 22px; font-weight: 700; color: #fff;">${escapeHtml(typeLabel)}</h1>
-        </div>
-        <div style="background: #f9f9f9; padding: 32px; border: 1px solid #e5e5e5; border-top: none; border-radius: 0 0 12px 12px;">
-          <table style="width: 100%; border-collapse: collapse; margin-bottom: 24px;">
-            <tr>
-              <td style="padding: 8px 0; font-size: 12px; font-weight: 600; color: #999; text-transform: uppercase; letter-spacing: 0.5px; width: 120px;">From</td>
-              <td style="padding: 8px 0; font-size: 14px; color: #111;">${escapeHtml(userName)} &lt;${escapeHtml(userEmail)}&gt;</td>
-            </tr>
-            <tr>
-              <td style="padding: 8px 0; font-size: 12px; font-weight: 600; color: #999; text-transform: uppercase; letter-spacing: 0.5px;">Role</td>
-              <td style="padding: 8px 0; font-size: 14px; color: #111;">${escapeHtml(userRole || '—')}</td>
-            </tr>
-            <tr>
-              <td style="padding: 8px 0; font-size: 12px; font-weight: 600; color: #999; text-transform: uppercase; letter-spacing: 0.5px;">Type</td>
-              <td style="padding: 8px 0; font-size: 14px; color: #111;">${escapeHtml(typeLabel)}</td>
-            </tr>
-            ${page ? `<tr>
-              <td style="padding: 8px 0; font-size: 12px; font-weight: 600; color: #999; text-transform: uppercase; letter-spacing: 0.5px;">Page</td>
-              <td style="padding: 8px 0; font-size: 14px; color: #111;">${escapeHtml(page)}</td>
-            </tr>` : ''}
-            <tr>
-              <td style="padding: 8px 0; font-size: 12px; font-weight: 600; color: #999; text-transform: uppercase; letter-spacing: 0.5px;">Submitted</td>
-              <td style="padding: 8px 0; font-size: 14px; color: #111;">${escapeHtml(timestamp)} ET</td>
-            </tr>
-          </table>
-          <div style="margin-bottom: 16px;">
-            <p style="margin: 0 0 8px; font-size: 12px; font-weight: 600; color: #999; text-transform: uppercase; letter-spacing: 0.5px;">Subject</p>
-            <p style="margin: 0; font-size: 16px; font-weight: 600; color: #111;">${escapeHtml(title)}</p>
-          </div>
-          <div>
-            <p style="margin: 0 0 8px; font-size: 12px; font-weight: 600; color: #999; text-transform: uppercase; letter-spacing: 0.5px;">Details</p>
-            <div style="background: #fff; border: 1px solid #e5e5e5; border-radius: 8px; padding: 16px; font-size: 14px; line-height: 1.6; color: #333; white-space: pre-wrap;">${escapeHtml(details)}</div>
-          </div>
-        </div>
-      </div>
-    `;
+  return L.layout({
+    title: typeLabel, eyebrow: 'From the dashboard', accent: 'mustard',
+    preheader: `${userName}: ${title}`.slice(0, 140),
+    body: L.rows([['From', `${userName} <${userEmail}>`], ['Role', userRole || '—'], ['Type', typeLabel], ['Page', page], ['Submitted', `${timestamp} ET`]])
+      + `<p style="margin:0 0 6px;font-family:${L.MONO};font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:${L.PALETTE.muted};">Subject</p>`
+      + `<p style="margin:0 0 16px;font-family:${L.SANS};font-size:16px;font-weight:600;color:${L.PALETTE.ink};">${escapeHtml(title)}</p>`
+      + `<p style="margin:0 0 6px;font-family:${L.MONO};font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:${L.PALETTE.muted};">Details</p>`
+      + `<div style="background:#fff;border:1px solid ${L.PALETTE.rule};padding:14px 16px;font-family:${L.SANS};font-size:14px;line-height:1.6;color:${L.PALETTE.ink};white-space:pre-wrap;">${escapeHtml(details)}</div>`,
+  });
 }
 
 async function sendInternalRequestEmail({ typeLabel, userName, userEmail, userRole, page, title, details, timestamp, htmlOverride, toOverride, ccOverride, subjectOverride }) {
@@ -611,21 +476,14 @@ async function sendTestUserInvitationEmail({ name, email, password, role, htmlOv
  * failure for every message anyone types.
  */
 function buildChatMentionHtml({ recipientName, actorName, channelLabel, snippet, link }) {
-  return `
-      <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:560px;margin:0 auto;color:#111;">
-        <div style="background:#334155;padding:20px 28px;border-radius:12px 12px 0 0;">
-          <p style="margin:0;font-size:11px;font-weight:700;letter-spacing:2px;color:rgba(255,255,255,0.7);text-transform:uppercase;">Market Street</p>
-          <h1 style="margin:6px 0 0;font-size:20px;font-weight:700;color:#fff;">You were mentioned</h1>
-        </div>
-        <div style="background:#f9f9f9;padding:28px;border:1px solid #e5e5e5;border-top:none;border-radius:0 0 12px 12px;">
-          <p style="margin:0 0 20px;font-size:14px;color:#444;">Hi ${escapeHtml(recipientName || '')}, <strong>${escapeHtml(actorName || 'Someone')}</strong> mentioned you in ${escapeHtml(channelLabel || 'a conversation')}:</p>
-          <div style="background:#fff;border:1px solid #e5e5e5;border-left:3px solid #334155;border-radius:10px;padding:16px 20px;margin-bottom:22px;">
-            <p style="margin:0;font-size:14px;line-height:1.6;color:#111;white-space:pre-wrap;">${escapeHtml(snippet || '')}</p>
-          </div>
-          <a href="${escapeHtml(link || APP_URL)}" style="display:inline-block;background:#334155;color:#fff;text-decoration:none;font-size:14px;font-weight:600;padding:11px 22px;border-radius:8px;">Open the conversation</a>
-          <p style="margin:22px 0 0;font-size:12px;color:#aaa;">You're getting this because you weren't online when it was posted. Mentions always appear in the dashboard's notification bell.</p>
-        </div>
-      </div>`;
+  return L.layout({
+    title: 'You were mentioned', eyebrow: 'Messages', accent: 'royal',
+    preheader: `${actorName || 'Someone'} mentioned you in ${channelLabel || 'a conversation'}.`,
+    body: L.p(`Hi ${escapeHtml(recipientName || '')}, <strong>${escapeHtml(actorName || 'Someone')}</strong> mentioned you in <strong>${escapeHtml(channelLabel || 'a conversation')}</strong>:`, { raw: true })
+      + `<table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;margin:0 0 18px;"><tr><td style="border-left:4px solid ${L.PALETTE.royal};background:#fff;padding:14px 16px;font-family:${L.SANS};font-size:14px;line-height:1.6;color:${L.PALETTE.ink};white-space:pre-wrap;">${escapeHtml(snippet || '')}</td></tr></table>`
+      + L.p("You're getting this because you weren't online when it was posted. Mentions always appear in the app too.", { small: true, muted: true }),
+    cta: { label: 'Open the conversation', href: link || APP_URL },
+  });
 }
 
 function buildChatMentionSubject({ actorName, channelLabel }) {

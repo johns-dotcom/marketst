@@ -12,34 +12,7 @@ const { sendMail } = require('../lib/mail');
 async function notifyTaskAssignment({ assigneeName, assigneeEmail, assignerName, description, priority, due_date }) {
   try {
     const due = due_date ? new Date(due_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : null;
-    const html = `
-      <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:560px;margin:0 auto;color:#111;">
-        <div style="background:#334155;padding:20px 28px;border-radius:12px 12px 0 0;">
-          <p style="margin:0;font-size:11px;font-weight:700;letter-spacing:2px;color:rgba(255,255,255,0.7);text-transform:uppercase;">Market Street</p>
-          <h1 style="margin:6px 0 0;font-size:20px;font-weight:700;color:#fff;">New Task Assigned</h1>
-        </div>
-        <div style="background:#f9f9f9;padding:28px;border:1px solid #e5e5e5;border-top:none;border-radius:0 0 12px 12px;">
-          <p style="margin:0 0 20px;font-size:14px;color:#444;">Hi ${assigneeName}, <strong>${assignerName}</strong> assigned you a task:</p>
-          <div style="background:#fff;border:1px solid #e5e5e5;border-radius:10px;padding:16px 20px;margin-bottom:20px;">
-            <p style="margin:0;font-size:16px;font-weight:600;color:#111;">${description}</p>
-          </div>
-          <table style="width:100%;border-collapse:collapse;">
-            <tr>
-              <td style="padding:6px 0;font-size:12px;font-weight:600;color:#999;text-transform:uppercase;letter-spacing:0.5px;width:100px;">Priority</td>
-              <td style="padding:6px 0;font-size:14px;color:#111;">${priority || 'Medium'}</td>
-            </tr>
-            ${due ? `<tr>
-              <td style="padding:6px 0;font-size:12px;font-weight:600;color:#999;text-transform:uppercase;letter-spacing:0.5px;">Due</td>
-              <td style="padding:6px 0;font-size:14px;color:#111;">${due}</td>
-            </tr>` : ''}
-            <tr>
-              <td style="padding:6px 0;font-size:12px;font-weight:600;color:#999;text-transform:uppercase;letter-spacing:0.5px;">Assigned by</td>
-              <td style="padding:6px 0;font-size:14px;color:#111;">${assignerName}</td>
-            </tr>
-          </table>
-          <p style="margin:20px 0 0;font-size:12px;color:#aaa;">Log in to the Market Street Dashboard to view and manage your tasks.</p>
-        </div>
-      </div>`;
+    const html = require('../services/email').buildTaskAssignmentHtml({ assigneeName, assignerName, description, priority, due_date });
     await sendMail({
       kind: 'task_assigned',
       to: assigneeEmail,

@@ -7336,13 +7336,7 @@ router.post('/payments/send-approval-email', async (req, res) => {
       bodyHtml = `<p style="margin:0 0 14px;font-size:14px;">Hey ${recipientLabel},</p>
           <p style="margin:0 0 14px;font-size:14px;">Here are some pending invoices for your approval. Summary is attached as an excel with pdfs for each invoice. Let me know if you have any questions.</p>`;
     }
-    const html = `
-      <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:640px;margin:0 auto;color:#111;">
-        <div style="background:#334155;padding:20px 28px;border-radius:12px 12px 0 0;">
-          <p style="margin:0;font-size:11px;font-weight:700;letter-spacing:2px;color:rgba(255,255,255,0.7);text-transform:uppercase;">Market Street</p>
-          <h1 style="margin:6px 0 0;font-size:20px;font-weight:700;color:#fff;">Invoices for Approval</h1>
-        </div>
-        <div style="background:#f9f9f9;padding:28px;border:1px solid #e5e5e5;border-top:none;border-radius:0 0 12px 12px;">
+    const summaryInner = `
           ${test ? '<div style="background:#fef3c7;border-left:3px solid #ca8a04;padding:8px 12px;margin:0 0 14px;border-radius:0 6px 6px 0;font-size:12px;color:#92400e;font-weight:600;">[TEST PREVIEW] — not sent to Felipe or Jesse.</div>' : ''}
           ${bodyHtml}
           <div style="font-size:11px;font-weight:800;color:#666;text-transform:uppercase;letter-spacing:.05em;margin:20px 0 6px;">Totals by Artist</div>
@@ -7375,8 +7369,8 @@ router.post('/payments/send-approval-email', async (req, res) => {
             <tbody>${detailRows}</tbody>
           </table>
           <p style="margin:14px 0 0;font-size:11px;color:#888;">The same information is also attached as an Excel for download. Each invoice's PDF is attached separately.</p>
-        </div>
-      </div>`;
+`;
+    const html = require('../lib/email-layout').layout({ title: 'Invoices for approval', eyebrow: 'Approvals', accent: 'mustard', body: summaryInner });
 
     let to, cc;
     if (test) {

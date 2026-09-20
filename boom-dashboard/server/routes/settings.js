@@ -600,7 +600,9 @@ router.post('/users/:id(\\d+)/invite', adminOnly, async (req, res) => {
       const url = `${process.env.FRONTEND_URL || 'https://marketst-production.up.railway.app'}${invite.path}`;
       await runWithMailContext({ actor: { id: req.user.id, email: req.user.email, name: req.user.name } }, () => sendMail({
         kind: 'invite', purpose: 'team', to: t.email, subject: 'Your Market Street dashboard login',
-        html: `<p>Hi ${t.name.split(' ')[0]},</p><p>${req.user.name || 'An admin'} added you to the Market Street dashboard. Set your password and sign in here:</p><p><a href="${url}">${url}</a></p><p style="color:#666;font-size:12px;">The link works once and expires in 7 days.</p>`,
+        html: (() => { const L = require('../lib/email-layout'); return L.layout({ title: `Hi ${t.name.split(' ')[0]}, you're in`, eyebrow: 'Your login', accent: 'forest', preheader: 'Set your password for the Market Street dashboard.',
+          body: L.p(`${req.user.name || 'An admin'} added you to the ${L.labelInfo().display_name || 'Market Street'} dashboard. Set your password and sign in with the button below.`) + L.p('The link works once and expires in 7 days. If it has expired, ask an admin for a new one.', { small: true, muted: true }),
+          cta: { label: 'Set my password', href: url } }); })(),
         entity: { type: 'user', id: t.id } }));
       emailed = true;
     }

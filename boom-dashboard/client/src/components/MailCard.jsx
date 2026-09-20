@@ -158,15 +158,24 @@ export function MyMailbox() {
   const [err, setErr] = useState('')
   if (!data) return <p className="text-sm text-gray-400">Loading…</p>
   const mine = data.boxes.find((b) => b.kind === 'personal' && Number(b.owner_user_id) === Number(user?.id))
+  // The person's own address may already be connected as the LABEL's shared
+  // mailbox — then it is theirs too, and "no mailbox connected" would be wrong.
+  const sharedMine = !mine && data.boxes.find((b) => b.kind === 'shared' && b.status === 'active' && String(b.address || '').toLowerCase() === String(user?.email || '').toLowerCase())
+  const shared = data.boxes.filter((b) => b.kind === 'shared' && b.status === 'active')
   return (
     <div className="max-w-xl space-y-4" data-my-mailbox>
       {outcome && <p className={`text-xs rounded-lg border px-3 py-2 ${outcome.tone === 'ok' ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-amber-50 border-amber-200 text-amber-800'}`} data-mail-outcome>{outcome.text}</p>}
       <p className="text-sm text-gray-600">Connect your own Google address to send as yourself when you email a vendor, a creator or a teammate from the app. Automated mail (confirmations, invites, notifications) always goes from the label's shared mailboxes, never from yours.</p>
       {mine ? (
         <ul className="divide-y divide-divider border border-rule rounded-lg"><BoxRow box={mine} mine onChanged={reload} canManage /></ul>
+      ) : sharedMine ? (
+        <div className="card p-4 space-y-2" data-shared-is-mine>
+          <p className="text-sm text-gray-900 font-semibold flex items-center gap-2"><Check size={14} className="text-emerald-600" /> {sharedMine.address} is connected — as the label's shared mailbox.</p>
+          <p className="text-xs text-gray-600">Everything you send from the app already goes from your address, and automated mail does too. There is nothing more to connect; an admin manages it under Label settings › Integrations.</p>
+        </div>
       ) : (
         <div className="card p-4 flex items-center justify-between gap-3 flex-wrap">
-          <p className="text-sm text-gray-700">No mailbox connected for {user?.email}.</p>
+          <p className="text-sm text-gray-700">Your own address ({user?.email}) is not connected.{shared.length ? ` Mail you send goes from the label's ${shared[0].address} with replies coming back to you.` : ''}</p>
           <button onClick={() => connectMailbox('personal', setErr)} disabled={!data.configured} className="btn-primary text-xs px-3 py-1.5 inline-flex items-center gap-1.5 disabled:opacity-40" data-connect-personal title={data.configured ? '' : 'The Google OAuth client is not set on the server'}><Plus size={12} /> Connect my Google address</button>
         </div>
       )}

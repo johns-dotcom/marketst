@@ -131,7 +131,7 @@ router.post('/mailboxes/:id(\\d+)/test', authMiddleware, async (req, res) => {
     if (!(isAdmin(req.user.role) || Number(mb.owner_user_id) === Number(req.user.id))) return res.status(403).json({ success: false, error: 'Not yours' });
     const r = await mail.runWithMailContext({ actor: { id: req.user.id, email: req.user.email, name: req.user.name } }, () => mail.sendMail({
       from: mb.id, kind: 'test', purpose: 'team', to: req.user.email, subject: `Test from ${mb.address}`,
-      html: `<p>This is a test message from the Market Street dashboard, sent from <strong>${mb.address}</strong> by ${req.user.name || req.user.email}.</p>`,
+      html: require('../lib/email-layout').layout({ title: 'Test message', eyebrow: 'Mail check', accent: 'royal', body: require('../lib/email-layout').p(`This is a test from the dashboard, sent from ${mb.address} by ${req.user.name || req.user.email}. If you can read this, the mailbox is connected and sending.`) }),
     }));
     res.json({ success: true, data: r });
   } catch (err) { console.error('mail test error:', err); res.status(err.code === 'MAIL_NEEDS_RECONNECT' ? 409 : 500).json({ success: false, error: err.message }); }
