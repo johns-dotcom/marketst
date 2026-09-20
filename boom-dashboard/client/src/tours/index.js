@@ -411,13 +411,14 @@ const PAGE_TOURS = [
 ]
 
 // The welcome tour WALKS THE NAV: every group, every family, every visible
-// tab, in sidebar order — ONE orientation step per page (that page's tour's
-// first step), plus a step on each family's tab strip. The deeper steps stay
-// in the page's own tour, which runs the first time the page is opened.
+// tab, in sidebar order — EVERY step of each page's tour, in full, plus a
+// step on each family's tab strip (John, 2026-09-20: the walk must finish a
+// page before moving on). Skip this page / Skip family keep it survivable.
 // Hidden pages (not drawn in the sidebar) have tours but are not in the walk.
 // Steps carry `path`, `page`, `family`, `familyLabel`; the engine navigates,
 // drops pages the person cannot open, and offers Skip this page / Skip family.
-const firstStep = (t, pth, extra) => (t ? { ...t.steps[0], path: pth, page: t.title, ...(t.roles ? { roles: t.roles } : {}), ...extra } : null)
+// Every step of a page's tour, stamped with the page it belongs to.
+const stepsOf = (t, pth, extra) => (t ? t.steps.map((st) => ({ ...st, path: pth, page: t.title, ...(t.roles ? { roles: t.roles } : {}), ...extra })) : [])
 function walkSteps() {
   const out = []
   for (const g of NAV_GROUPS) {
@@ -428,9 +429,9 @@ function walkSteps() {
         const fam = { family: item.key || item.label, familyLabel: item.label }
         const names = kids.map((c) => c.label).join(' · ')
         out.push({ path: kids[0].path, target: `[data-tour="family-tabs"][data-family="${item.key}"]`, title: `${item.label}: ${kids.length} tab${kids.length === 1 ? '' : 's'}`, body: `One sidebar row, several pages: ${names}. The tabs sit across the top; the walk visits each one.`, page: item.label, ...fam, ...(item.adminOnly ? { roles: ['Admin', 'Superadmin'] } : {}) })
-        for (const c of kids) { const st = firstStep(PAGE_TOURS.find((t) => t.path === c.path && !t.match), c.path, { ...fam, ...(c.adminOnly ? { roles: ['Admin', 'Superadmin'] } : {}) }); if (st) out.push(st) }
+        for (const c of kids) out.push(...stepsOf(PAGE_TOURS.find((t) => t.path === c.path && !t.match), c.path, { ...fam, ...(c.adminOnly ? { roles: ['Admin', 'Superadmin'] } : {}) }))
       } else if (!item.hidden && !item.external) {
-        const st = firstStep(PAGE_TOURS.find((t) => t.path === item.path && !t.match), item.path, item.adminOnly ? { roles: ['Admin', 'Superadmin'] } : {}); if (st) out.push(st)
+        out.push(...stepsOf(PAGE_TOURS.find((t) => t.path === item.path && !t.match), item.path, item.adminOnly ? { roles: ['Admin', 'Superadmin'] } : {}))
       }
     }
   }
@@ -439,7 +440,7 @@ function walkSteps() {
 const WELCOME = {
   id: 'welcome', title: 'Welcome to the dashboard', path: '/', version: '2026-09-20', auto: 'first-signin', multipage: true,
   steps: [
-    { path: '/', target: null, title: 'Welcome to Market Street', body: 'A walk through every page you can open, one stop each — about eight minutes. Each page also explains itself in more depth the first time you open it. Skip a page, a family, or the whole tour at any time; replay it later from Walkthrough in the top bar.' },
+    { path: '/', target: null, title: 'Welcome to Market Street', body: 'A walk through every page you can open, each one in full — fifteen minutes or so. Skip a page, a family, or the whole tour at any time; replay any page\'s part later from Walkthrough in the top bar.' },
     { path: '/', target: '[data-tour="sidebar"]', prepare: 'sidebar', title: 'Everything is in the sidebar', body: 'Five groups: General, Artists & releases, Money, Reports, Admin. A row with a chevron holds several pages; open it and they appear as tabs across the top. On a phone the ☰ button opens this menu.' },
     { path: '/', target: '[data-tour="search"]', title: 'Search jumps anywhere', body: 'Press / or ⌘K. Type a page, an artist, a vendor or an invoice number.' },
     ...walkSteps(),

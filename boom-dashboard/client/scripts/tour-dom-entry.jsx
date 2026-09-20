@@ -57,7 +57,7 @@ function Page() {
   return (
     <div>
       <p data-where>{loc.pathname}</p>
-      {anchors.map((a, i) => {
+      {anchors.filter((a) => !(scenario === 'fresh' && a.attrs['data-tour'] === 'my-work-week')).map((a, i) => {   // fresh: one anchor deliberately missing
         // on a phone the desktop help button is hidden; the walkthrough icon stands in
         const hidden = scenario === 'mobile' && a.attrs['data-tour'] === 'help'
         const props = { ...a.attrs, ...(hidden ? { 'data-hidden': '' } : {}) }
@@ -94,13 +94,20 @@ async function main() {
     assert('ArrowLeft goes back one', /Everything is in the sidebar/.test(textOf(card())))
     click(card().querySelector('[data-tour-skip-page]')); await sleep(600)
     assert('Skip this page jumps to the next page in sidebar order: My Work, its orientation step', where() === '/my-work' && /· My Work/.test(textOf(card())) && !!ov().querySelector('[data-tour-spotlight]'))
+    assert('the counter says where this step sits within its page', /My Work 1 of 4/.test(textOf(card().querySelector('[data-tour-counter]'))))
+    click(card().querySelector('[data-tour-next]')); await sleep(400)
+    assert('Next STAYS on My Work for its second step — the page is walked in full', where() === '/my-work' && /Your list, by when/.test(textOf(card())) && /My Work 2 of 4/.test(textOf(card().querySelector('[data-tour-counter]'))))
+    click(card().querySelector('[data-tour-next]')); await sleep(1100)
+    assert('a step whose anchor never renders (no data) is SHOWN centered, not skipped', where() === '/my-work' && /This week, mine/.test(textOf(card())) && ov().getAttribute('data-tour-anchor-missing') === '1' && !!card().querySelector('[data-tour-missing]') && !ov().querySelector('[data-tour-spotlight]'))
+    click(card().querySelector('[data-tour-next]')); await sleep(400)
+    assert('…and Next moves to the fourth step, still on My Work', where() === '/my-work' && /Waiting on you/.test(textOf(card())))
     click(card().querySelector('[data-tour-next]')); await sleep(600)
-    assert('Next moves to the NEXT PAGE (one step per page) — Messages', where() === '/messages')
+    assert('after the last step of My Work the walk moves to the NEXT PAGE — Messages', where() === '/messages')
     click(card().querySelector('[data-tour-back]')); await sleep(600)
     assert('Back returns to My Work', where() === '/my-work')
     // walk until a family strip step appears, then Skip that family
     let guard = 0
-    while (ov() && guard < 60 && !card().querySelector('[data-tour-skip-family]')) { const b = card().querySelector('[data-tour-next]'); if (b && !b.disabled) click(b); await sleep(450); guard += 1 }
+    while (ov() && guard < 100 && !card().querySelector('[data-tour-skip-family]')) { const b = card().querySelector('[data-tour-next]'); if (b && !b.disabled) click(b); await sleep(350); guard += 1 }
     const famLabel = card()?.querySelector('[data-tour-skip-family]')?.textContent || ''
     const famPath = where()
     assert('a family step offers Skip <family> on its tab strip, with the tab names', /Skip Releases/.test(famLabel) && /Pipeline · Catalog/.test(textOf(card())) && famPath === '/releases')
@@ -108,7 +115,7 @@ async function main() {
     assert('Skip this family lands on the next family\'s tab-strip step (Contracts, on Deals)', where() === '/deals' && /Contracts: 4 tabs/.test(textOf(card())) && /Deals · Active · Pending · Renewals/.test(textOf(card())))
     // walk the rest
     guard = 0
-    while (ov() && guard < 120) { const b = card().querySelector('[data-tour-next]'); if (b && !b.disabled) click(b); await sleep(450); guard += 1 }
+    while (ov() && guard < 400) { const b = card().querySelector('[data-tour-next]'); if (b && !b.disabled) click(b); await sleep(350); guard += 1 }
     assert('the tour ends back on Home after visiting every page', !ov() && where() === '/')
     const put = calls.put.filter((c) => c.url === '/settings/me/tours').pop()
     assert('…and records ONLY welcome as done — every page keeps its own first-open tour', !!put && put.body.id === 'welcome' && put.body.skipped === false && !put.body.tours)
@@ -124,7 +131,7 @@ async function main() {
     click(card().querySelector('[data-tour-next]')); await sleep(300)
     assert('moving on closes the drawer again', prepared[prepared.length - 1] === 'sidebar:off' && /Search jumps anywhere/.test(textOf(card())))
     let guard = 0
-    while (ov() && guard < 200) {
+    while (ov() && guard < 400) {
       const isLast = /Done/.test(textOf(card().querySelector('[data-tour-next]')))
       if (isLast) break
       const b = card().querySelector('[data-tour-next]'); if (b && !b.disabled) click(b); await sleep(450); guard += 1

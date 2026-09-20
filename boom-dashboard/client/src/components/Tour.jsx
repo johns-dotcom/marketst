@@ -128,6 +128,7 @@ function TourOverlay({ tour, index, setIndex, onFinish, canView, role }) {
   const onPage = !wantPath || location.pathname === wantPath || (tour.match && tour.match.test(location.pathname))
   const [rect, setRect] = useState(null)
   const [waiting, setWaiting] = useState(false)
+  const [missing, setMissing] = useState(false)   // on the page, but its anchor never rendered (no data yet)
   const small = useMedia(SMALL)
   const drawer = useMedia(DRAWER)
   const navigatedFor = useRef(null)
@@ -162,6 +163,7 @@ function TourOverlay({ tour, index, setIndex, onFinish, canView, role }) {
   // step if the page never renders it.
   useLayoutEffect(() => {
     if (!step) return undefined
+    setMissing(false)
     if (step.target === null) { setRect(null); setWaiting(false); return undefined }
     let cancelled = false
     const started = Date.now()
@@ -180,8 +182,10 @@ function TourOverlay({ tour, index, setIndex, onFinish, canView, role }) {
       if (Date.now() - started > WAIT_MS()) {
         setWaiting(false); setRect(null)
         // Never reached the page (a guard sent us elsewhere): drop the whole page, not one step at a time.
-        const to = !onPage && nextPagePos !== -1 ? nextPagePos : pos + 1
-        if (to < order.length) setIndex(order[to]); else onFinish(true, skippedPaths.current)
+        if (!onPage) { const to = nextPagePos !== -1 ? nextPagePos : order.length; if (to < order.length) setIndex(order[to]); else onFinish(true, skippedPaths.current); return }
+        // On the page, anchor never rendered (it needs data): SHOW the step,
+        // centered, and let the person move on themselves — never skip it.
+        setMissing(true)
         return
       }
       setTimeout(tryMeasure, 150)
@@ -213,13 +217,16 @@ function TourOverlay({ tour, index, setIndex, onFinish, canView, role }) {
   if (!step) return null
   const pad = 8
   const vw = window.innerWidth || 1200, vh = window.innerHeight || 800
-  const spot = rect && step.target !== null && !waiting
+  const spot = rect && step.target !== null && !waiting && !missing
+  // Where this step sits within its page, for the multipage counter.
+  const samePage = order.filter((idx) => (steps[idx].path || tour.path) === (step.path || tour.path))
+  const pagePos = samePage.indexOf(stepIdx) + 1
   const below = spot ? rect.top + rect.height + 16 + 200 < vh : true
   const cardTop = spot ? (below ? rect.top + rect.height + 14 : Math.max(12, rect.top - 14 - 210)) : Math.max(24, vh / 2 - 120)
   const cardLeft = spot ? Math.min(Math.max(12, rect.left), Math.max(12, vw - 372)) : Math.max(12, vw / 2 - 180)
   const pageLabel = (step.familyLabel && step.page && step.familyLabel !== step.page ? `${step.familyLabel} › ${step.page}` : step.page) || (wantPath ? ({ '/': 'Home' }[wantPath] || wantPath.replace(/^\//, '').replace(/^bk\//, '').replace(/-/g, ' ')) : null)
   return (
-    <div className="fixed inset-0 z-[200]" data-tour-overlay data-tour-id={tour.id} data-tour-step={stepIdx} data-tour-waiting={waiting ? '1' : '0'} aria-live="polite">
+    <div className="fixed inset-0 z-[200]" data-tour-overlay data-tour-id={tour.id} data-tour-step={stepIdx} data-tour-waiting={waiting ? '1' : '0'} data-tour-anchor-missing={missing ? '1' : '0'} aria-live="polite">
       {spot ? (
         <div className="absolute rounded-lg pointer-events-none transition-all duration-200" data-tour-spotlight
           style={{ top: rect.top - pad, left: rect.left - pad, width: rect.width + pad * 2, height: rect.height + pad * 2, boxShadow: '0 0 0 9999px rgba(17, 24, 39, 0.55)', outline: '2px solid rgba(255,255,255,0.9)' }} />
@@ -230,7 +237,7 @@ function TourOverlay({ tour, index, setIndex, onFinish, canView, role }) {
         style={small ? undefined : { top: cardTop, left: cardLeft }} data-tour-card data-tour-sheet={small ? '1' : '0'} role="dialog" aria-label={step.title}>
         <div className="flex items-start justify-between gap-3">
           <div>
-            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{tour.title} · {pos + 1} of {order.length}{tour.multipage && pageLabel ? ` · ${pageLabel}` : ''}</p>
+            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider" data-tour-counter>{tour.title} · {pos + 1} of {order.length}{tour.multipage && pageLabel ? ` · ${pageLabel}${samePage.length > 1 ? ` ${pagePos} of ${samePage.length}` : ''}` : ''}</p>
             <h3 className="text-sm font-semibold text-gray-900 mt-0.5">{step.title}</h3>
           </div>
           <button onClick={() => onFinish(false)} className="text-gray-400 hover:text-gray-700 p-1 -m-1 rounded" aria-label="Skip the tour" data-tour-skip><X size={14} /></button>
@@ -238,6 +245,7 @@ function TourOverlay({ tour, index, setIndex, onFinish, canView, role }) {
         {waiting
           ? <p className="text-[13px] text-gray-500 mt-2 inline-flex items-center gap-2" data-tour-loading><Loader size={12} className="animate-spin" /> Opening {pageLabel || 'the page'}…</p>
           : <p className="text-[13px] text-gray-600 mt-2 leading-relaxed">{step.body}</p>}
+        {missing && !waiting && <p className="text-[11px] text-amber-700 mt-2 inline-flex items-center gap-1.5" data-tour-missing><Loader size={11} /> This part of the page appears once there is something to show here.</p>}
         <div className="flex items-center justify-between mt-4 gap-2 flex-wrap">
           <div className="flex items-center gap-3 sm:gap-2">
             <button onClick={() => onFinish(false)} className="text-xs text-gray-400 hover:text-gray-700" data-tour-skip-all>Skip tour</button>

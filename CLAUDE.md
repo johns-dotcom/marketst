@@ -381,11 +381,17 @@ Authoritative project guide: **`boom-dashboard/CLAUDE.md`** — read it before m
   walk) and `/activity`. The WELCOME is BUILT FROM THE NAV in sidebar order:
   for each group → item; a tabbed family gets a step on its tab strip
   (`TabbedShell` renders `data-tour="family-tabs" data-family={key}`) then
-  ONE orientation step per visible tab (that tab's tour's first step, carrying
-  `path`, `page`, `family`, `familyLabel`); a plain page gets its first step.
-  51 steps for a Superadmin. The deeper steps stay in the page's own tour,
-  which runs the first time the page is opened; finishing welcome records
-  ONLY welcome (the page the walk ends on is held back for the session). The
+  EVERY step of each visible tab's tour (stamped `path`, `page`, `family`,
+  `familyLabel`); a plain page gets its whole tour too — John, same day: "the
+  full dashboard walkthrough still skips to the next page before finishing a
+  page's walkthrough", so the one-step-per-page form lasted an hour. ~150
+  steps for a Superadmin; the counter reads `Family › Page 2 of 4`. Finishing
+  welcome records ONLY welcome (the page the walk ends on is held back for the
+  session). **A step whose anchor never renders is SHOWN, not skipped**: after
+  the 4s wait ON the page the card renders centered with an amber "appears
+  once there is something to show here" line (`data-tour-anchor-missing`) and
+  waits for Next — the silent auto-advance was what read as "skipping"; only a
+  step whose PAGE never loads (a guard redirected) still drops the page. The
   card offers **Skip this page**, **Skip <family>** (jumps past the family;
   shown only when it differs from Skip this page) and **Skip tour**. Admin-
   only pages carry `roles` so a User's walk drops them. Anchors: PageHeader

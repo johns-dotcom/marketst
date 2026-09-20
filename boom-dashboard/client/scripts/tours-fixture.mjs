@@ -72,8 +72,8 @@ ok(welcome.steps[0].path === '/' && welcome.steps[welcome.steps.length - 1].path
 const missing = WALK_PATHS.filter((p) => !TOURS.some((t) => t.path === p && !t.match && t.id !== 'welcome'))
 ok(missing.length === 0, missing.length ? `every visible page has a tour — MISSING: ${missing.join(', ')}` : `every one of the ${WALK_PATHS.length} visible pages has a tour`)
 for (const p of WALK_PATHS) ok(pages.includes(p), `the walk visits ${p}`)
-const perPage = welcome.steps.filter((s) => s.page && !/family-tabs/.test(s.target)).reduce((m, s) => { m[s.path] = (m[s.path] || 0) + 1; return m }, {})
-ok(Object.values(perPage).every((n) => n === 1), 'one orientation step per page (the deeper steps stay in the page tour)')
+const perPage = welcome.steps.filter((s) => s.page && !/family-tabs/.test(String(s.target))).reduce((m, s) => { m[s.path] = (m[s.path] || 0) + 1; return m }, {})
+for (const p of WALK_PATHS) { const t = TOURS.find((x) => x.path === p && !x.match && x.id !== 'welcome'); if (t) ok(perPage[p] === t.steps.length, `the walk runs every step of ${p} (${t.steps.length})`) }
 // every family gets a tab-strip step, on its first tab's page, before its tabs
 for (const g of NAV_GROUPS) for (const item of g.items) if (item.tabbed || item.collapsible) {
   const kids = item.children.filter((c) => !c.hidden && !c.external); if (!kids.length) continue
