@@ -22,6 +22,8 @@ export default function GoToChords() {
     const disarm = () => { setArmed(false); if (timer) { clearTimeout(timer); timer = null } }
     const onKey = (e) => {
       if (typing(e.target) || e.metaKey || e.ctrlKey || e.altKey) return
+      // A walkthrough drives its own navigation; a chord mid-tour would pull the page out from under it.
+      if (document.querySelector('[data-tour-overlay]')) return
       if (!armedRef.current) {
         if (e.key === 'g' && !e.shiftKey) {
           e.preventDefault(); e.stopPropagation()

@@ -5,7 +5,7 @@
 // offers itself as updated and auto-starts on '/'.
 import React from 'react'
 import { createRoot } from 'react-dom/client'
-import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom'
+import { MemoryRouter, Routes, Route, useLocation, Link } from 'react-router-dom'
 import { TourProvider, useTour } from '../src/components/Tour'
 import { calls } from './tour-api-stub.js'
 import { TOURS } from '../src/tours'
@@ -65,6 +65,7 @@ function Page() {
       })}
       {scenario === 'mobile' && loc.pathname === '/' && <div data-tour="walkthrough">icon</div>}
       <p data-page-tour>{pageTour?.id || 'none'} · {tours.length} tours</p>
+      <Link to="/releases" data-away>away</Link>
     </div>
   )
 }
@@ -158,6 +159,13 @@ async function main() {
   } else {
     assert('with welcome done and Home at an OLD version, Home auto-starts as updated', ov()?.getAttribute('data-tour-id') === 'home')
     assert('the page knows its tour and the list of tours the user can open', /home · \d+ tours/.test(textOf(host.querySelector('[data-page-tour]'))))
+    // Leave the page mid-tour (a sidebar click, a g-chord): the single-page tour closes and records nothing.
+    const putsBefore = calls.put.length
+    click(host.querySelector('[data-away]')); await sleep(400)
+    assert('leaving the page closes a single-page tour instead of leaving it floating over the wrong page', !ov() && textOf(host.querySelector('[data-where]')) === '/releases')
+    assert('…and records nothing, so Home offers its tour again next time', calls.put.length === putsBefore)
+    window.__START__('releases'); await sleep(400)
+    assert('a tour started on its own page stays up', ov()?.getAttribute('data-tour-id') === 'releases')
     window.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Escape' })); await sleep(300)
     assert('Escape closes it', !ov())
   }

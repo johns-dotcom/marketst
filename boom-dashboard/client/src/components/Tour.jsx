@@ -142,6 +142,17 @@ function TourOverlay({ tour, index, setIndex, onFinish, canView, role }) {
 
   useEffect(() => { if (order.length === 0) onFinish(null) }, [order.length]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // A single-page tour whose page is LEFT (a sidebar click, a g-chord, a link)
+  // closes without recording — before this it stayed up over the new page and,
+  // finding no anchors there, read "appears once there is something to show",
+  // which was the wrong explanation. The welcome walk drives its own navigation
+  // and is excluded; it drops pages it cannot reach itself.
+  useEffect(() => {
+    if (tour.multipage) return
+    const here = tour.match ? tour.match.test(location.pathname) : location.pathname === tour.path
+    if (!here) onFinish(null)
+  }, [location.pathname]) // eslint-disable-line react-hooks/exhaustive-deps
+
   // Go to the step's page once per step.
   useEffect(() => {
     if (!step || onPage || navigatedFor.current === stepIdx) return
