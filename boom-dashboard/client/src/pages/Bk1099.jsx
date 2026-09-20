@@ -121,7 +121,7 @@ export default function Bk1099() {
     <div className="p-6 max-w-[1400px] mx-auto">
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-[22px] font-black text-ink flex items-center gap-2">
+          <h1 data-tour="tax-header" className="text-[22px] font-black text-ink flex items-center gap-2">
             <FileText size={20} className="text-gray-400" /> 1099 Filing
           </h1>
           <p className="mt-1 text-[12.5px] text-gray-500 max-w-[760px]">
@@ -131,7 +131,7 @@ export default function Bk1099() {
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          <select value={year} onChange={(e) => setYear(Number(e.target.value))}
+          <select data-tour="tax-year" value={year} onChange={(e) => setYear(Number(e.target.value))}
             className="border border-rule rounded-lg px-3 py-2 text-[13px] font-bold bg-card text-ink">
             {years.map((y) => <option key={y} value={y}>{y}</option>)}
           </select>
@@ -146,7 +146,7 @@ export default function Bk1099() {
             <Download size={13} /> Download workbook
           </button>
           {canSeeFullTin && (
-            <button
+            <button data-tour="tax-download"
               onClick={() => {
                 if (!window.confirm(
                   'Download with FULL taxpayer ID numbers?\n\n'
@@ -200,7 +200,7 @@ export default function Bk1099() {
             {meta.threshold_note} {meta.exempt_note}
           </p>
 
-          <div className="mt-5 flex items-center gap-1 border-b border-divider">
+          <div data-tour="tax-buckets" className="mt-5 flex items-center gap-1 border-b border-divider">
             {[
               ['reportable', `Reportable (${buckets.reportable.length})`],
               ['chase', `Needs attention (${buckets.chase.length})`],

@@ -373,9 +373,9 @@ export default function Messages() {
       <div className="flex-1 min-h-0 flex rounded-2xl border border-rule bg-card overflow-hidden">
 
         {/* ── Sidebar ───────────────────────────────────────────────────── */}
-        <aside className={`${mobilePane === 'list' ? 'flex' : 'hidden'} sm:flex w-full sm:w-64 lg:w-72 shrink-0 flex-col border-r border-divider bg-gray-50/50`}>
+        <aside data-tour="messages-rail" className={`${mobilePane === 'list' ? 'flex' : 'hidden'} sm:flex w-full sm:w-64 lg:w-72 shrink-0 flex-col border-r border-divider bg-gray-50/50`}>
           <div className="p-3 border-b border-divider">
-            <div className="relative">
+            <div data-tour="messages-search" className="relative">
               <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
               <input
                 value={query}
@@ -433,7 +433,7 @@ export default function Messages() {
         </aside>
 
         {/* ── Message pane ──────────────────────────────────────────────── */}
-        <section className={`${mobilePane === 'room' ? 'flex' : 'hidden'} sm:flex flex-1 min-w-0 flex-col`}>
+        <section data-tour="messages-pane" className={`${mobilePane === 'room' ? 'flex' : 'hidden'} sm:flex flex-1 min-w-0 flex-col`}>
           {denied === 'forbidden' ? (
             <CenteredNote
               icon={Lock}

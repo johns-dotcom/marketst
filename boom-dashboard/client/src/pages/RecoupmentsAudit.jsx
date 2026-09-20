@@ -107,7 +107,7 @@ export default function RecoupmentsAudit() {
 
   return (
     <div className="space-y-5">
-      <PageHeader
+      <PageHeader tour="audit-header"
         title="Recoupment audit"
         subtitle="Five checks on the recoupment ledger — money that should be claimed and has not been, and money claimed that cannot be shown."
         actions={(
@@ -163,7 +163,7 @@ export default function RecoupmentsAudit() {
           </div>
 
           {/* Tiles double as the section selector — five checks, one open. */}
-          <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+          <div data-tour="audit-checks" className="grid grid-cols-2 lg:grid-cols-5 gap-3">
             {CHECKS.map((c) => {
               const on = active === c.id
               const k = counts[c.id]

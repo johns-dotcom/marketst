@@ -3146,7 +3146,7 @@ export default function BkLedger({ bank = false }) {
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: C.pageBg, fontSize: 14 }}>
 
       {/* ── Toolbar ──────────────────────────────────────────────────────── */}
-      <div style={{
+      <div data-tour="ledger-toolbar" style={{
         padding: '10px 16px', display: 'flex', gap: 12, alignItems: 'flex-start',
         justifyContent: 'space-between', borderBottom: `1px solid ${C.border}`,
         background: C.cardBg, flexWrap: 'wrap', position: 'sticky', top: 0, zIndex: 10,
@@ -3199,7 +3199,7 @@ export default function BkLedger({ bank = false }) {
           </select>
         </div>
         {/* Filter strip */}
-        <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+        <div data-tour="ledger-filters" style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
           {/* Leads the strip: the coarse cut comes before the fine filters,
               and its counts show the ledger's composition at a glance. */}
           {showViewSwitch && (
@@ -3702,7 +3702,7 @@ export default function BkLedger({ bank = false }) {
       )}
 
       {/* ── Table ────────────────────────────────────────────────────────── */}
-      <div style={{ flex: 1, overflowX: 'auto', overflowY: 'auto' }}>
+      <div data-tour="ledger-table" style={{ flex: 1, overflowX: 'auto', overflowY: 'auto' }}>
         {flat.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '60px 20px', color: '#777', fontSize: 14 }}>
             No entries found.

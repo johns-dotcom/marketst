@@ -185,7 +185,7 @@ export default function AdAllocation() {
 
   return (
     <div className="p-4 sm:p-6 max-w-7xl mx-auto">
-      <PageHeader
+      <PageHeader tour="ads-header"
         title="Allocate Advertising"
         subtitle="Ad-platform charges name nobody. Put a campaign — and so an artist — behind the money."
         actions={
@@ -267,7 +267,7 @@ export default function AdAllocation() {
           </div>
 
           {/* CAMPAIGNS */}
-          <div className="card mb-3">
+          <div data-tour="ads-campaigns" className="card mb-3">
             <div className="flex items-center gap-2 px-3 py-2.5 border-b border-divider">
               <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">
                 Campaigns in {monthLabel(month)}
@@ -354,7 +354,7 @@ export default function AdAllocation() {
           </div>
 
           {/* CHARGES */}
-          <div className="card">
+          <div data-tour="ads-charges" className="card">
             <div className="flex items-center gap-2 px-3 py-2.5 border-b border-divider">
               <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">
                 Charges — what the bank paid

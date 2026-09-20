@@ -373,6 +373,32 @@ Authoritative project guide: **`boom-dashboard/CLAUDE.md`** — read it before m
   /settings/me/tours`; a person who finished an older version sees the tour
   offered again as "updated". **THE RULE: a change to a page changes its tour
   in the same commit and bumps that tour's `version` (a date).**
+  **Every visible page has a tour, and the welcome walk covers the whole nav
+  (2026-09-20, John: "releases only shows the pipeline, not the catalog. make
+  sure each walkthrough covers every feature").** 48 page tours, 3–5 steps
+  each (header + every visible control; nothing opened or clicked), for every
+  page in NAV_GROUPS including the 8 hidden ones (own tour, skipped by the
+  walk) and `/activity`. The WELCOME is BUILT FROM THE NAV in sidebar order:
+  for each group → item; a tabbed family gets a step on its tab strip
+  (`TabbedShell` renders `data-tour="family-tabs" data-family={key}`) then
+  ONE orientation step per visible tab (that tab's tour's first step, carrying
+  `path`, `page`, `family`, `familyLabel`); a plain page gets its first step.
+  51 steps for a Superadmin. The deeper steps stay in the page's own tour,
+  which runs the first time the page is opened; finishing welcome records
+  ONLY welcome (the page the walk ends on is held back for the session). The
+  card offers **Skip this page**, **Skip <family>** (jumps past the family;
+  shown only when it differs from Skip this page) and **Skip tour**. Admin-
+  only pages carry `roles` so a User's walk drops them. Anchors: PageHeader
+  `tour="x-header"` on every page that has one; `data-tour` on panels; the
+  bank pages share `data-tour="bank-scope"` from `BankShell`; component-root
+  anchors (FlagsNav, Overview, NDAPreview, FilterBar, MonthlyRollup…) sit on
+  the component's root DOM node, never on the JSX call. `tours-fixture` now
+  asserts: every visible nav page has a tour; the walk visits each once;
+  every family has a strip step; hidden pages have tours and are NOT walked.
+  `anchors-dom` mounts ALL 48 pages against the empty stub (184 checks; shell
+  anchors are skipped there). The `tour-api-stub` marks welcome done at the
+  CURRENT version (bumping the version broke the 'done' scenario once).
+  **Earlier form (superseded):**
   **The welcome tour walks the pages AND runs each page's whole tour there**
   (bug fixed 2026-09-19, John: "doesnt go through a full page before moving
   on"). `WELCOME` is BUILT from `PAGE_TOURS` — `WALK` lists the pages in

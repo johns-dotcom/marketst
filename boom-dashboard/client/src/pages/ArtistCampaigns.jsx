@@ -2313,7 +2313,7 @@ export default function ArtistCampaigns() {
   if (!isDetail) {
     return (
       <div className="space-y-4">
-        <PageHeader
+        <PageHeader tour="campaigns-header"
           title="Artist Campaigns"
           subtitle="Reconcile every artist spend on the ledger against the marketing team's tracked campaigns. Fill in missing socials inline; dismiss rows that don't relate to a campaign."
           actions={(
@@ -2337,7 +2337,7 @@ export default function ArtistCampaigns() {
         <CampaignReviewInbox />
         {chatEl}
 
-        <div className="card p-3">
+        <div data-tour="campaigns-search" className="card p-3">
           <div className="relative">
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
             <input
@@ -2355,7 +2355,7 @@ export default function ArtistCampaigns() {
             every open invoice regardless of date. Stating that beats letting one
             date control read as though it bounded both. */}
         {indexMeta && (
-          <div className="card p-4 mb-4">
+          <div data-tour="campaigns-summary" className="card p-4 mb-4">
             <div className="flex flex-wrap items-end gap-x-8 gap-y-3">
               <div>
                 <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">

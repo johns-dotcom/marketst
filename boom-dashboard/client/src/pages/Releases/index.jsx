@@ -549,7 +549,7 @@ export default function Releases() {
         title="Release Tracker"
         subtitle="Manage your release checklist"
         actions={<>
-          <div className="flex items-center border border-gray-200 rounded-lg overflow-hidden">
+          <div data-tour="releases-view" className="flex items-center border border-gray-200 rounded-lg overflow-hidden">
             <button onClick={() => setViewMode('list')} className={`px-3 py-2 flex items-center gap-1.5 text-xs font-medium transition-colors ${viewMode === 'list' ? 'bg-gray-900 text-white' : 'bg-white text-gray-500 hover:bg-gray-50'}`}>
               <List size={14} /> List
             </button>
@@ -566,7 +566,7 @@ export default function Releases() {
       <NotificationBanner notifications={notifications} onJumpTo={handleNotifJumpTo} />
 
       {/* Filters */}
-      <div className="flex gap-2 flex-wrap items-center">
+      <div data-tour="releases-filters" className="flex gap-2 flex-wrap items-center">
         <div className="relative flex-1 min-w-[220px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-300" size={14} />
           <input type="text" placeholder="Search artist, project, ISRC, UPC…" value={searchTerm}

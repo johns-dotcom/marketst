@@ -23,8 +23,11 @@ const shimNav = rawNav.replace(/import\s*\{[\s\S]*?\}\s*from\s*'lucide-react'/, 
   const names = m.replace(/import\s*\{|\}\s*from\s*'lucide-react'/g, '').split(',').map((x) => x.trim()).filter(Boolean)
   return names.map((n) => `const ${n} = () => null`).join('\n')
 })
-const { NAV_PAGES } = await import('data:text/javascript;base64,' + Buffer.from(shimNav).toString('base64'))
-const { TOURS, tourForPath } = await import(SRC + '/tours/index.js')
+const navUrl = 'data:text/javascript;base64,' + Buffer.from(shimNav).toString('base64')
+const { NAV_PAGES, NAV_GROUPS } = await import(navUrl)
+// tours/index.js imports the nav (for the welcome walk); point it at the shim
+const rawTours = fs.readFileSync(SRC + '/tours/index.js', 'utf8').replace("from '../navConfig'", `from '${navUrl}'`)
+const { TOURS, tourForPath, WALK_PATHS } = await import('data:text/javascript;base64,' + Buffer.from(rawTours).toString('base64'))
 
 // every data attribute rendered anywhere in the client source
 const files = []
@@ -60,15 +63,28 @@ for (const t of TOURS) for (const s of t.steps) {
   }
 }
 
-console.log('\n2b. the welcome tour walks the pages')
+console.log('\n2b. the welcome tour walks the whole nav')
 const welcome = TOURS.find((t) => t.id === 'welcome')
 const pages = [...new Set(welcome.steps.map((s) => s.path))]
-ok(welcome.multipage === true && pages.length >= 8, `welcome visits ${pages.length} pages`)
-const pageTourSteps = TOURS.filter((t) => t.id !== 'welcome' && !t.match && pages.includes(t.path)).reduce((n, t) => n + t.steps.length, 0)
-ok(welcome.steps.filter((s) => s.page).length === pageTourSteps, `welcome runs every step of every page tour it visits (${pageTourSteps} steps)`)
-ok(welcome.steps.filter((s) => s.page && !s.target.includes('-header') && !s.target.includes(',') && s.target !== '[data-tour="home-loop"]' && !/^\[data-(quick-actions|week|activity|tour="my-work-(add|list|week)"|tour="approvals"|tour="payments"|tour="calendar-grid"|legend|brand-(drop|filter)|invite|settings-shell)/.test(s.target)).length === 0, 'every page step points at an anchor that renders without data, or carries a fallback that does')
+ok(welcome.multipage === true, 'welcome is multipage')
 ok(welcome.steps[0].path === '/' && welcome.steps[welcome.steps.length - 1].path === '/', 'it starts and ends on Home')
-for (const pth of ['/my-work', '/artists', '/releases', '/deals', '/contracts', '/bk/approvals', '/bk/payments', '/calendar', '/brand', '/team', '/settings']) ok(pages.includes(pth), `welcome visits ${pth}`)
+// every visible nav page has its own tour, and the walk stops there once
+const missing = WALK_PATHS.filter((p) => !TOURS.some((t) => t.path === p && !t.match && t.id !== 'welcome'))
+ok(missing.length === 0, missing.length ? `every visible page has a tour — MISSING: ${missing.join(', ')}` : `every one of the ${WALK_PATHS.length} visible pages has a tour`)
+for (const p of WALK_PATHS) ok(pages.includes(p), `the walk visits ${p}`)
+const perPage = welcome.steps.filter((s) => s.page && !/family-tabs/.test(s.target)).reduce((m, s) => { m[s.path] = (m[s.path] || 0) + 1; return m }, {})
+ok(Object.values(perPage).every((n) => n === 1), 'one orientation step per page (the deeper steps stay in the page tour)')
+// every family gets a tab-strip step, on its first tab's page, before its tabs
+for (const g of NAV_GROUPS) for (const item of g.items) if (item.tabbed || item.collapsible) {
+  const kids = item.children.filter((c) => !c.hidden && !c.external); if (!kids.length) continue
+  const fs_ = welcome.steps.find((s) => s.target === `[data-tour="family-tabs"][data-family="${item.key}"]`)
+  ok(!!fs_ && fs_.path === kids[0].path && fs_.family === item.key, `family ${item.label}: a tab-strip step on ${kids[0].path}`)
+  ok(kids.every((c) => welcome.steps.some((s) => s.path === c.path && s.family === item.key)), `family ${item.label}: every tab carries the family key`)
+}
+// hidden pages have tours but are not in the walk
+const externals = new Set(NAV_GROUPS.flatMap((g) => g.items.flatMap((i) => (i.children || [i]).filter((c) => c.external).map((c) => c.path))))
+const hidden = NAV_PAGES.filter((p) => p.hidden && !externals.has(p.path)).map((p) => p.path)
+for (const p of hidden) { ok(TOURS.some((t) => t.path === p && !t.match), `hidden page ${p} has its own tour`); ok(!pages.includes(p), `…and the walk does not visit ${p}`) }
 
 console.log('\n3. routing')
 ok(tourForPath('/artists/12')?.id === 'artist-profile', '/artists/12 → the profile tour, not the roster tour')

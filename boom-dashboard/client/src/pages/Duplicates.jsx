@@ -827,7 +827,7 @@ export default function Duplicates() {
 
   return (
     <div className="space-y-6">
-      <PageHeader
+      <PageHeader tour="flags-header"
         title="Flags"
         // Two figures, never one. "3419 potential issues" conflated 700 things
         // that are wrong with 2,700 empty fields, so the page read as a
@@ -1180,7 +1180,7 @@ function SourceChip({ source, className = '' }) {
 // group, so the money items sit at the top of the rail.
 function FlagsNav({ groups, activeTab, onPick, totalFlags }) {
   return (
-    <nav className="hidden lg:block w-56 shrink-0 sticky top-4 self-start">
+    <nav data-tour="flags-nav" className="hidden lg:block w-56 shrink-0 sticky top-4 self-start">
       <button
         onClick={() => onPick('overview')}
         className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-[13px] font-bold transition-colors ${
@@ -1235,7 +1235,7 @@ function Overview({ categories, totalFlags, onPick }) {
 
   if (totalFlags === 0) {
     return (
-      <div className="card p-12 text-center">
+      <div data-tour="flags-overview" className="card p-12 text-center">
         <AlertTriangle size={28} className="text-emerald-300 mx-auto mb-3" />
         <p className="text-sm text-gray-500">No flagged data right now.</p>
         <p className="text-xs text-gray-400 mt-1">We check the catalog (duplicate releases / artists, missing genre, UPC, ISRC, Spotify links), the ledger (duplicate vendors and invoices, artist-column problems, rows flagged by hand), and the bank (reconciliation mismatches and transactions flagged in review).</p>

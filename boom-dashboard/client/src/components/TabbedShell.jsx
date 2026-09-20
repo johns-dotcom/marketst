@@ -78,7 +78,7 @@ export default function TabbedShell({ family, children, counts = {} }) {
 
   return (
     <>
-      <div className="flex gap-0 border-b border-divider mb-6 overflow-x-auto">
+      <div className="flex gap-0 border-b border-divider mb-6 overflow-x-auto" data-tour="family-tabs" data-family={family.key}>
         {tabs.map((t) => {
           const active = t.path === activePath
           const cls = `text-xs font-medium px-4 py-2.5 -mb-px whitespace-nowrap transition-colors ${

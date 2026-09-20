@@ -10,7 +10,7 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { X, ChevronLeft, ChevronRight, SkipForward, Loader } from 'lucide-react'
 import api from '../api'
 import { useAuth } from '../context/AuthContext'
-import { TOURS, tourById, tourForPath, WELCOME_COVERS } from '../tours'
+import { TOURS, tourById, tourForPath } from '../tours'
 
 const TourContext = createContext(null)
 const NOOP = { startTour: () => false, tours: [], done: {}, active: null, doneVersion: () => null, isDone: () => false, pageTour: null }
@@ -69,21 +69,20 @@ export function TourProvider({ children }) {
   // completed: true = Done, false = Skip, null = nothing was on screen to show
   // (a tour started for a page you are not on) — closed without recording,
   // so it still offers itself the first time that page is opened.
-  const finish = useCallback(async (completed, skippedPaths = []) => {
+  const finish = useCallback(async (completed) => {
     const t = active?.tour; setActive(null)
     if (!t || completed === null) return
-    // Finishing the welcome walk also completes every page tour it ran, so
-    // those pages do not offer their tour again the moment they are opened. A
-    // page the person chose to skip keeps its first-open tour — for a later
-    // session, not the moment this one ends.
-    const covers = t.id === 'welcome' && completed ? WELCOME_COVERS.filter((c) => !skippedPaths.includes(c.path)) : []
-    if (t.id === 'welcome' && completed) WELCOME_COVERS.filter((c) => skippedPaths.includes(c.path)).forEach((c) => startedOnPath.current.add(c.id))
-    const batch = [{ id: t.id, version: t.version, skipped: !completed }, ...covers.map((c) => ({ id: c.id, version: c.version, skipped: false }))]
+    // The welcome walk shows ONE orientation step per page; each page's own
+    // tour (the deeper steps) still runs the first time that page is opened.
+    // Only the page the walk ends on is held back this session, so a second
+    // tour does not pounce the moment the walk closes.
+    if (t.id === 'welcome') { const here = tourForPath(location.pathname); if (here) startedOnPath.current.add(here.id) }
+    const batch = [{ id: t.id, version: t.version, skipped: !completed }]
     try {
       const r = await api.put('/settings/me/tours', batch.length > 1 ? { tours: batch } : batch[0])
       setDone(r.data?.data || Object.fromEntries(batch.map((b) => [b.id, { version: b.version }])))
     } catch { setDone((d) => ({ ...(d || {}), ...Object.fromEntries(batch.map((b) => [b.id, { version: b.version }])) })) }
-  }, [active, done])
+  }, [active, done, location.pathname])
 
   // Auto-start. Welcome first; then the page tour once per page per session.
   useEffect(() => {
@@ -134,6 +133,10 @@ function TourOverlay({ tour, index, setIndex, onFinish, canView, role }) {
   const navigatedFor = useRef(null)
   // Skip this page: jump to the first later step on a different page.
   const nextPagePos = order.findIndex((idx, k) => k > pos && (steps[idx].path || tour.path) !== (step?.path || tour.path))
+  // Skip this family: the first later step outside this page's family (a step with no family is its own).
+  const famOf = (st) => st?.family || `page:${st?.path || tour.path}`
+  const nextFamilyPos = order.findIndex((idx, k) => k > pos && famOf(steps[idx]) !== famOf(step))
+  const skipFamily = () => { if (step?.path && !skippedPaths.current.includes(step.path)) skippedPaths.current.push(step.path); if (nextFamilyPos === -1) onFinish(true, skippedPaths.current); else setIndex(order[nextFamilyPos]) }
   const skippedPaths = useRef([])   // pages the person chose to skip in a multipage walk
 
   useEffect(() => { if (order.length === 0) onFinish(null) }, [order.length]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -214,7 +217,7 @@ function TourOverlay({ tour, index, setIndex, onFinish, canView, role }) {
   const below = spot ? rect.top + rect.height + 16 + 200 < vh : true
   const cardTop = spot ? (below ? rect.top + rect.height + 14 : Math.max(12, rect.top - 14 - 210)) : Math.max(24, vh / 2 - 120)
   const cardLeft = spot ? Math.min(Math.max(12, rect.left), Math.max(12, vw - 372)) : Math.max(12, vw / 2 - 180)
-  const pageLabel = step.page || (wantPath ? ({ '/': 'Home' }[wantPath] || wantPath.replace(/^\//, '').replace(/^bk\//, '').replace(/-/g, ' ')) : null)
+  const pageLabel = (step.familyLabel && step.page && step.familyLabel !== step.page ? `${step.familyLabel} › ${step.page}` : step.page) || (wantPath ? ({ '/': 'Home' }[wantPath] || wantPath.replace(/^\//, '').replace(/^bk\//, '').replace(/-/g, ' ')) : null)
   return (
     <div className="fixed inset-0 z-[200]" data-tour-overlay data-tour-id={tour.id} data-tour-step={stepIdx} data-tour-waiting={waiting ? '1' : '0'} aria-live="polite">
       {spot ? (
@@ -239,6 +242,7 @@ function TourOverlay({ tour, index, setIndex, onFinish, canView, role }) {
           <div className="flex items-center gap-3 sm:gap-2">
             <button onClick={() => onFinish(false)} className="text-xs text-gray-400 hover:text-gray-700" data-tour-skip-all>Skip tour</button>
             {tour.multipage && nextPagePos !== -1 && <button onClick={skipPage} className="text-xs text-gray-400 hover:text-gray-700 inline-flex items-center gap-1" data-tour-skip-page><SkipForward size={11} /> Skip this page</button>}
+            {tour.multipage && step?.family && nextFamilyPos !== -1 && nextFamilyPos !== nextPagePos && <button onClick={skipFamily} className="text-xs text-gray-400 hover:text-gray-700 inline-flex items-center gap-1" data-tour-skip-family><SkipForward size={11} /> Skip {step.familyLabel || 'this family'}</button>}
           </div>
           <div className="flex items-center gap-1.5">
             {pos > 0 && <button onClick={back} className="inline-flex items-center gap-1 text-xs font-semibold border border-rule rounded-lg px-2.5 py-1.5 hover:bg-gray-50" data-tour-back><ChevronLeft size={12} /> Back</button>}

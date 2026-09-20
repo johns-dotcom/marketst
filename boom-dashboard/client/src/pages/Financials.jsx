@@ -994,7 +994,7 @@ function MonthlyRollup({ rows, loading, artistFilter, onArtistFilterChange, rece
   )
 
   return (
-    <div className="card p-5">
+    <div data-tour="financials-monthly" className="card p-5">
       <div className="flex items-center justify-between flex-wrap gap-3 mb-3">
         <div>
           <h2 className="text-sm font-bold text-gray-900">Monthly rollup</h2>
@@ -1443,7 +1443,7 @@ function FilterBar({ filters, setFilters, options, execFilters }) {
   const clearAll = () => setFilters({ artist: '', category: '', rep: '' })
   const active = filters.artist || filters.category || filters.rep
   return (
-    <div className="card px-4 py-3 flex flex-wrap items-center gap-2 text-xs">
+    <div data-tour="financials-filters" className="card px-4 py-3 flex flex-wrap items-center gap-2 text-xs">
       <span className="text-[11px] font-bold uppercase tracking-wider text-gray-400 mr-1">Scope:</span>
       <select
         value={filters.artist}
@@ -1660,7 +1660,7 @@ function FinancialsLanding() {
   const kpi = execData?.kpi
   return (
     <div className="space-y-6">
-      <PageHeader
+      <PageHeader tour="financials-header"
         title="Financials"
         subtitle="Executive spend view — paid, unpaid, and intake across every artist / song / category."
         actions={
@@ -1702,7 +1702,7 @@ function FinancialsLanding() {
 
       {/* KPI cards — fixed points-in-time, range-picker-independent.
           These are always current: This Week / MTD / YTD / Unpaid. */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div data-tour="financials-kpis" className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {execLoading && !kpi ? (
           [0,1,2,3].map(i => <div key={i} className="card h-24 animate-pulse bg-gray-50" />)
         ) : kpi ? (

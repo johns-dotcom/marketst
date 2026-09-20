@@ -296,7 +296,7 @@ export default function ActivityHistory() {
     <div className="space-y-5">
 
       {/* Header */}
-      <PageHeader
+      <PageHeader tour="activity-header"
         title="Activity History"
         subtitle={loading ? 'Loading…' : `${total.toLocaleString()} event${total !== 1 ? 's' : ''} matching filters`}
         actions={

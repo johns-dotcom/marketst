@@ -469,7 +469,7 @@ export default function ArtistBudgets() {
 
   return (
     <div className="space-y-5">
-      <PageHeader
+      <PageHeader tour="budgets-header"
         title="Artist budgets"
         subtitle="What each artist was budgeted, what is still owed, and what the ledger actually paid. Type a budget on an artist's sheet, or import the marketing spend sheet."
         actions={
@@ -525,7 +525,7 @@ export default function ArtistBudgets() {
         </div>
       )}
 
-      <div className="flex gap-1 border-b border-divider">
+      <div data-tour="budgets-tabs" className="flex gap-1 border-b border-divider">
         {[
           ['budgets', 'Budgets'],
           ['queue', `Unlinked${unlinked?.count ? ` (${unlinked.count})` : ''}`],
@@ -540,7 +540,7 @@ export default function ArtistBudgets() {
 
       {tab === 'budgets' && (
         <>
-          <div className="card p-3 flex items-center gap-2 flex-wrap">
+          <div data-tour="budgets-search" className="card p-3 flex items-center gap-2 flex-wrap">
             <div className="relative flex-1 min-w-[12rem]">
               <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
               <input value={q} onChange={(e) => setQ(e.target.value)}

@@ -942,7 +942,7 @@ export default function Artists() {
               Onboarding · {Object.keys(onboarding).length}
             </button>
           )}
-          <div className="relative w-64">
+          <div data-tour="artists-search" className="relative w-64">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={14} />
             <input
               type="text"
@@ -961,7 +961,7 @@ export default function Artists() {
       />
 
       {/* Stat cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div data-tour="artists-stats" className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <div className="card px-5 py-4 flex items-center gap-4">
           <div className="w-10 h-10 bg-boom-50 rounded-lg flex items-center justify-center">
             <Users size={20} className="text-boom-600" strokeWidth={1.5} />
@@ -1001,7 +1001,7 @@ export default function Artists() {
       </div>
 
       {/* Filters toolbar */}
-      <div className="flex flex-wrap items-center gap-2">
+      <div data-tour="artists-filters" className="flex flex-wrap items-center gap-2">
         {/* Genre dropdown */}
         <div className="relative" ref={genreRef}>
           <button

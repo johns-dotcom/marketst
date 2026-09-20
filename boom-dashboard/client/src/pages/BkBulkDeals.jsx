@@ -377,7 +377,7 @@ export default function BkBulkDeals() {
   return (
     <div className="max-w-[960px] mx-auto px-4">
       <div className="mb-6">
-        <h1 className="text-xl sm:text-2xl font-bold text-gray-900 tracking-tight">Bulk Deals</h1>
+        <h1 data-tour="bulk-deals-header" className="text-xl sm:text-2xl font-bold text-gray-900 tracking-tight">Bulk Deals</h1>
         <p className="text-sm text-gray-400 mt-1">
           {activeDeals.length} active deal{activeDeals.length !== 1 ? 's' : ''} &middot; {totalCompleted}/{totalDeliverables} contracted deliverables received
           {committedStr && ` \u00b7 ${committedStr} committed`}
@@ -405,7 +405,7 @@ export default function BkBulkDeals() {
           </p>
         </div>
       ) : (
-        <div className="flex flex-col gap-3">
+        <div data-tour="bulk-deals-list" className="flex flex-col gap-3">
           {activeDeals.map(deal => {
             const isExpanded = expandedId === deal.id
             const contracted = contractedOf(deal)

@@ -24,7 +24,7 @@ for (const sc of scenarios) {
   let log = ''
   try {
     log = execFileSync('node', ['scripts/mywork-dom-check.mjs', '.domsmoke/out/tour-dom-entry.js'], {
-      cwd: CLIENT, env: { ...process.env, JSDOM_PATH, WAIT_FOR_DONE: '1', WAIT_MS: '30000', PAGE_URL: 'http://localhost/', TOUR_SCENARIO: sc },
+      cwd: CLIENT, env: { ...process.env, JSDOM_PATH, WAIT_FOR_DONE: '1', WAIT_MS: '180000', PAGE_URL: 'http://localhost/', TOUR_SCENARIO: sc },
       encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'],
     })
   } catch (err) { log = (err.stdout || '') + (err.stderr || '') }

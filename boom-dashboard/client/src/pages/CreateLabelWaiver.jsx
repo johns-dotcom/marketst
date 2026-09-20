@@ -87,7 +87,7 @@ function getHeadingLevel(para) {
 function LabelWaiverPreview({ bodyText, data }) {
   const paragraphs = (bodyText || '').split(/\n{2,}/).map(p => p.trim()).filter(Boolean)
   return (
-    <div className="bg-card rounded-lg border border-rule shadow-sm overflow-hidden">
+    <div data-tour="waiver-preview" className="bg-card rounded-lg border border-rule shadow-sm overflow-hidden">
       <div className="bg-gray-50 px-6 py-3 border-b border-rule">
         <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Live Preview</h3>
       </div>
@@ -364,7 +364,7 @@ export default function CreateLabelWaiver() {
               : 'Fill in the deal-specific fields; signatory + contact email default to Market Street.'}
           </p>
 
-          <form onSubmit={handleCreate} className="space-y-4">
+          <form data-tour="waiver-form" onSubmit={handleCreate} className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Effective Date *</label>
               <input

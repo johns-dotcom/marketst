@@ -672,7 +672,7 @@ export default function BkAddInvoice() {
   return (
     <div className="min-h-screen bg-surface-50 p-6">
       <div className="max-w-3xl mx-auto">
-        <PageHeader title="Add Invoice" subtitle="Upload and parse vendor invoices" />
+        <PageHeader tour="add-invoice-header" title="Add Invoice" subtitle="Upload and parse vendor invoices" />
 
         {error && (
           <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg mb-6 flex items-start gap-3">
@@ -701,7 +701,7 @@ export default function BkAddInvoice() {
 
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* File upload area */}
-          <div
+          <div data-tour="add-invoice-upload"
             className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition ${
               dragActive
                 ? 'border-boom-600 bg-boom-50'
@@ -1098,7 +1098,7 @@ export default function BkAddInvoice() {
           )}
 
           {/* Form fields */}
-          <div className="bg-card rounded-lg shadow p-6 space-y-6">
+          <div data-tour="add-invoice-fields" className="bg-card rounded-lg shadow p-6 space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Invoice Date *</label>
@@ -1650,7 +1650,7 @@ export default function BkAddInvoice() {
             </div>
 
             {/* Payment status */}
-            <div className="flex items-start gap-6 flex-wrap">
+            <div data-tour="add-invoice-status" className="flex items-start gap-6 flex-wrap">
               <label className="flex items-center gap-2 cursor-pointer">
                 <input
                   type="checkbox"
@@ -1773,7 +1773,7 @@ export default function BkAddInvoice() {
           </div>
 
           {/* Submit button */}
-          <button
+          <button data-tour="add-invoice-submit"
             type="submit"
             disabled={saving}
             className="w-full px-6 py-3 bg-boom-600 text-white rounded-lg hover:bg-boom-700 disabled:opacity-50 font-medium flex items-center justify-center gap-2"

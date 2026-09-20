@@ -813,7 +813,7 @@ export default function BkApprovals() {
         </div>
 
         {/* ── Toolbar ── */}
-        <div style={{
+        <div data-tour="approvals-toolbar" style={{
           display: 'flex', gap: 10, alignItems: 'center', marginBottom: 20, flexWrap: 'wrap',
         }}>
           <div style={{ position: 'relative', ...(isMobileView ? { flex: '1 1 100%' } : null) }}>
@@ -847,7 +847,7 @@ export default function BkApprovals() {
           </button>
           <span style={{ color: '#999', fontSize: 13, marginLeft: 'auto' }}>{filtered.length} pending</span>
           {filtered.length > 0 && (
-            <button
+            <button data-tour="approvals-review"
               onClick={() => handleBulkApprove(new Set(filtered.map(e => e.id)))}
               disabled={processingId === 'bulk'}
               style={{

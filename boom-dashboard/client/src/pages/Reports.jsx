@@ -1083,7 +1083,7 @@ export default function Reports() {
     <div className="p-4 sm:p-6 max-w-6xl mx-auto">
       <div className="flex items-center gap-2 mb-1">
         <FileBarChart size={20} className="text-boom-600" />
-        <h1 className="text-xl font-extrabold text-ink">Reports</h1>
+        <h1 data-tour="reports-header" className="text-xl font-extrabold text-ink">Reports</h1>
         <ReconciledBadge />
       </div>
       <p className="text-sm text-gray-500 mb-2">Statements are the master: the P&L counts every bank transaction exactly once — the ledger supplies categories, never a second copy of the money. Ledger entries with no bank evidence are shown but not counted. Click any number to see the transactions behind it.</p>
@@ -1200,7 +1200,7 @@ export default function Reports() {
         )
       })()}
 
-      <div className="flex flex-wrap items-center gap-2 mb-4">
+      <div data-tour="reports-controls" className="flex flex-wrap items-center gap-2 mb-4">
         <div className="flex gap-1">
           {[['pnl', 'Profit & Loss'], ['bs', 'Balance Sheet'], ['artists', 'Spend by Artist'], ['dismissed', 'Dismissed']].map(([key, label]) => (
             <button key={key} onClick={() => setTab(key)}

@@ -53,7 +53,7 @@ function NDAPreview({ bodyText, data, template }) {
   // is omitted or doesn't declare renderSignature.
   const sig = renderSignatureFor(template, data || {})
   return (
-    <div className="bg-card border border-rule rounded-lg shadow-sm font-sans">
+    <div data-tour="nda-preview" className="bg-card border border-rule rounded-lg shadow-sm font-sans">
       <div className="px-10 py-8 max-h-[640px] overflow-y-auto space-y-4">
         {paragraphs.map((para, i) => {
           const level = getHeadingLevel(para)
@@ -696,7 +696,7 @@ export default function CreateNDA() {
               : 'Fill in the recipient details; Owner / signatory default to Market Street.'}
           </p>
 
-          <form onSubmit={handleCreate} className="space-y-4">
+          <form data-tour="nda-form" onSubmit={handleCreate} className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Effective Date *</label>
               <input

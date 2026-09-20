@@ -86,7 +86,7 @@ export default function CreateContract() {
         { label: 'Create Contract' },
       ]} />
 
-      <PageHeader
+      <PageHeader tour="create-contract-header"
         title="Create Contract"
         subtitle="AI generates a contract draft using your existing contracts as reference"
       />

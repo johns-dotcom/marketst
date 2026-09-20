@@ -761,7 +761,7 @@ export default function Contracts() {
         title="Contracts"
         subtitle="Manage your artist contracts"
         actions={
-          <button
+          <button data-tour="contracts-new"
             onClick={() => setShowNewContract(v => !v)}
             className="inline-flex items-center gap-2 px-4 py-2 bg-gray-900 text-white text-sm font-semibold rounded-lg hover:bg-gray-700 transition-colors"
           >
@@ -1272,7 +1272,7 @@ export default function Contracts() {
       )}
 
       {/* Filters */}
-      <div className="card p-4 flex flex-col md:flex-row gap-3">
+      <div data-tour="contracts-filters" className="card p-4 flex flex-col md:flex-row gap-3">
         <div className="flex-1 relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
           <input type="text" placeholder="Search by artist name..." value={searchTerm} onChange={handleSearch} className="input-base pl-9" />
@@ -1288,7 +1288,7 @@ export default function Contracts() {
       </div>
 
       {/* Quick-attach from list */}
-      <div className="card p-4">
+      <div data-tour="contracts-attach" className="card p-4">
         <h2 className="text-sm font-semibold text-gray-900 mb-3">Attach Document to Contract</h2>
 
         <div className="flex items-center gap-3">
@@ -1370,7 +1370,7 @@ export default function Contracts() {
       )}
 
       {/* Contracts Table */}
-      <div className="card overflow-hidden">
+      <div data-tour="contracts-table" className="card overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>

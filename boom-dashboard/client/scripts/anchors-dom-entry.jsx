@@ -22,14 +22,58 @@ import Calendar from '../src/pages/Calendar'
 import Brand from '../src/pages/Brand'
 import Team from '../src/pages/Team'
 import Settings from '../src/pages/Settings'
+import Messages from '../src/pages/Messages'
+import Duplicates from '../src/pages/Duplicates'
+import Catalog from '../src/pages/Catalog'
+import PendingContracts from '../src/pages/PendingContracts'
+import Renewals from '../src/pages/Renewals'
+import CreateContract from '../src/pages/CreateContract'
+import CreateNDA from '../src/pages/CreateNDA'
+import CreateLabelWaiver from '../src/pages/CreateLabelWaiver'
+import ArtistClearance from '../src/pages/ArtistClearance'
+import CreateInvoice from '../src/pages/CreateInvoice'
+import Reports from '../src/pages/Reports'
+import AdminDocs from '../src/pages/AdminDocs'
+import BkLedger from '../src/pages/BkLedger'
+import BkCreators from '../src/pages/BkCreators'
+import BkAddInvoice from '../src/pages/BkAddInvoice'
+import BkBankMatching from '../src/pages/BkBankMatching'
+import BkStatements from '../src/pages/BkStatements'
+import BkRules from '../src/pages/BkRules'
+import BkVendorsUnified from '../src/pages/BkVendorsUnified'
+import Bk1099 from '../src/pages/Bk1099'
+import BkAddReimbursement from '../src/pages/BkAddReimbursement'
+import BkInvoices from '../src/pages/BkInvoices'
+import BkBulkDeals from '../src/pages/BkBulkDeals'
+import LedgerMatching from '../src/pages/LedgerMatching'
+import Recoupments from '../src/pages/Recoupments'
+import RecoupmentsPlanning from '../src/pages/RecoupmentsPlanning'
+import RecoupmentsAudit from '../src/pages/RecoupmentsAudit'
+import ArtistBudgets from '../src/pages/ArtistBudgets'
+import ArtistCampaigns from '../src/pages/ArtistCampaigns'
+import AdAllocation from '../src/pages/AdAllocation'
+import Financials from '../src/pages/Financials'
+import Budget from '../src/pages/Budget'
+import Salary from '../src/pages/Salary'
+import Analytics from '../src/pages/Analytics'
+import ActivityHistory from '../src/pages/ActivityHistory'
 import SettingsShell from '../src/components/SettingsShell'
 
 const PAGES = {
   '/': Dashboard, '/my-work': MyWork, '/artists': Artists, '/releases': Releases, '/deals': DealPipeline, '/contracts': Contracts,
   '/bk/approvals': BkApprovals, '/bk/payments': BkPayments, '/calendar': Calendar, '/brand': Brand, '/team': Team, '/settings': Settings,
+  '/messages': Messages, '/flags': Duplicates, '/catalog': Catalog, '/pending-contracts': PendingContracts, '/renewals': Renewals, '/contracts/create': CreateContract,
+  '/create-nda': CreateNDA, '/create-label-waiver': CreateLabelWaiver, '/create-artist-clearance': ArtistClearance, '/create-invoice': CreateInvoice, '/reports': Reports, '/admin': AdminDocs,
+  '/bk/ledger': BkLedger, '/bk/creators': BkCreators, '/bk/add': BkAddInvoice, '/bk/bank-matching': BkBankMatching, '/bk/bank-ledger': () => <BkLedger bank />, '/bk/statements': BkStatements, '/bk/rules': BkRules,
+  '/bk/vendors': BkVendorsUnified, '/bk/1099': Bk1099, '/bk/reimburse': BkAddReimbursement, '/bk/invoices': BkInvoices, '/bk/bulk-deals': BkBulkDeals, '/bk/ledger-matching': LedgerMatching,
+  '/recoupments': Recoupments, '/recoupments/planning': RecoupmentsPlanning, '/recoupments/audit': RecoupmentsAudit, '/artist-budgets': ArtistBudgets, '/artist-campaigns': ArtistCampaigns, '/bk/advertising': AdAllocation,
+  '/financials': Financials, '/budget': Budget, '/salary': Salary, '/analytics': Analytics, '/activity': ActivityHistory,
 }
+// Anchors that a SHELL renders around the page (BankShell's scope band, the
+// family tab strip): not on the page component, so not testable here.
+const SHELL_ANCHORS = ['bank-scope', 'family-tabs']
 // Layout-owned anchors are not on a page component; tour-dom covers them.
-const LAYOUT_ANCHORS = ['sidebar', 'search', 'help', 'notifications', 'walkthrough', 'sidebar-settings']
+const LAYOUT_ANCHORS = ['sidebar', 'search', 'help', 'notifications', 'walkthrough', 'sidebar-settings', 'bank-scope', 'family-tabs']
 const errors = []
 window.addEventListener('error', (e) => errors.push('window.error: ' + e.message))
 const origErr = console.error
@@ -65,8 +109,9 @@ async function main() {
       const sels = String(st.target).split(',').map((x) => x.trim())
       const layoutOnly = sels.every((sel) => LAYOUT_ANCHORS.some((a) => sel.includes(`"${a}"`)))
       if (layoutOnly) continue
-      const found = sels.find((sel) => { try { return !!host.querySelector(sel) } catch { return false } })
-      assert(`${t.id} › “${st.title}”: an anchor exists on the empty page (${found || sels.join(' | ')})`, !!found)
+      const testable = sels.filter((sel) => !LAYOUT_ANCHORS.some((a) => sel.includes(`"${a}"`)))
+      const found = testable.find((sel) => { try { return !!host.querySelector(sel) } catch { return false } })
+      assert(`${t.id} › “${st.title}”: an anchor exists on the empty page (${found || testable.join(' | ')})`, !!found)
     }
     root.unmount(); host.remove()
   }

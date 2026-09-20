@@ -109,7 +109,7 @@ function InvoicePreview({ invoice, compact }) {
   const tSm = compact ? 'text-[10px]' : 'text-xs'
 
   return (
-    <div className={`bg-card border border-rule rounded-lg shadow-sm ${compact ? 'p-6 py-5' : 'p-10 py-8'} font-sans`}>
+    <div data-tour="invoice-preview" className={`bg-card border border-rule rounded-lg shadow-sm ${compact ? 'p-6 py-5' : 'p-10 py-8'} font-sans`}>
       {/* Logo */}
       <BoomLogo compact={compact} />
 
@@ -604,7 +604,7 @@ export default function CreateInvoice() {
               : `Invoice #${padInvoiceNumber(nextNumber)} will be created`}
           </p>
 
-          <form ref={formRef} onSubmit={handleCreate} className="space-y-4">
+          <form data-tour="invoice-form" ref={formRef} onSubmit={handleCreate} className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Bill To</label>
               <textarea

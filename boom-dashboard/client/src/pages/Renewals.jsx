@@ -89,7 +89,7 @@ export default function Renewals() {
 
   return (
     <div className="space-y-6">
-      <PageHeader
+      <PageHeader tour="renewals-header"
         title="Contract Renewals"
         subtitle="Track your contract expiration dates"
       />
@@ -134,7 +134,7 @@ export default function Renewals() {
       {error && <div className="text-sm text-red-600 text-center py-12">{error}</div>}
 
       {/* Renewals Table */}
-      <div className="card overflow-hidden">
+      <div data-tour="renewals-table" className="card overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>

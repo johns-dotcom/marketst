@@ -281,7 +281,7 @@ export default function Team() {
   return (
     <div>
       {/* Header */}
-      <PageHeader
+      <PageHeader tour="people-header"
         title="People"
         subtitle={`${team.length} ${team.length === 1 ? 'person' : 'people'} · ${activeCount} active tasks`}
         actions={<>
@@ -296,7 +296,7 @@ export default function Team() {
               className="flex items-center gap-1.5 text-xs font-semibold text-white bg-boom-600 hover:bg-boom-700 px-3 py-1.5 rounded-lg transition-colors"
             ><Plus size={13} /> New Task</button>
           )}
-          <div className="flex items-center gap-1 bg-gray-100 p-1 rounded-lg">
+          <div data-tour="people-views" className="flex items-center gap-1 bg-gray-100 p-1 rounded-lg">
             {isAdminUser && (
               <button
                 onClick={() => setViewMode('directory')}

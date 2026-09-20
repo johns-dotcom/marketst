@@ -904,12 +904,12 @@ export default function RecoupmentsPlanning() {
       </Link>
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div className="min-w-0">
-          <PageHeader
+          <PageHeader tour="planning-header"
             title="Recoupment planning"
             subtitle="Group + label the items you're planning to upload. Click Done to mark them UFR — they'll land on this month's statement tab automatically."
           />
         </div>
-        <div className="flex items-center gap-2 pt-1 flex-wrap">
+        <div data-tour="planning-actions" className="flex items-center gap-2 pt-1 flex-wrap">
           <button
             onClick={copyList}
             disabled={!planItems.length}
@@ -955,7 +955,7 @@ export default function RecoupmentsPlanning() {
           if (l) labelSet.add(l); else stripUnlabeled++
         }
         return (
-      <div className="card px-5 py-4 flex items-baseline gap-6 flex-wrap">
+      <div data-tour="planning-summary" className="card px-5 py-4 flex items-baseline gap-6 flex-wrap">
         <div>
           <p className="text-[10px] uppercase tracking-wider font-semibold text-gray-400">
             In plan{currentArtist ? ` · ${currentArtist.name}` : ''}
@@ -1106,7 +1106,7 @@ export default function RecoupmentsPlanning() {
 
       {/* Body */}
       {loading ? (
-        <div className="card p-12 text-center text-sm text-gray-500 flex items-center justify-center gap-2">
+        <div data-tour="planning-body" className="card p-12 text-center text-sm text-gray-500 flex items-center justify-center gap-2">
           <Loader size={14} className="animate-spin" /> Loading plan…
         </div>
       ) : planItems.length === 0 ? (

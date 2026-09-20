@@ -777,7 +777,7 @@ export default function BkStatements() {
       }}>
       {/* Header: title + flags + compact upload controls. The big drop zone
           is gone — drag files anywhere on the page, or click Upload. */}
-      <div className="flex flex-wrap items-center gap-2 mb-1">
+      <div data-tour="statements-header" className="flex flex-wrap items-center gap-2 mb-1">
         <Landmark size={20} className="text-ink" />
         <h1 className="text-xl font-extrabold text-ink">Statements</h1>
         {/* Review lives on Bank Matching now. Kept here as a link because this
@@ -826,7 +826,7 @@ export default function BkStatements() {
             className="border border-rule rounded-lg px-2.5 py-1.5 text-[13px] bg-card text-ink">
             {ACCOUNTS.map((a) => <option key={a.key} value={a.key}>{a.label}</option>)}
           </select>
-          <button onClick={() => !uploading && fileRef.current?.click()} disabled={uploading}
+          <button data-tour="statements-upload" onClick={() => !uploading && fileRef.current?.click()} disabled={uploading}
             className="inline-flex items-center gap-1.5 bg-ink text-card hover:opacity-85 rounded-lg px-3 py-1.5 text-[13px] font-bold disabled:opacity-50"
             title="CSV export (exact) or monthly PDF (AI-parsed). Or drag files anywhere on this page.">
             <Upload size={14} /> Upload
@@ -872,7 +872,7 @@ export default function BkStatements() {
 
       {/* Global search — finds a transaction in ANY statement and jumps to it */}
       {!flagsView && !batchView && statements.length > 0 && (
-        <div className="relative mb-4 max-w-xl">
+        <div data-tour="statements-search" className="relative mb-4 max-w-xl">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
           <input value={globalQ} onChange={(e) => onGlobalSearch(e.target.value)}
             placeholder="Search payee, description, email, reference, amount…"

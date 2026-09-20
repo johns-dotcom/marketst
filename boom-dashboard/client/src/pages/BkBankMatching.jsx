@@ -2053,7 +2053,7 @@ export default function BkBankMatching() {
   )
 
   return (
-    <div className='p-4 sm:p-6 max-w-6xl mx-auto'>
+    <div data-tour="bank-matching" className='p-4 sm:p-6 max-w-6xl mx-auto'>
       {/* ── BAND 1 — the title, the one number, the one action ───────────────
           This band held eight controls, and the page had eight bands above its
           first transaction row. Worse, four numbers on screen answered "how much
@@ -2070,14 +2070,14 @@ export default function BkBankMatching() {
             missing. */}
         <span className="inline-flex items-center rounded-lg border border-rule overflow-hidden">
           {[['statement', 'Statement → ledger'], ['ledger', 'Ledger → statement']].map(([d, label]) => (
-            <button key={d} onClick={() => chooseDirection(d)}
+            <button data-tour="bank-matching-direction" key={d} onClick={() => chooseDirection(d)}
               className={`text-[11px] font-bold px-2.5 py-1.5 transition-colors ${
                 direction === d ? 'bg-boom-600 text-white' : 'text-gray-500 hover:text-ink hover:bg-gray-50'}`}>
               {label}
             </button>
           ))}
         </span>
-        <span className="ml-auto inline-flex items-center gap-2">
+        <span data-tour="bank-matching-review" className="ml-auto inline-flex items-center gap-2">
           {/* The primary action, in ink. The count is the MATCHING work — open
               rows plus booked rows with an invoice waiting — counted with the
               deck's own predicate so the button can't promise a number the deck
@@ -2711,7 +2711,7 @@ export default function BkBankMatching() {
               statement selector and tabs on top, search and bulk actions under
               them, the rows below, one border around the lot. This is most of
               what "looks homemade" was. */}
-          <div className="bg-card border border-rule border-b-0 rounded-t-xl px-3.5 pt-3 pb-3 space-y-3">
+          <div data-tour="bank-matching-filters" className="bg-card border border-rule border-b-0 rounded-t-xl px-3.5 pt-3 pb-3 space-y-3">
           {/* ── BAND 3 — narrowing: which statement, which state ────────────
               The selector lives here now, with the filters, because that is what
               it is. It used to sit in the title row next to a strip of statement

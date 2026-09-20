@@ -64,7 +64,7 @@ export default function Budget() {
 
   return (
     <div className="space-y-6">
-      <PageHeader
+      <PageHeader tour="recording-budgets-header"
         title="Recording Budgets"
         subtitle="Draft, approve, and track recording budgets against actual spend. Modeled on the label's Recording Budget + Fund + Costs-to-Date templates."
         actions={
@@ -111,7 +111,7 @@ export default function Budget() {
       <div className="card px-4 py-3 flex flex-wrap items-center gap-2">
         <div className="relative flex-1 min-w-[220px]">
           <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
-          <input
+          <input data-tour="recording-budgets-search"
             type="text"
             value={search}
             onChange={e => setSearch(e.target.value)}
@@ -133,7 +133,7 @@ export default function Budget() {
 
       {/* List */}
       {loading ? (
-        <div className="card p-12 flex items-center justify-center gap-2 text-sm text-gray-500">
+        <div data-tour="recording-budgets-list" className="card p-12 flex items-center justify-center gap-2 text-sm text-gray-500">
           <Loader size={16} className="animate-spin" /> Loading budgets…
         </div>
       ) : error ? (

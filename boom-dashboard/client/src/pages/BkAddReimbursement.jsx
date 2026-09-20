@@ -270,7 +270,7 @@ export default function BkAddReimbursement() {
   return (
     <div className="min-h-screen bg-surface-50 p-6">
       <div className="max-w-3xl mx-auto">
-        <PageHeader title="Add Reimbursement" subtitle="Submit receipts and reimbursement requests" />
+        <PageHeader tour="reimburse-header" title="Add Reimbursement" subtitle="Submit receipts and reimbursement requests" />
 
         {error && (
           <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg mb-6 flex items-start gap-3">
@@ -292,7 +292,7 @@ export default function BkAddReimbursement() {
 
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Invoice upload (primary — parseable) */}
-          <div
+          <div data-tour="reimburse-upload"
             className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition ${
               dragActive ? 'border-boom-600 bg-boom-50'
                 : invoiceFile ? 'border-green-400 bg-green-50'
@@ -395,7 +395,7 @@ export default function BkAddReimbursement() {
           </div>
 
           {/* Form fields */}
-          <div className="bg-card rounded-lg shadow p-6 space-y-6">
+          <div data-tour="reimburse-fields" className="bg-card rounded-lg shadow p-6 space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Date *</label>
@@ -654,7 +654,7 @@ export default function BkAddReimbursement() {
             </div>
           </div>
 
-          <button type="submit" disabled={saving}
+          <button data-tour="reimburse-submit" type="submit" disabled={saving}
             className="w-full px-6 py-3 bg-boom-600 text-white rounded-lg hover:bg-boom-700 disabled:opacity-50 font-medium flex items-center justify-center gap-2">
             {saving && <Loader className="w-4 h-4 animate-spin" />}
             {saving ? 'Saving...' : 'Save Reimbursement'}

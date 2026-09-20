@@ -270,7 +270,7 @@ export default function BkInvoices() {
             outflow comparison stays apples-to-apples. Preset chips cover
             the quick-look ranges; 'Custom' reveals from/to date pickers
             for anything in between. Selection persists to localStorage. */}
-        <div style={{
+        <div data-tour="invoices-range" style={{
           display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 8,
           padding: '8px 12px', background: C.cardBg,
           border: '1px solid ' + C.border, borderRadius: 10,
@@ -352,7 +352,7 @@ export default function BkInvoices() {
       </div>
 
       {/* Toolbar */}
-      <div style={{
+      <div data-tour="invoices-toolbar" style={{
         padding: '10px 16px', display: 'flex', gap: 8, alignItems: 'center',
         justifyContent: 'space-between', borderBottom: '1px solid ' + C.border,
         background: C.cardBg, flexWrap: 'wrap', position: 'sticky', top: 0, zIndex: 10,
@@ -487,7 +487,7 @@ export default function BkInvoices() {
       })()}
 
       {/* Table */}
-      <div style={{ flex: 1, overflowX: 'auto', overflowY: 'auto' }}>
+      <div data-tour="invoices-list" style={{ flex: 1, overflowX: 'auto', overflowY: 'auto' }}>
         {entries.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '60px 20px', color: '#999', fontSize: 14 }}>
             No invoices found.

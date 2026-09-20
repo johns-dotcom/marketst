@@ -54,7 +54,7 @@ export default function Brand() {
 
   return (
     <div className="space-y-5" data-brand>
-      <PageHeader title="Brand" subtitle="The label's logos and photos. Add what the team should be able to grab; download what you need." />
+      <PageHeader tour="brand-header" title="Brand" subtitle="The label's logos and photos. Add what the team should be able to grab; download what you need." />
 
       {/* Upload */}
       <div

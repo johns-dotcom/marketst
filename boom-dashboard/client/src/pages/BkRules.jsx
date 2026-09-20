@@ -247,7 +247,7 @@ export default function BkRules() {
     <div className="p-4 sm:p-6 max-w-5xl mx-auto">
       <div className="flex flex-wrap items-center gap-2 mb-1">
         <Ban size={20} className="text-ink" />
-        <h1 className="text-xl font-extrabold text-ink">Upload Rules</h1>
+        <h1 data-tour="rules-header" className="text-xl font-extrabold text-ink">Upload Rules</h1>
         {totalRules > 0 && (
           <span className="bg-gray-100 text-gray-600 text-[12px] font-bold px-2.5 py-0.5 rounded-full tabular-nums">{totalRules}</span>
         )}
@@ -427,7 +427,7 @@ export default function BkRules() {
           rule with no no-invoice partner books rows into the needs-invoice queue
           on every upload; six of ten were doing that, and the list showed only
           the pattern, so a leaking rule looked identical to a working one. */}
-      <div className="rounded-xl border border-rule bg-card shadow-card overflow-hidden">
+      <div data-tour="rules-in-force" className="rounded-xl border border-rule bg-card shadow-card overflow-hidden">
         <div className="px-4 py-2.5 border-b border-divider">
           <span className="text-sm font-bold text-ink">In force &mdash; {totalRules}</span>
           <span className="text-[12px] text-gray-400"> applied to every statement automatically</span>

@@ -177,7 +177,7 @@ export default function Salary() {
           <button onClick={() => setSaveError('')} className="text-red-500 hover:text-red-700 text-xs font-semibold">Dismiss</button>
         </div>
       )}
-      <PageHeader
+      <PageHeader tour="salary-header"
         title="Salary"
         subtitle="Track monthly employee payments"
         actions={
@@ -210,7 +210,7 @@ export default function Salary() {
       />
 
       {/* Summary bar */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <div data-tour="salary-summary" className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <div className="card px-4 py-3">
           <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">Total Payroll</p>
           <p className="text-xl font-black text-gray-900 mt-1">{fmt(totalPayroll)}</p>
@@ -256,7 +256,7 @@ export default function Salary() {
       )}
 
       {loading ? (
-        <div className="space-y-6">
+        <div data-tour="salary-body" className="space-y-6">
           <Skeleton.StatCards count={4} />
           <Skeleton.Block h="h-48" />
           <Skeleton.Block h="h-48" />

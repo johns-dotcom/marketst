@@ -115,7 +115,7 @@ export default function BankShell({ children }) {
 
   return (
     <>
-      <div className="bg-card border border-rule rounded-xl px-3.5 py-2.5 mb-3">
+      <div data-tour="bank-scope" className="bg-card border border-rule rounded-xl px-3.5 py-2.5 mb-3">
         <div className="flex items-baseline gap-3 flex-wrap">
           <select
             value={statementId ?? ''}

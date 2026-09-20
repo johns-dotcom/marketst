@@ -99,13 +99,13 @@ export default function Analytics() {
 
   return (
     <div>
-      <PageHeader
+      <PageHeader tour="analytics-header"
         title="Analytics"
         subtitle="Who's using the app, and where they spend their time."
       />
 
       {/* Range picker */}
-      <div className="flex gap-1.5 mb-5 overflow-x-auto">
+      <div data-tour="analytics-range" className="flex gap-1.5 mb-5 overflow-x-auto">
         {RANGES.map(r => (
           <button
             key={r.days}
@@ -132,7 +132,7 @@ export default function Analytics() {
       ) : data && (
         <div className="space-y-5">
           {/* Stat cards */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <div data-tour="analytics-stats" className="grid grid-cols-2 lg:grid-cols-4 gap-3">
             <StatCard icon={Eye} label="Page views" value={data.totals.views.toLocaleString()} sub={`last ${data.days} days`} />
             <StatCard icon={Users} label="Active users" value={data.totals.users} sub="viewed at least one page" />
             <StatCard icon={LogIn} label="Logins" value={totalLogins.toLocaleString()} sub="sessions started" />

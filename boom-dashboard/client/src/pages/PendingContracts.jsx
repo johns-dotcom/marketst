@@ -243,7 +243,7 @@ export default function PendingContracts() {
   return (
     <div className="max-w-5xl mx-auto px-6 py-8">
       {/* Header */}
-      <PageHeader
+      <PageHeader tour="pending-header"
         title="Pending Contracts"
         subtitle={`${items.length} artists in pipeline`}
         actions={<>
@@ -306,7 +306,7 @@ export default function PendingContracts() {
           source={{ label: 'Deals', to: '/deals' }}
         />
       ) : (
-        <div className="space-y-2">
+        <div data-tour="pending-list" className="space-y-2">
           {filtered.map(item => (
             <ArtistRow
               key={item.id}

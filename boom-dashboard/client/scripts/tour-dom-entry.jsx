@@ -27,30 +27,43 @@ window.addEventListener('tour:prepare', (e) => prepared.push(`${e.detail.prepare
 window.__TOUR_WAIT_MS__ = 600
 // jsdom has no layout: give the anchors a size so `visible()` is true
 const origRect = window.HTMLElement.prototype.getBoundingClientRect
-window.HTMLElement.prototype.getBoundingClientRect = function () { if (this.hasAttribute && this.hasAttribute('data-hidden')) return { top: 0, left: 0, width: 0, height: 0, right: 0, bottom: 0 }; if (this.hasAttribute && (this.hasAttribute('data-tour') || this.hasAttribute('data-quick-actions') || this.hasAttribute('data-week') || this.hasAttribute('data-activity') || this.hasAttribute('data-brand-drop') || this.hasAttribute('data-brand-filter') || this.hasAttribute('data-directory') || this.hasAttribute('data-invite') || this.hasAttribute('data-legend') || (this.tagName === 'ASIDE' && this.closest('[data-settings-shell]')))) return { top: 100, left: 100, width: 200, height: 40, right: 300, bottom: 140 }; return origRect.call(this) }
+window.HTMLElement.prototype.getBoundingClientRect = function () { if (this.hasAttribute && this.hasAttribute('data-hidden')) return { top: 0, left: 0, width: 0, height: 0, right: 0, bottom: 0 }; if (this.getAttributeNames && (this.getAttributeNames().some((n) => n.startsWith('data-')) || (this.parentElement && this.parentElement.getAttributeNames ? this.parentElement.getAttributeNames() : []).some((n) => n.startsWith('data-')))) return { top: 100, left: 100, width: 200, height: 40, right: 300, bottom: 140 }; if (this.hasAttribute && (this.hasAttribute('data-tour') || this.hasAttribute('data-quick-actions') || this.hasAttribute('data-week') || this.hasAttribute('data-activity') || this.hasAttribute('data-brand-drop') || this.hasAttribute('data-brand-filter') || this.hasAttribute('data-directory') || this.hasAttribute('data-invite') || this.hasAttribute('data-legend') || (this.tagName === 'ASIDE' && this.closest('[data-settings-shell]')))) return { top: 100, left: 100, width: 200, height: 40, right: 300, bottom: 140 }; return origRect.call(this) }
 
-// One fake page per route, each rendering the anchors its real page has —
-// so the welcome tour can walk them under jsdom.
-const ANCHORS = {
-  '/': ['sidebar', 'home-loop', 'search', 'help'], '/my-work': ['my-work-add', 'my-work-list', 'my-work-week'], '/artists': ['artists-header'], '/releases': ['releases-header'],
-  '/deals': ['deals-header'], '/contracts': ['contracts-header'], '/bk/approvals': ['approvals'], '/bk/payments': ['payments'], '/calendar': ['calendar-grid'],
+// One fake page per route, rendering the anchors the tours point at ON THAT
+// ROUTE — derived from the tours themselves, so a new tour needs no edit here.
+// The first alternative of each target is rendered as an element carrying its
+// data attributes (and a descendant tag when the selector names one).
+const parseSel = (sel) => {
+  const m = /^((?:\[data-[a-z0-9-]+(?:="[^"]*")?\])+)(?:\s+([a-z]+))?$/.exec(sel.trim()); if (!m) return null
+  const attrs = {}; for (const a of m[1].matchAll(/\[(data-[a-z0-9-]+)(?:="([^"]*)")?\]/g)) attrs[a[1]] = a[2] ?? ''
+  return { attrs, child: m[2] || null }
+}
+const anchorsFor = (pathname) => {
+  const out = new Map()
+  for (const t of TOURS) {
+    const on = t.match ? t.match.test(pathname) : t.path === pathname
+    for (const st of t.steps) {
+      const p = st.path || t.path
+      if ((t.multipage ? p === pathname : on) && st.target) { const parsed = parseSel(String(st.target).split(',')[0]); if (parsed) out.set(JSON.stringify(parsed), parsed) }
+    }
+  }
+  return [...out.values()]
 }
 function Page() {
   const { pageTour, tours, startTour } = useTour()
   window.__START__ = startTour
   const loc = useLocation()
-  const names = (ANCHORS[loc.pathname] || []).filter((n) => !(scenario === 'mobile' && n === 'help'))
+  const anchors = anchorsFor(loc.pathname)
   return (
     <div>
       <p data-where>{loc.pathname}</p>
-      {names.map((n) => <div key={n} data-tour={n}>{n}</div>)}
-      {scenario === 'mobile' && loc.pathname === '/' && <div data-tour="help" data-hidden>help (hidden below sm)</div>}
-      {loc.pathname === '/' && <><div data-quick-actions>start</div><div data-week>week</div><div data-activity>activity</div>{scenario === 'mobile' && <div data-tour="walkthrough">icon</div>}</>}
-      {loc.pathname === '/brand' && <div data-brand-drop>drop</div>}
-      {loc.pathname === '/team' && <><div data-directory>people</div><div data-invite>add</div></>}
-      {loc.pathname === '/calendar' && <div data-legend>legend</div>}
-      {loc.pathname === '/brand' && <div data-brand-filter>filter</div>}
-      {loc.pathname === '/settings' && <div data-settings-shell><aside>rail</aside></div>}
+      {anchors.map((a, i) => {
+        // on a phone the desktop help button is hidden; the walkthrough icon stands in
+        const hidden = scenario === 'mobile' && a.attrs['data-tour'] === 'help'
+        const props = { ...a.attrs, ...(hidden ? { 'data-hidden': '' } : {}) }
+        return <div key={i} {...props}>{a.child ? <a.child>{a.child}</a.child> : Object.values(a.attrs).join(' ') || 'anchor'}</div>
+      })}
+      {scenario === 'mobile' && loc.pathname === '/' && <div data-tour="walkthrough">icon</div>}
       <p data-page-tour>{pageTour?.id || 'none'} · {tours.length} tours</p>
     </div>
   )
@@ -66,10 +79,10 @@ async function main() {
   if (scenario === 'fresh') {
     const card = () => ov()?.querySelector('[data-tour-card]')
     const where = () => textOf(host.querySelector('[data-where]'))
-    assert('the welcome tour auto-starts on first sign-in', ov()?.getAttribute('data-tour-id') === 'welcome')
-    assert('it opens with a centered card, no spotlight, that says skipping is allowed', !ov().querySelector('[data-tour-spotlight]') && /Skip a page, or the whole tour/.test(textOf(card())))
     const total = TOURS.find((t) => t.id === 'welcome').steps.length
-    assert(`the count covers every step of every page tour a Superadmin can open (${total})`, new RegExp(`1 of ${total}`).test(textOf(card())))
+    assert('the welcome tour auto-starts on first sign-in', ov()?.getAttribute('data-tour-id') === 'welcome')
+    assert('it opens with a centered card, no spotlight, that says skipping is allowed', !ov().querySelector('[data-tour-spotlight]') && /Skip a page, a family, or the whole tour/.test(textOf(card())))
+    assert(`the count covers every visible page plus the family strips (${total})`, new RegExp(`1 of ${total}`).test(textOf(card())))
     assert('Skip tour and Skip this page are both offered', !!card().querySelector('[data-tour-skip-all]') && !!card().querySelector('[data-tour-skip-page]'))
     click(card().querySelector('[data-tour-next]')); await sleep(300)
     assert('step 2 spotlights the sidebar on Home', /Everything is in the sidebar/.test(textOf(card())) && !!ov().querySelector('[data-tour-spotlight]') && where() === '/')
@@ -80,21 +93,25 @@ async function main() {
     window.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true })); await sleep(200)
     assert('ArrowLeft goes back one', /Everything is in the sidebar/.test(textOf(card())))
     click(card().querySelector('[data-tour-skip-page]')); await sleep(600)
-    assert('Skip this page jumps to the next page: My Work, and runs its first step', where() === '/my-work' && /Add a task/.test(textOf(card())) && /· My Work/.test(textOf(card())))
-    click(card().querySelector('[data-tour-next]')); await sleep(300)
-    assert('Next stays on My Work for its second step — the page is walked in full', where() === '/my-work' && /Your list, by when/.test(textOf(card())))
-    click(card().querySelector('[data-tour-skip-page]')); await sleep(600)
-    assert('Skip this page from My Work lands on Artists and spotlights its header', where() === '/artists' && !!ov().querySelector('[data-tour-spotlight]') && /The roster/.test(textOf(card())))
+    assert('Skip this page jumps to the next page in sidebar order: My Work, its orientation step', where() === '/my-work' && /· My Work/.test(textOf(card())) && !!ov().querySelector('[data-tour-spotlight]'))
+    click(card().querySelector('[data-tour-next]')); await sleep(600)
+    assert('Next moves to the NEXT PAGE (one step per page) — Messages', where() === '/messages')
     click(card().querySelector('[data-tour-back]')); await sleep(600)
     assert('Back returns to My Work', where() === '/my-work')
-    // walk the rest
+    // walk until a family strip step appears, then Skip that family
     let guard = 0
-    while (ov() && guard < 60) { const b = card().querySelector('[data-tour-next]'); if (b && !b.disabled) click(b); await sleep(450); guard += 1 }
+    while (ov() && guard < 60 && !card().querySelector('[data-tour-skip-family]')) { const b = card().querySelector('[data-tour-next]'); if (b && !b.disabled) click(b); await sleep(450); guard += 1 }
+    const famLabel = card()?.querySelector('[data-tour-skip-family]')?.textContent || ''
+    const famPath = where()
+    assert('a family step offers Skip <family> on its tab strip, with the tab names', /Skip Releases/.test(famLabel) && /Pipeline · Catalog/.test(textOf(card())) && famPath === '/releases')
+    click(card().querySelector('[data-tour-skip-family]')); await sleep(700)
+    assert('Skip this family lands on the next family\'s tab-strip step (Contracts, on Deals)', where() === '/deals' && /Contracts: 4 tabs/.test(textOf(card())) && /Deals · Active · Pending · Renewals/.test(textOf(card())))
+    // walk the rest
+    guard = 0
+    while (ov() && guard < 120) { const b = card().querySelector('[data-tour-next]'); if (b && !b.disabled) click(b); await sleep(450); guard += 1 }
     assert('the tour ends back on Home after visiting every page', !ov() && where() === '/')
-    const put = calls.put.find((c) => c.url === '/settings/me/tours')
-    const list = put?.body?.tours || []
-    assert('…and records welcome AND every page tour it ran as done, in one batch', list.some((t) => t.id === 'welcome' && t.skipped === false) && list.some((t) => t.id === 'artists') && list.some((t) => t.id === 'settings') && list.length >= 10)
-    assert('the pages skipped with Skip this page (Home, My Work) are NOT marked done — they keep their first-open tour', !list.some((t) => t.id === 'home') && !list.some((t) => t.id === 'my-work'))
+    const put = calls.put.filter((c) => c.url === '/settings/me/tours').pop()
+    assert('…and records ONLY welcome as done — every page keeps its own first-open tour', !!put && put.body.id === 'welcome' && put.body.skipped === false && !put.body.tours)
     await sleep(1200)
     assert('…but Home\'s tour does not pounce the moment the walk ends', !ov())
   } else if (scenario === 'mobile') {
@@ -107,7 +124,7 @@ async function main() {
     click(card().querySelector('[data-tour-next]')); await sleep(300)
     assert('moving on closes the drawer again', prepared[prepared.length - 1] === 'sidebar:off' && /Search jumps anywhere/.test(textOf(card())))
     let guard = 0
-    while (ov() && guard < 60) {
+    while (ov() && guard < 200) {
       const isLast = /Done/.test(textOf(card().querySelector('[data-tour-next]')))
       if (isLast) break
       const b = card().querySelector('[data-tour-next]'); if (b && !b.disabled) click(b); await sleep(450); guard += 1
@@ -118,10 +135,11 @@ async function main() {
   } else if (scenario === 'user') {
     assert('a User on People: the People tour (admin views) does not auto-start', !ov())
     assert('the page reports no tour for it, and the list omits People', /^none · \d+ tours/.test(textOf(host.querySelector('[data-page-tour]'))) && !document.body.textContent.includes('people ·'))
-    const total = TOURS.find((t) => t.id === 'welcome').steps.length
-    const people = TOURS.find((t) => t.id === 'people').steps.length
+    const wsteps = TOURS.find((t) => t.id === 'welcome').steps
+    const total = wsteps.length
+    const adminOnly = wsteps.filter((st) => st.roles && !st.roles.includes('User')).length
     window.__START__('welcome'); await sleep(900)
-    assert(`the welcome walk for a User drops the People steps (${total - people} of ${total})`, ov()?.getAttribute('data-tour-id') === 'welcome' && new RegExp(`1 of ${total - people}`).test(textOf(ov().querySelector('[data-tour-card]'))))
+    assert(`the welcome walk for a User drops the ${adminOnly} admin-only steps (${total - adminOnly} of ${total})`, adminOnly >= 1 && ov()?.getAttribute('data-tour-id') === 'welcome' && new RegExp(`1 of ${total - adminOnly}`).test(textOf(ov().querySelector('[data-tour-card]'))))
     window.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Escape' })); await sleep(300)
   } else {
     assert('with welcome done and Home at an OLD version, Home auto-starts as updated', ov()?.getAttribute('data-tour-id') === 'home')

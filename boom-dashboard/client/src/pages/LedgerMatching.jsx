@@ -345,7 +345,7 @@ export default function LedgerMatching() {
   return (
     <div style={{ maxWidth: 1100, margin: '0 auto', padding: '28px 24px' }}>
       <div style={{ marginBottom: 16 }}>
-        <h1 style={{ fontSize: 24, fontWeight: 800, color: C.text, margin: 0 }}>Bookkeeper Reconcile</h1>
+        <h1 data-tour="reconcile-header" style={{ fontSize: 24, fontWeight: 800, color: C.text, margin: 0 }}>Bookkeeper Reconcile</h1>
         <p style={{ color: '#888', fontSize: 13, margin: '6px 0 0' }}>
           Upload the external bookkeeper's weekly invoice summary. We'll match each row against the
           Market Street ledger by normalized invoice # + fuzzy vendor name, then flag every difference —
@@ -360,7 +360,7 @@ export default function LedgerMatching() {
       </div>
 
       {/* Spreadsheet requirements */}
-      <div style={{
+      <div data-tour="reconcile-requirements" style={{
         background: '#f8fafc', border: `1px solid ${C.border}`, borderRadius: 10,
         padding: 12, marginBottom: 18, fontSize: 12, color: '#555',
       }}>
@@ -381,7 +381,7 @@ export default function LedgerMatching() {
         </div>
       )}
 
-      <div style={dropZoneSty} onDrop={onDrop} onDragOver={e => e.preventDefault()} onClick={() => inputRef.current?.click()}>
+      <div data-tour="reconcile-upload" style={dropZoneSty} onDrop={onDrop} onDragOver={e => e.preventDefault()} onClick={() => inputRef.current?.click()}>
         <Upload style={{ width: 28, height: 28, color: '#bbb', margin: '0 auto 8px' }} />
         <div style={{ fontSize: 14, fontWeight: 600, color: C.text }}>
           {file ? file.name : 'Drop your spreadsheet here, or click to browse'}
@@ -407,7 +407,7 @@ export default function LedgerMatching() {
       )}
 
       <div style={{ marginTop: 14 }}>
-        <button onClick={handleDiff} disabled={!file || busy}
+        <button data-tour="reconcile-run" onClick={handleDiff} disabled={!file || busy}
                 style={{
                   width: '100%', padding: '12px 16px', background: RED, color: '#fff', border: 'none', borderRadius: 10,
                   fontSize: 14, fontWeight: 700, fontFamily: 'inherit',

@@ -321,7 +321,7 @@ export default function AdminDocs() {
         </div>
       )}
 
-      <PageHeader
+      <PageHeader tour="admin-docs-header"
         title="Admin Docs"
         subtitle="Legal, NDAs, compliance, HR, IP, internal policies & templates"
         actions={
@@ -447,7 +447,7 @@ export default function AdminDocs() {
       </div>
 
       {/* Table */}
-      <div className="card overflow-hidden">
+      <div data-tour="admin-docs-list" className="card overflow-hidden">
         {loading ? (
           <div className="p-5 space-y-2">{Array.from({ length: 4 }).map((_, i) => <Skeleton.Block key={i} h="h-10" />)}</div>
         ) : filtered.length === 0 ? (

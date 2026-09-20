@@ -241,7 +241,7 @@ export default function BkVendorsUnified() {
     <div className="p-4 sm:p-6 max-w-6xl mx-auto">
       <div className="flex flex-wrap items-center gap-2 mb-1">
         <Building2 size={20} className="text-boom-600" />
-        <h1 className="text-xl font-extrabold text-ink">Vendors</h1>
+        <h1 data-tour="vendors-header" className="text-xl font-extrabold text-ink">Vendors</h1>
       </div>
       <p className="text-sm text-gray-500 mb-3">
         {view === 'directory'
@@ -252,7 +252,7 @@ export default function BkVendorsUnified() {
       </p>
 
       <div className="flex flex-wrap gap-1 mb-4">
-        <button onClick={() => goView('directory')}
+        <button data-tour="vendors-views" onClick={() => goView('directory')}
           className={`px-3 py-1.5 rounded-lg text-sm font-semibold border ${view === 'directory' ? 'border-boom-600 text-boom-600 bg-boom-50/40' : 'border-rule text-gray-500 bg-card'}`}>
           Directory
         </button>
@@ -290,7 +290,7 @@ export default function BkVendorsUnified() {
       <div className="flex flex-wrap items-center gap-2 mb-4">
         <div className="relative flex-1 min-w-[240px] max-w-md">
           <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search vendor, alias, email, bank payee…"
+          <input data-tour="vendors-search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search vendor, alias, email, bank payee…"
             className="w-full border border-rule rounded-xl pl-9 pr-3 py-2 text-sm bg-card text-ink" />
         </div>
       </div>
@@ -330,7 +330,7 @@ export default function BkVendorsUnified() {
       ) : (
         <>
           <div className="bg-card border border-rule rounded-xl overflow-x-auto">
-            <table className="w-full" style={{ minWidth: 1080 }}>
+            <table data-tour="vendors-table" className="w-full" style={{ minWidth: 1080 }}>
               <thead>
                 <tr className="border-b border-rule">
                   {header('name', 'Vendor')}

@@ -3693,7 +3693,7 @@ export default function BkPayments() {
             Each card's `filter` must select exactly the set the card counted,
             or the number is a promise the list breaks. That cost the "paid"
             card its old label — see `paidRecent`. */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 12, marginBottom: 12 }}>
+        <div data-tour="payments-stats" style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 12, marginBottom: 12 }}>
           {[
             { label: 'OVERDUE', filter: 'Overdue', totals: totalOverdue, items: overdueEntries, count: overdueEntries.length, unit: 'invoices', color: RED },
             { label: 'DUE WITHIN 7 DAYS', filter: 'Due Soon', totals: totalDueSoon, items: dueSoonEntries, count: dueSoonEntries.length, unit: 'invoices', color: '#ea580c' },
@@ -3752,7 +3752,7 @@ export default function BkPayments() {
             control as the cards above — selecting one clears whichever card is
             lit, which is what it has always done; it is now just visible in two
             places instead of eight chips in one. */}
-        <div style={{ display: 'flex', gap: 6, marginBottom: 24, alignItems: 'center' }}>
+        <div data-tour="payments-chips" style={{ display: 'flex', gap: 6, marginBottom: 24, alignItems: 'center' }}>
           {WORKFLOW_FILTERS.map(qf => {
             const active = quickFilter === qf
             const st = workflowFilterStats[qf] || { n: 0, usd: '', native: '' }
@@ -3880,7 +3880,7 @@ export default function BkPayments() {
         })()}
 
         {/* Invoices section — grows with content so the page scrolls naturally. */}
-        <div style={{ background: C.cardBg, borderRadius: 12, border: '1px solid ' + C.border, overflow: 'hidden' }}>
+        <div data-tour="payments-table" style={{ background: C.cardBg, borderRadius: 12, border: '1px solid ' + C.border, overflow: 'hidden' }}>
 
           {/* Section header + filters */}
           <div style={{ padding: '16px 16px 12px', borderBottom: '1px solid ' + C.tdBorder }}>
@@ -4863,7 +4863,7 @@ export default function BkPayments() {
 
       {/* Bottom bar — outside the scroll area so it's always at viewport
           bottom and can never overlap the table rows above. */}
-      <div style={{ flexShrink: 0, padding: '0 24px 24px', background: C.pageBg }}>
+      <div data-tour="payments-actions" style={{ flexShrink: 0, padding: '0 24px 24px', background: C.pageBg }}>
       <div style={{ maxWidth: 1200, margin: '0 auto' }}>
         <div style={{
           background: C.cardBg, borderRadius: 12, border: '1px solid ' + C.border,

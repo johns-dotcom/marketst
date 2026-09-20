@@ -57,8 +57,8 @@ export default function SettingsShell({ children }) {
     if (item.external) return <a href={item.to} target="_blank" rel="noopener noreferrer" className={cls} data-tab={item.id}><Icon size={15} strokeWidth={1.5} className={on ? 'text-boom-600' : 'text-gray-400'} />{item.label}<ExternalLink size={11} className="ml-auto text-gray-300" /></a>
     return <Link to={item.to} className={cls} data-tab={item.id} aria-current={on ? 'page' : undefined}><Icon size={15} strokeWidth={on ? 2 : 1.5} className={on ? 'text-boom-600' : 'text-gray-400'} />{item.label}</Link>
   }
-  const Group = ({ title, items }) => (
-    <div data-settings-section={title}>
+  const Group = ({ title, items, tour }) => (
+    <div data-settings-section={title} data-tour={tour}>
       <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider px-3 mb-1.5">{title}</p>
       <nav className="flex lg:flex-col gap-0.5 overflow-x-auto">{items.map((i) => <Item key={i.id} item={i} />)}</nav>
     </div>
@@ -68,7 +68,7 @@ export default function SettingsShell({ children }) {
     <div className="lg:grid lg:grid-cols-[200px_minmax(0,1fr)] lg:gap-10" data-settings-shell>
       <aside className="mb-6 lg:mb-0 lg:sticky lg:top-6 lg:self-start space-y-5">
         <Group title="My settings" items={MY_ITEMS} />
-        {labelItems.length > 0 && <Group title="Label settings" items={labelItems} />}
+        {labelItems.length > 0 && <Group title="Label settings" items={labelItems} tour="settings-label-group" />}
       </aside>
       <div className="min-w-0">{children}</div>
     </div>

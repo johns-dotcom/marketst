@@ -295,7 +295,7 @@ export default function DealPipeline() {
         tour="deals-header"
         title="Deal Pipeline"
         subtitle={`${deals.length} deal${deals.length !== 1 ? 's' : ''} across ${STAGES.length} stages`}
-        actions={<button onClick={() => setShowForm(!showForm)} className="btn-primary"><Plus size={16} /> New Deal</button>}
+        actions={<button data-tour="deals-new" onClick={() => setShowForm(!showForm)} className="btn-primary"><Plus size={16} /> New Deal</button>}
       />
 
       {/* Add Deal Form */}
@@ -354,7 +354,7 @@ export default function DealPipeline() {
           const count = grouped[stage].length
 
           return (
-            <div
+            <div data-tour="deal-column"
               key={stage}
               className={`rounded-xl border bg-card p-3 min-h-[16rem] transition-all duration-150 ${
                 isDropTarget && isDifferentStage

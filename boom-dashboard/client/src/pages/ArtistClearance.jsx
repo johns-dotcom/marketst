@@ -246,7 +246,7 @@ export default function ArtistClearance() {
             the artist's <strong>Documents</strong> tab automatically.
           </p>
 
-          <form onSubmit={handleSave} className="space-y-5">
+          <form data-tour="clearance-form" onSubmit={handleSave} className="space-y-5">
             {/* Top — artist + identifiers */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div>

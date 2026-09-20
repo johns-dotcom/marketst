@@ -193,7 +193,7 @@ export default function Calendar() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div data-tour="calendar-header" className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-black text-gray-900">Calendar</h1>
           <p className="text-sm text-gray-400 mt-0.5" data-event-count>
@@ -203,7 +203,7 @@ export default function Calendar() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={() => setShowAddForm(v => !v)}
+          <button data-tour="calendar-add" onClick={() => setShowAddForm(v => !v)}
             className="flex items-center gap-1.5 text-xs font-semibold text-white bg-boom-600 hover:bg-boom-700 px-3 py-1.5 rounded-lg transition-colors"
           ><Plus size={13} /> Add Event</button>
         </div>
@@ -300,7 +300,7 @@ export default function Calendar() {
         </div>
 
         {/* Sidebar — selected day or upcoming */}
-        <div className="space-y-4">
+        <div data-tour="calendar-side" className="space-y-4">
           {selectedDate ? (
             <div className="card p-4">
               <div className="flex items-center justify-between mb-3">

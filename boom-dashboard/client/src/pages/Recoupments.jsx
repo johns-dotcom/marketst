@@ -2092,7 +2092,7 @@ export default function Recoupments() {
           artistLink ? { label: detailArtist, path: `/artists/${artistLink.id}` } : { label: detailArtist },
         ]} />
       )}
-      <PageHeader
+      <PageHeader tour="recoupments-header"
         title={isDetail ? detailArtist : 'Recoupments'}
         subtitle={isDetail
           ? `${filtered.length} item${filtered.length === 1 ? '' : 's'} across ${grouped[0]?.groups.length || 0} group${(grouped[0]?.groups.length || 0) === 1 ? '' : 's'}`
@@ -2239,7 +2239,7 @@ export default function Recoupments() {
           to it by construction. The DETAIL page keeps the full tile grid — this
           is the index only. */}
       {!isDetail && (
-        <div className="card px-4 py-3">
+        <div data-tour="recoupments-summary" className="card px-4 py-3">
           <div className="flex items-baseline gap-x-2.5 gap-y-1 flex-wrap">
             <span className="text-2xl font-bold tabular-nums text-ink">
               {fmtUsdItems(provableUnclaimed, fxRates) || '$0'}
@@ -2510,7 +2510,7 @@ export default function Recoupments() {
       {/* Filters — collapsible header bar above the row. When hidden,
           only the slim bar remains so the user can reach search etc.
           quickly without scrolling. */}
-      <div>
+      <div data-tour="recoupments-filters">
         <div
           onClick={() => toggleCollapsed('filters')}
           className="flex items-center justify-between cursor-pointer text-[10px] font-bold uppercase tracking-wide text-gray-400 hover:text-gray-600 px-1 py-1"

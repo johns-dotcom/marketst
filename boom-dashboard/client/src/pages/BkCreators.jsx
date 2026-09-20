@@ -194,7 +194,7 @@ export default function BkCreators() {
 
   return (
     <div className="p-6 max-w-[1400px] mx-auto">
-      <PageHeader
+      <PageHeader tour="creators-header"
         title="Creator Payments"
         subtitle="Payments made without an invoice — tracked, matchable to PayPal statements, and counted in Artist Campaigns and Recoupments."
         actions={
@@ -227,7 +227,7 @@ export default function BkCreators() {
       <div className="flex gap-0 border-b border-divider mb-4">
         {[['payments', 'Payments', Receipt], ['creators', 'Creators', Users],
           ['movein', 'To move in', ArrowRightLeft]].map(([id, label, Icon]) => (
-          <button key={id} onClick={() => setTab(id)}
+          <button data-tour="creators-tabs" key={id} onClick={() => setTab(id)}
             className={`inline-flex items-center gap-1.5 text-xs font-medium px-4 py-2.5 -mb-px transition-colors ${
               tab === id ? 'text-boom-600 border-b-2 border-boom-500'
                          : 'text-gray-400 border-b-2 border-transparent hover:text-gray-600'}`}>
@@ -248,7 +248,7 @@ export default function BkCreators() {
         </div>
       </div>
 
-      {loading && <div className="text-sm text-gray-400 py-8">Loading…</div>}
+      {loading && <div data-tour="creators-search" className="text-sm text-gray-400 py-8">Loading…</div>}
 
       {!loading && tab === 'payments' && (
         rows.length === 0 ? (
@@ -258,7 +258,7 @@ export default function BkCreators() {
           />
         ) : (
           <div className="card overflow-x-auto">
-            <table className="w-full text-sm">
+            <table data-tour="creators-table" className="w-full text-sm">
               <thead>
                 <tr className="text-left text-[10px] font-bold text-gray-400 uppercase tracking-wider border-b border-divider">
                   <th className="px-3 py-2">Date</th>

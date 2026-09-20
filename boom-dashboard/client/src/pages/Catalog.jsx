@@ -256,7 +256,7 @@ export default function Catalog() {
   return (
     <div>
       {/* Header */}
-      <PageHeader
+      <PageHeader tour="catalog-header"
         title={showArchived ? 'Archived Releases' : 'Catalog'}
         subtitle={loading ? '—' : `${filtered.length} ${showArchived ? 'archived ' : ''}release${filtered.length !== 1 ? 's' : ''}`}
         actions={<>
@@ -298,7 +298,7 @@ export default function Catalog() {
       {/* Filters */}
       <div className="flex flex-col gap-3 mb-6">
         {/* Row 1: search + filters */}
-        <div className="flex items-center gap-2 flex-wrap">
+        <div data-tour="catalog-filters" className="flex items-center gap-2 flex-wrap">
           {/* Search */}
           <div className="relative min-w-[200px] max-w-xs flex-1">
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
@@ -437,7 +437,7 @@ export default function Catalog() {
         />
       ) : (
         /* Timeline grouped by year */
-        <div className="space-y-10">
+        <div data-tour="catalog-grid" className="space-y-10">
           {sortedYears.map(yr => (
             <div key={yr}>
               <div className="flex items-center gap-3 mb-4">
