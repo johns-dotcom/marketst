@@ -543,7 +543,7 @@ router.put('/me/tours', authMiddleware, async (req, res) => {
     // One tour, or a batch (the welcome walk completes the page tours it ran).
     const list = Array.isArray(req.body?.tours) ? req.body.tours : [req.body || {}];
     const clean = list.map((t) => ({ id: String(t?.id || '').trim(), version: String(t?.version || '').trim(), skipped: t?.skipped === true }));
-    if (!clean.length || clean.some((t) => !/^[a-z0-9-]{2,40}$/.test(t.id) || !t.version)) return res.status(400).json({ success: false, error: 'id and version required' });
+    if (!clean.length || clean.length > 50 || clean.some((t) => !/^[a-z0-9-]{2,40}$/.test(t.id) || !t.version)) return res.status(400).json({ success: false, error: 'id and version required' });
     const patch = Object.fromEntries(clean.map((t) => [t.id, { version: t.version, at: new Date().toISOString(), skipped: t.skipped }]));
     const { rows: [u] } = await pool.query(
       `UPDATE users SET tours_done = COALESCE(tours_done, '{}'::jsonb) || $2::jsonb WHERE id = $1 RETURNING tours_done`, [req.user.id, JSON.stringify(patch)]);

@@ -20,6 +20,7 @@ const textOf = (el) => (el ? el.textContent.replace(/\s+/g, ' ').trim() : '')
 const click = (el) => el && el.dispatchEvent(new window.MouseEvent('click', { bubbles: true, cancelable: true }))
 const scenario = (typeof process !== 'undefined' && process.env.TOUR_SCENARIO) || 'fresh'
 globalThis.__TOUR_SCENARIO__ = scenario
+globalThis.__HOME_ROLE__ = scenario === 'user' ? 'User' : 'Superadmin'
 window.__TOUR_WAIT_MS__ = 600
 // jsdom has no layout: give the anchors a size so `visible()` is true
 const origRect = window.HTMLElement.prototype.getBoundingClientRect
@@ -32,7 +33,8 @@ const ANCHORS = {
   '/deals': ['deals-header'], '/contracts': ['contracts-header'], '/bk/approvals': ['approvals'], '/bk/payments': ['payments'], '/calendar': ['calendar-grid'],
 }
 function Page() {
-  const { pageTour, tours } = useTour()
+  const { pageTour, tours, startTour } = useTour()
+  window.__START__ = startTour
   const loc = useLocation()
   const names = ANCHORS[loc.pathname] || []
   return (
@@ -52,8 +54,8 @@ function Page() {
 async function main() {
   say(`SCENARIO ${scenario}`)
   const host = document.createElement('div'); document.body.appendChild(host)
-  createRoot(host).render(<MemoryRouter initialEntries={['/']}><TourProvider><Routes><Route path="*" element={<Page />} /></Routes></TourProvider></MemoryRouter>)
-  for (let i = 0; i < 40 && !document.querySelector('[data-tour-overlay]'); i += 1) await sleep(100)
+  createRoot(host).render(<MemoryRouter initialEntries={[scenario === 'user' ? '/team' : '/']}><TourProvider><Routes><Route path="*" element={<Page />} /></Routes></TourProvider></MemoryRouter>)
+  for (let i = 0; i < (scenario === 'user' ? 15 : 40) && !document.querySelector('[data-tour-overlay]'); i += 1) await sleep(100)
   await sleep(150)
   const ov = () => document.querySelector('[data-tour-overlay]')
   assert('nothing threw', errors.length === 0); if (errors.length) say('  ' + errors.join('\n  '))
@@ -67,6 +69,12 @@ async function main() {
     assert('Skip tour and Skip this page are both offered', !!card().querySelector('[data-tour-skip-all]') && !!card().querySelector('[data-tour-skip-page]'))
     click(card().querySelector('[data-tour-next]')); await sleep(300)
     assert('step 2 spotlights the sidebar on Home', /Everything is in the sidebar/.test(textOf(card())) && !!ov().querySelector('[data-tour-spotlight]') && where() === '/')
+    card().querySelector('[data-tour-next]').dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); await sleep(200)
+    assert('Enter on the focused Next button is left to the click — it does not advance a second time', /Everything is in the sidebar/.test(textOf(card())))
+    window.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true })); await sleep(200)
+    assert('ArrowRight on the page advances one step', /Search jumps anywhere/.test(textOf(card())))
+    window.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true })); await sleep(200)
+    assert('ArrowLeft goes back one', /Everything is in the sidebar/.test(textOf(card())))
     click(card().querySelector('[data-tour-skip-page]')); await sleep(600)
     assert('Skip this page jumps to the next page: My Work, and runs its first step', where() === '/my-work' && /Add a task/.test(textOf(card())) && /· My Work/.test(textOf(card())))
     click(card().querySelector('[data-tour-next]')); await sleep(300)
@@ -81,9 +89,18 @@ async function main() {
     assert('the tour ends back on Home after visiting every page', !ov() && where() === '/')
     const put = calls.put.find((c) => c.url === '/settings/me/tours')
     const list = put?.body?.tours || []
-    assert('…and records welcome AND every page tour it ran as done, in one batch', list.some((t) => t.id === 'welcome' && t.skipped === false) && list.some((t) => t.id === 'home') && list.some((t) => t.id === 'settings') && list.length >= 12)
+    assert('…and records welcome AND every page tour it ran as done, in one batch', list.some((t) => t.id === 'welcome' && t.skipped === false) && list.some((t) => t.id === 'artists') && list.some((t) => t.id === 'settings') && list.length >= 10)
+    assert('the pages skipped with Skip this page (Home, My Work) are NOT marked done — they keep their first-open tour', !list.some((t) => t.id === 'home') && !list.some((t) => t.id === 'my-work'))
     await sleep(1200)
-    assert('no page tour auto-starts afterwards — the walk already covered Home', !ov())
+    assert('…but Home\'s tour does not pounce the moment the walk ends', !ov())
+  } else if (scenario === 'user') {
+    assert('a User on People: the People tour (admin views) does not auto-start', !ov())
+    assert('the page reports no tour for it, and the list omits People', /^none · \d+ tours/.test(textOf(host.querySelector('[data-page-tour]'))) && !document.body.textContent.includes('people ·'))
+    const total = TOURS.find((t) => t.id === 'welcome').steps.length
+    const people = TOURS.find((t) => t.id === 'people').steps.length
+    window.__START__('welcome'); await sleep(900)
+    assert(`the welcome walk for a User drops the People steps (${total - people} of ${total})`, ov()?.getAttribute('data-tour-id') === 'welcome' && new RegExp(`1 of ${total - people}`).test(textOf(ov().querySelector('[data-tour-card]'))))
+    window.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Escape' })); await sleep(300)
   } else {
     assert('with welcome done and Home at an OLD version, Home auto-starts as updated', ov()?.getAttribute('data-tour-id') === 'home')
     assert('the page knows its tour and the list of tours the user can open', /home · \d+ tours/.test(textOf(host.querySelector('[data-page-tour]'))))

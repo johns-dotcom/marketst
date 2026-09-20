@@ -30,7 +30,9 @@ export function TourProvider({ children }) {
     api.get('/settings/me').then((r) => setDone(r.data?.data?.tours_done || {})).catch(() => setDone({}))
   }, [user?.id])
 
-  const tours = useMemo(() => TOURS.filter((t) => canView(t.path)), [canView])
+  const role = user?.role
+  const allowed = useCallback((t) => !!t && canView(t.path) && (!t.roles || t.roles.includes(role)), [canView, role])
+  const tours = useMemo(() => TOURS.filter(allowed), [allowed])
   const doneVersion = useCallback((id) => done?.[id]?.version || null, [done])
   const isDone = useCallback((t) => doneVersion(t.id) === t.version, [doneVersion])
 
@@ -42,12 +44,16 @@ export function TourProvider({ children }) {
   // completed: true = Done, false = Skip, null = nothing was on screen to show
   // (a tour started for a page you are not on) — closed without recording,
   // so it still offers itself the first time that page is opened.
-  const finish = useCallback(async (completed) => {
+  const finish = useCallback(async (completed, skippedPaths = []) => {
     const t = active?.tour; setActive(null)
     if (!t || completed === null) return
     // Finishing the welcome walk also completes every page tour it ran, so
-    // those pages do not offer their tour again the moment they are opened.
-    const batch = [{ id: t.id, version: t.version, skipped: !completed }, ...(t.id === 'welcome' && completed ? WELCOME_COVERS.map((c) => ({ ...c, skipped: false })) : [])]
+    // those pages do not offer their tour again the moment they are opened. A
+    // page the person chose to skip keeps its first-open tour — for a later
+    // session, not the moment this one ends.
+    const covers = t.id === 'welcome' && completed ? WELCOME_COVERS.filter((c) => !skippedPaths.includes(c.path)) : []
+    if (t.id === 'welcome' && completed) WELCOME_COVERS.filter((c) => skippedPaths.includes(c.path)).forEach((c) => startedOnPath.current.add(c.id))
+    const batch = [{ id: t.id, version: t.version, skipped: !completed }, ...covers.map((c) => ({ id: c.id, version: c.version, skipped: false }))]
     try {
       const r = await api.put('/settings/me/tours', batch.length > 1 ? { tours: batch } : batch[0])
       setDone(r.data?.data || Object.fromEntries(batch.map((b) => [b.id, { version: b.version }])))
@@ -59,24 +65,22 @@ export function TourProvider({ children }) {
     if (!user || done === null || active) return undefined
     const welcome = tourById('welcome')
     if (welcome && !isDone(welcome) && !startedOnPath.current.has('welcome')) {
-      startedOnPath.current.add('welcome')
-      const t = setTimeout(() => setActive({ tour: welcome, index: 0 }), 600); return () => clearTimeout(t)
+      const t = setTimeout(() => { startedOnPath.current.add('welcome'); setActive({ tour: welcome, index: 0 }) }, 600); return () => clearTimeout(t)
     }
     if (welcome && !isDone(welcome)) return undefined
     const pt = tourForPath(location.pathname)
-    if (pt && canView(pt.path) && !isDone(pt) && !startedOnPath.current.has(pt.id)) {
-      startedOnPath.current.add(pt.id)
-      const t = setTimeout(() => setActive({ tour: pt, index: 0 }), 900)
+    if (pt && allowed(pt) && !isDone(pt) && !startedOnPath.current.has(pt.id)) {
+      const t = setTimeout(() => { startedOnPath.current.add(pt.id); setActive({ tour: pt, index: 0 }) }, 900)
       return () => clearTimeout(t)
     }
     return undefined
-  }, [user?.id, done, location.pathname, active, isDone, canView])
+  }, [user?.id, done, location.pathname, active, isDone, allowed])
 
-  const value = useMemo(() => ({ startTour, tours, done: done || {}, active, doneVersion, isDone, pageTour: tourForPath(location.pathname) }), [startTour, tours, done, active, doneVersion, isDone, location.pathname])
+  const value = useMemo(() => ({ startTour, tours, done: done || {}, active, doneVersion, isDone, pageTour: (() => { const pt = tourForPath(location.pathname); return allowed(pt) ? pt : null })() }), [startTour, tours, done, active, doneVersion, isDone, location.pathname, allowed])
   return (
     <TourContext.Provider value={value}>
       {children}
-      {active && <TourOverlay tour={active.tour} index={active.index} setIndex={(i) => setActive((a) => (a ? { ...a, index: i } : a))} onFinish={finish} canView={canView} />}
+      {active && <TourOverlay tour={active.tour} index={active.index} setIndex={(i) => setActive((a) => (a ? { ...a, index: i } : a))} onFinish={finish} canView={canView} role={user?.role} />}
     </TourContext.Provider>
   )
 }
@@ -85,13 +89,13 @@ export function TourProvider({ children }) {
 // skipped. Harnesses shorten it.
 const WAIT_MS = () => (typeof window !== 'undefined' && window.__TOUR_WAIT_MS__) || 4000
 
-function TourOverlay({ tour, index, setIndex, onFinish, canView }) {
+function TourOverlay({ tour, index, setIndex, onFinish, canView, role }) {
   const location = useLocation()
   const navigate = useNavigate()
   const steps = tour.steps
   // Which steps this person may take: a step on a page they cannot open is
   // dropped up front, so the count is honest.
-  const eligible = useMemo(() => steps.map((st, i) => ({ st, i })).filter(({ st }) => canView(st.path || tour.path) && (!st.needs || canView(st.needs))), [steps, tour.path, canView])
+  const eligible = useMemo(() => steps.map((st, i) => ({ st, i })).filter(({ st }) => canView(st.path || tour.path) && (!st.needs || canView(st.needs)) && (!st.roles || st.roles.includes(role))), [steps, tour.path, canView, role])
   const order = eligible.map((e) => e.i)
   const pos = Math.max(0, order.indexOf(index) === -1 ? 0 : order.indexOf(index))
   const stepIdx = order[pos]
@@ -101,6 +105,9 @@ function TourOverlay({ tour, index, setIndex, onFinish, canView }) {
   const [rect, setRect] = useState(null)
   const [waiting, setWaiting] = useState(false)
   const navigatedFor = useRef(null)
+  // Skip this page: jump to the first later step on a different page.
+  const nextPagePos = order.findIndex((idx, k) => k > pos && (steps[idx].path || tour.path) !== (step?.path || tour.path))
+  const skippedPaths = useRef([])   // pages the person chose to skip in a multipage walk
 
   useEffect(() => { if (order.length === 0) onFinish(null) }, [order.length]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -129,7 +136,13 @@ function TourOverlay({ tour, index, setIndex, onFinish, canView }) {
         setTimeout(() => { if (!cancelled) { const r2 = el.getBoundingClientRect(); setRect({ top: r2.top, left: r2.left, width: r2.width, height: r2.height }) } }, 350)
         return
       }
-      if (Date.now() - started > WAIT_MS()) { setWaiting(false); setRect(null); if (pos + 1 < order.length) setIndex(order[pos + 1]); else onFinish(true); return }
+      if (Date.now() - started > WAIT_MS()) {
+        setWaiting(false); setRect(null)
+        // Never reached the page (a guard sent us elsewhere): drop the whole page, not one step at a time.
+        const to = !onPage && nextPagePos !== -1 ? nextPagePos : pos + 1
+        if (to < order.length) setIndex(order[to]); else onFinish(true, skippedPaths.current)
+        return
+      }
       setTimeout(tryMeasure, 150)
     }
     tryMeasure()
@@ -138,13 +151,21 @@ function TourOverlay({ tour, index, setIndex, onFinish, canView }) {
     return () => { cancelled = true; window.removeEventListener('resize', onChange); window.removeEventListener('scroll', onChange, true) }
   }, [step, stepIdx, onPage]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const next = () => { if (pos + 1 >= order.length) onFinish(true); else setIndex(order[pos + 1]) }
+  const next = () => { if (pos + 1 >= order.length) onFinish(true, skippedPaths.current); else setIndex(order[pos + 1]) }
   const back = () => { if (pos > 0) setIndex(order[pos - 1]) }
-  // Skip this page: jump to the first later step on a different page.
-  const nextPagePos = order.findIndex((idx, k) => k > pos && (steps[idx].path || tour.path) !== (step.path || tour.path))
-  const skipPage = () => { if (nextPagePos === -1) onFinish(true); else setIndex(order[nextPagePos]) }
+  const skipPage = () => {
+    if (step?.path && !skippedPaths.current.includes(step.path)) skippedPaths.current.push(step.path)
+    if (nextPagePos === -1) onFinish(true, skippedPaths.current); else setIndex(order[nextPagePos])
+  }
   useEffect(() => {
-    const onKey = (e) => { if (e.key === 'Escape') onFinish(false); else if (e.key === 'ArrowRight' || e.key === 'Enter') next(); else if (e.key === 'ArrowLeft') back() }
+    // Keys typed into a field, or Enter on a focused button (which also clicks), are not tour shortcuts.
+    const onKey = (e) => {
+      const el = e.target
+      if (el && (/^(INPUT|TEXTAREA|SELECT|BUTTON|A)$/.test(el.tagName) || el.isContentEditable)) return
+      if (e.key === 'Escape') onFinish(false)
+      else if ((e.key === 'ArrowRight' || e.key === 'Enter') && !waiting) next()
+      else if (e.key === 'ArrowLeft') back()
+    }
     window.addEventListener('keydown', onKey); return () => window.removeEventListener('keydown', onKey)
   }) // eslint-disable-line react-hooks/exhaustive-deps
   if (!step) return null

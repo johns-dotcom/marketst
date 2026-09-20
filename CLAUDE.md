@@ -369,6 +369,19 @@ Authoritative project guide: **`boom-dashboard/CLAUDE.md`** — read it before m
   label must not make the walk skip pages after the 4s timeout. Finishing
   welcome PUTs a batch (`{ tours: [...] }`, `WELCOME_COVERS`) that also marks
   every page tour it ran as done, so no page re-offers its tour right after.
+  A page the person SKIPS with Skip this page is left out of that batch (it
+  keeps its first-open tour for a later session; `startedOnPath` stops it
+  pouncing the moment the walk ends). `tour.roles` / `step.roles` gate on the
+  role — People's anchors are admin views, so the People tour is
+  Admin/Superadmin only and a User's walk drops those steps (the harness's
+  `user` scenario). Bug-check pass the same day: the auto-start timer marks
+  "started" when it FIRES, not when scheduled (canView is a new function on
+  every auth render, so the effect re-runs and cleared the timer while the
+  one-shot guard kept the welcome from ever starting); keys typed in a field
+  or Enter on a focused button (which also clicks) are not shortcuts, and
+  Enter/→ do nothing while a page is loading; a step that times out OFF its
+  page (a route guard redirected) drops the whole page, not one 4s wait per
+  step. `PUT /me/tours` caps a batch at 50.
   `target: null` is a centered card. The card offers **Skip this page**
   (multipage only) and **Skip tour**; Esc skips the tour. The fixture asserts
   the welcome tour visits every main page, runs every step of every page tour

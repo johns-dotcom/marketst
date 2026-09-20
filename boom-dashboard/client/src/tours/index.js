@@ -77,7 +77,7 @@ const PAGE_TOURS = [
     ],
   },
   {
-    id: 'people', title: 'People', path: '/team', version: '2026-09-19',
+    id: 'people', title: 'People', path: '/team', version: '2026-09-19', roles: ['Admin', 'Superadmin'], // the directory and Add person are admin views
     steps: [
       { target: '[data-directory], [data-invite]', title: 'Everyone with an account', body: 'Role, department, what they can open, last sign-in, open tasks. Open a person to change their access.' },
       { target: '[data-invite]', title: 'Adding a person', body: 'Name, email, department. The department picks a starting preset of pages; presets add up for someone with two jobs. You get a one-time link to send them.' },
@@ -118,13 +118,13 @@ const WELCOME = {
     { path: '/', target: null, title: 'Welcome to Market Street', body: 'A walk through every page you can open, a few steps each — about five minutes. Skip a page, or the whole tour, at any time; replay it later from Walkthrough in the top bar.' },
     { path: '/', target: '[data-tour="sidebar"]', title: 'Everything is in the sidebar', body: 'Five groups: General, Artists & releases, Money, Reports, Admin. A row with a chevron holds several pages; open it and they appear as tabs across the top.' },
     { path: '/', target: '[data-tour="search"]', title: 'Search jumps anywhere', body: 'Press / or ⌘K. Type a page, an artist, a vendor or an invoice number.' },
-    ...WALK.flatMap((pth) => PAGE_TOURS.filter((t) => t.path === pth && !t.match).flatMap((t) => t.steps.map((st) => ({ ...st, path: pth, page: t.title })))),
+    ...WALK.flatMap((pth) => PAGE_TOURS.filter((t) => t.path === pth && !t.match).flatMap((t) => t.steps.map((st) => ({ ...st, path: pth, page: t.title, ...(t.roles ? { roles: t.roles } : {}) })))),
     { path: '/', target: '[data-tour="help"]', title: 'That is the dashboard', body: 'Each page also has its own short tour the first time you open it. Replay any of them from Walkthrough in the top bar, or press ? for shortcuts and tours.' },
   ],
 }
 export const TOURS = [WELCOME, ...PAGE_TOURS]
 // Page tours the welcome walk covers — finishing welcome marks these done too.
-export const WELCOME_COVERS = PAGE_TOURS.filter((t) => WALK.includes(t.path) && !t.match).map((t) => ({ id: t.id, version: t.version }))
+export const WELCOME_COVERS = PAGE_TOURS.filter((t) => WALK.includes(t.path) && !t.match).map((t) => ({ id: t.id, version: t.version, path: t.path }))
 
 export const tourById = (id) => TOURS.find((t) => t.id === id) || null
 // Which tour belongs to a pathname (a page tour, never the welcome tour).
