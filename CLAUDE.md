@@ -382,6 +382,21 @@ Authoritative project guide: **`boom-dashboard/CLAUDE.md`** — read it before m
   Enter/→ do nothing while a page is loading; a step that times out OFF its
   page (a route guard redirected) drops the whole page, not one 4s wait per
   step. `PUT /me/tours` caps a batch at 50.
+  **Phones (2026-09-19, John: "make sure the mobile version is updated"):**
+  below 640px the card is a BOTTOM SHEET (`data-tour-sheet="1"`, anchors
+  scrolled to `block: 'start'` so the sheet does not cover them); below 1024px
+  the sidebar is a drawer, so the sidebar step carries `prepare: 'sidebar'` —
+  the engine fires a `tour:prepare` window event (`{prepare, active}`) and
+  Layout opens the drawer while the step shows and closes it after; the
+  measurement waits 260ms for the slide. A target's selector list is walked
+  in PREFERENCE order and the first VISIBLE match wins (`findTarget`), so an
+  element hidden by a responsive class never stalls a step — the outro
+  targets `[data-tour="walkthrough"], [data-tour="help"]` because the `?`
+  button is `hidden sm:`. The Walkthrough button renders on every width: on a
+  phone it is a footprints icon whose list opens as a sheet (first row "This
+  page"). `useMedia(query)`, `SMALL`, `DRAWER` are exported from Tour.jsx.
+  The harness's `mobile` scenario stubs matchMedia and a zero-size help
+  button. Not done: swipe gestures; the auto-start is the same on any width.
   `target: null` is a centered card. The card offers **Skip this page**
   (multipage only) and **Skip tour**; Esc skips the tour. The fixture asserts
   the welcome tour visits every main page, runs every step of every page tour

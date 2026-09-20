@@ -48,6 +48,7 @@ for (const t of TOURS) {
 
 console.log('\n2. every target is rendered by some page')
 for (const t of TOURS) for (const s of t.steps) {
+  if (s.prepare) ok(['sidebar'].includes(s.prepare), `${t.id}: step prepare '${s.prepare}' is something Layout knows how to do`)
   if (s.roles) ok(Array.isArray(s.roles) && s.roles.every((r) => ['Superadmin', 'Admin', 'Approver', 'Bookkeeper', 'User'].includes(r)), `${t.id}: step roles are real roles`)
   if (s.needs) ok(NAV_PAGES.some((p) => p.path === s.needs), `${t.id}: step needs ${s.needs}, which is in the nav`)
   if (s.target === null) continue

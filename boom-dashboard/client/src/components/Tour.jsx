@@ -17,6 +17,31 @@ const NOOP = { startTour: () => false, tours: [], done: {}, active: null, doneVe
 export const useTour = () => useContext(TourContext) || NOOP
 
 const visible = (el) => { if (!el) return false; const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0 }
+// A target is a comma-separated list of selectors in PREFERENCE order; the
+// first selector with a VISIBLE match wins — an element hidden by a
+// responsive class (display:none) has no size and does not count.
+const findTarget = (target) => {
+  for (const sel of String(target).split(',')) {
+    const s = sel.trim(); if (!s) continue
+    let list = []; try { list = document.querySelectorAll(s) } catch { list = [] }
+    for (const el of list) if (visible(el)) return el
+  }
+  return null
+}
+// matchMedia as state; false where the API is missing (jsdom).
+export function useMedia(query) {
+  const has = typeof window !== 'undefined' && typeof window.matchMedia === 'function'
+  const [m, setM] = useState(() => (has ? window.matchMedia(query).matches : false))
+  useEffect(() => {
+    if (!has) return undefined
+    const mq = window.matchMedia(query); const h = (e) => setM(e.matches); setM(mq.matches)
+    mq.addEventListener?.('change', h); return () => mq.removeEventListener?.('change', h)
+  }, [query, has])
+  return m
+}
+// Small screens: the card is a bottom sheet. The sidebar is a drawer below lg.
+export const SMALL = '(max-width: 639px)'
+export const DRAWER = '(max-width: 1023px)'
 
 export function TourProvider({ children }) {
   const { user, canView } = useAuth()
@@ -104,6 +129,8 @@ function TourOverlay({ tour, index, setIndex, onFinish, canView, role }) {
   const onPage = !wantPath || location.pathname === wantPath || (tour.match && tour.match.test(location.pathname))
   const [rect, setRect] = useState(null)
   const [waiting, setWaiting] = useState(false)
+  const small = useMedia(SMALL)
+  const drawer = useMedia(DRAWER)
   const navigatedFor = useRef(null)
   // Skip this page: jump to the first later step on a different page.
   const nextPagePos = order.findIndex((idx, k) => k > pos && (steps[idx].path || tour.path) !== (step?.path || tour.path))
@@ -118,6 +145,16 @@ function TourOverlay({ tour, index, setIndex, onFinish, canView, role }) {
     navigate(wantPath)
   }, [step, stepIdx, onPage, wantPath, navigate])
 
+  // A step can ask the host to prepare something while it shows — today
+  // `prepare: 'sidebar'` opens the mobile drawer so the sidebar is on screen.
+  // Layout listens for the event; on desktop there is nothing to do.
+  const prepares = !!step?.prepare && drawer
+  useEffect(() => {
+    if (!step?.prepare || !onPage) return undefined
+    const fire = (active) => window.dispatchEvent(new CustomEvent('tour:prepare', { detail: { prepare: step.prepare, active } }))
+    fire(true); return () => fire(false)
+  }, [step?.prepare, stepIdx, onPage])
+
   // Find and measure the anchor; wait for it after a navigation; skip the
   // step if the page never renders it.
   useLayoutEffect(() => {
@@ -128,9 +165,10 @@ function TourOverlay({ tour, index, setIndex, onFinish, canView, role }) {
     setWaiting(true)
     const tryMeasure = () => {
       if (cancelled) return
-      const el = onPage ? document.querySelector(step.target) : null
-      if (el && visible(el)) {
-        try { el.scrollIntoView({ block: 'center', behavior: 'smooth' }) } catch { /* jsdom */ }
+      const el = onPage ? findTarget(step.target) : null
+      if (el) {
+        // On a phone the sheet covers the bottom, so bring the anchor to the top.
+        try { el.scrollIntoView({ block: small ? 'start' : 'center', behavior: 'smooth' }) } catch { /* jsdom */ }
         const r = el.getBoundingClientRect()
         setRect({ top: r.top, left: r.left, width: r.width, height: r.height }); setWaiting(false)
         setTimeout(() => { if (!cancelled) { const r2 = el.getBoundingClientRect(); setRect({ top: r2.top, left: r2.left, width: r2.width, height: r2.height }) } }, 350)
@@ -145,11 +183,12 @@ function TourOverlay({ tour, index, setIndex, onFinish, canView, role }) {
       }
       setTimeout(tryMeasure, 150)
     }
-    tryMeasure()
-    const onChange = () => { const el = document.querySelector(step.target); if (el && visible(el)) { const r = el.getBoundingClientRect(); setRect({ top: r.top, left: r.left, width: r.width, height: r.height }) } }
+    // A drawer takes ~200ms to slide in; measure after it has.
+    if (prepares) setTimeout(tryMeasure, 260); else tryMeasure()
+    const onChange = () => { const el = findTarget(step.target); if (el) { const r = el.getBoundingClientRect(); setRect({ top: r.top, left: r.left, width: r.width, height: r.height }) } }
     window.addEventListener('resize', onChange); window.addEventListener('scroll', onChange, true)
     return () => { cancelled = true; window.removeEventListener('resize', onChange); window.removeEventListener('scroll', onChange, true) }
-  }, [step, stepIdx, onPage]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [step, stepIdx, onPage, small, prepares]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const next = () => { if (pos + 1 >= order.length) onFinish(true, skippedPaths.current); else setIndex(order[pos + 1]) }
   const back = () => { if (pos > 0) setIndex(order[pos - 1]) }
@@ -182,7 +221,10 @@ function TourOverlay({ tour, index, setIndex, onFinish, canView, role }) {
         <div className="absolute rounded-lg pointer-events-none transition-all duration-200" data-tour-spotlight
           style={{ top: rect.top - pad, left: rect.left - pad, width: rect.width + pad * 2, height: rect.height + pad * 2, boxShadow: '0 0 0 9999px rgba(17, 24, 39, 0.55)', outline: '2px solid rgba(255,255,255,0.9)' }} />
       ) : <div className="absolute inset-0 bg-gray-900/55" />}
-      <div className="absolute w-[360px] max-w-[calc(100vw-24px)] bg-card border border-rule rounded-xl shadow-2xl p-4" style={{ top: cardTop, left: cardLeft }} data-tour-card role="dialog" aria-label={step.title}>
+      <div className={small
+        ? 'fixed inset-x-0 bottom-0 bg-card border-t border-rule rounded-t-2xl shadow-2xl p-4 pb-[max(1rem,env(safe-area-inset-bottom))]'
+        : 'absolute w-[360px] max-w-[calc(100vw-24px)] bg-card border border-rule rounded-xl shadow-2xl p-4'}
+        style={small ? undefined : { top: cardTop, left: cardLeft }} data-tour-card data-tour-sheet={small ? '1' : '0'} role="dialog" aria-label={step.title}>
         <div className="flex items-start justify-between gap-3">
           <div>
             <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{tour.title} · {pos + 1} of {order.length}{tour.multipage && pageLabel ? ` · ${pageLabel}` : ''}</p>
@@ -193,8 +235,8 @@ function TourOverlay({ tour, index, setIndex, onFinish, canView, role }) {
         {waiting
           ? <p className="text-[13px] text-gray-500 mt-2 inline-flex items-center gap-2" data-tour-loading><Loader size={12} className="animate-spin" /> Opening {pageLabel || 'the page'}…</p>
           : <p className="text-[13px] text-gray-600 mt-2 leading-relaxed">{step.body}</p>}
-        <div className="flex items-center justify-between mt-4 gap-2">
-          <div className="flex items-center gap-2">
+        <div className="flex items-center justify-between mt-4 gap-2 flex-wrap">
+          <div className="flex items-center gap-3 sm:gap-2">
             <button onClick={() => onFinish(false)} className="text-xs text-gray-400 hover:text-gray-700" data-tour-skip-all>Skip tour</button>
             {tour.multipage && nextPagePos !== -1 && <button onClick={skipPage} className="text-xs text-gray-400 hover:text-gray-700 inline-flex items-center gap-1" data-tour-skip-page><SkipForward size={11} /> Skip this page</button>}
           </div>

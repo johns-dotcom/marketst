@@ -31,7 +31,7 @@ import { useTheme } from '../context/ThemeContext'
 import GlobalSearch from './GlobalSearch'
 import EmailPreviewModal from './EmailPreviewModal'
 import KeyboardShortcutsHelp from './KeyboardShortcutsHelp'
-import { TourProvider, useTour } from './Tour'
+import { TourProvider, useTour, useMedia, SMALL } from './Tour'
 import BottomNav from './BottomNav'
 import FAB from './FAB'
 import NotificationBell from './NotificationBell'
@@ -373,6 +373,7 @@ function WalkthroughButton() {
   const navigate = useNavigate()
   const location = useLocation()
   const [open, setOpen] = useState(false)
+  const small = useMedia(SMALL)   // phone: one icon, the list as a bottom sheet
   // A tour for another page: go there first, then start it once it has rendered.
   const go = (t) => {
     setOpen(false)
@@ -393,27 +394,37 @@ function WalkthroughButton() {
   const primary = pageTour || tours.find((t) => t.id === 'welcome') || tours[0]
   const label = (t) => `${t.title}${isDone(t) ? '' : doneVersion(t.id) ? ' · updated' : ' · new'}`
   return (
-    <div className="relative hidden sm:block" ref={ref} data-walkthrough>
-      <div className="inline-flex rounded-lg border border-gray-200 overflow-hidden text-gray-500 hover:border-gray-300">
-        <button onClick={() => startTour(primary.id)} title={pageTour ? `Walk through ${pageTour.title}` : 'Replay the welcome walkthrough'} data-walkthrough-start
-          className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 hover:text-gray-700 hover:bg-gray-50 transition-all">
-          <Footprints size={13} /> Walkthrough
+    <div className="relative" ref={ref} data-walkthrough data-tour="walkthrough">
+      {small ? (
+        <button onClick={() => setOpen((v) => !v)} aria-expanded={open} aria-label="Walkthroughs" title="Walkthroughs" data-walkthrough-menu
+          className="inline-flex items-center text-xs font-semibold px-2.5 py-1.5 rounded-lg border border-gray-200 text-gray-500 hover:text-gray-700 hover:bg-gray-50 transition-all">
+          <Footprints size={13} />
         </button>
-        <button onClick={() => setOpen((v) => !v)} aria-expanded={open} aria-label="All walkthroughs" data-walkthrough-menu
-          className="inline-flex items-center px-1.5 border-l border-gray-200 hover:text-gray-700 hover:bg-gray-50 transition-all">
-          <ChevronDown size={12} />
-        </button>
-      </div>
+      ) : (
+        <div className="inline-flex rounded-lg border border-gray-200 overflow-hidden text-gray-500 hover:border-gray-300">
+          <button onClick={() => startTour(primary.id)} title={pageTour ? `Walk through ${pageTour.title}` : 'Replay the welcome walkthrough'} data-walkthrough-start
+            className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 hover:text-gray-700 hover:bg-gray-50 transition-all">
+            <Footprints size={13} /> Walkthrough
+          </button>
+          <button onClick={() => setOpen((v) => !v)} aria-expanded={open} aria-label="All walkthroughs" data-walkthrough-menu
+            className="inline-flex items-center px-1.5 border-l border-gray-200 hover:text-gray-700 hover:bg-gray-50 transition-all">
+            <ChevronDown size={12} />
+          </button>
+        </div>
+      )}
+      {open && small && <div className="fixed inset-0 bg-gray-900/40 z-40" onClick={() => setOpen(false)} data-walkthrough-backdrop />}
       {open && (
-        <div className="absolute right-0 mt-1.5 w-64 bg-card border border-rule rounded-xl shadow-lg z-50 py-1.5" role="menu" data-walkthrough-list>
+        <div className={small
+          ? 'fixed inset-x-0 bottom-0 bg-card border-t border-rule rounded-t-2xl shadow-2xl z-50 py-2 pb-[max(0.75rem,env(safe-area-inset-bottom))] max-h-[70vh] overflow-y-auto'
+          : 'absolute right-0 mt-1.5 w-64 bg-card border border-rule rounded-xl shadow-lg z-50 py-1.5'} role="menu" data-walkthrough-list>
           <p className="px-3 pt-1 pb-1.5 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Walkthroughs</p>
           {pageTour && (
-            <button onClick={() => go(pageTour)} role="menuitem" className="w-full text-left px-3 py-1.5 text-xs font-semibold text-gray-900 hover:bg-gray-50">
+            <button onClick={() => go(pageTour)} role="menuitem" className={`w-full text-left px-3 text-xs font-semibold text-gray-900 hover:bg-gray-50 ${small ? 'py-3 text-sm' : 'py-1.5'}`}>
               This page · {label(pageTour)}
             </button>
           )}
           {tours.filter((t) => t.id !== pageTour?.id).map((t) => (
-            <button key={t.id} onClick={() => go(t)} role="menuitem" className="w-full text-left px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-50">
+            <button key={t.id} onClick={() => go(t)} role="menuitem" className={`w-full text-left px-3 text-xs text-gray-700 hover:bg-gray-50 ${small ? 'py-3 text-sm' : 'py-1.5'}`}>
               {label(t)}
             </button>
           ))}
@@ -453,6 +464,13 @@ function LayoutInner() {
   useEffect(() => {
     if (isMobile) setSidebarOpen(false)
   }, [location.pathname, isMobile])
+
+  // The tour's sidebar step asks for the drawer while it shows (Tour.jsx `prepare: 'sidebar'`).
+  useEffect(() => {
+    const onPrepare = (e) => { if (e.detail?.prepare === 'sidebar' && isMobile) setSidebarOpen(!!e.detail.active) }
+    window.addEventListener('tour:prepare', onPrepare)
+    return () => window.removeEventListener('tour:prepare', onPrepare)
+  }, [isMobile])
 
   // Page-view ping for the admin Analytics page. Fire-and-forget — a
   // failed ping must never affect navigation. Consecutive duplicates

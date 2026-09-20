@@ -116,10 +116,10 @@ const WELCOME = {
   id: 'welcome', title: 'Welcome to the dashboard', path: '/', version: '2026-09-19', auto: 'first-signin', multipage: true,
   steps: [
     { path: '/', target: null, title: 'Welcome to Market Street', body: 'A walk through every page you can open, a few steps each — about five minutes. Skip a page, or the whole tour, at any time; replay it later from Walkthrough in the top bar.' },
-    { path: '/', target: '[data-tour="sidebar"]', title: 'Everything is in the sidebar', body: 'Five groups: General, Artists & releases, Money, Reports, Admin. A row with a chevron holds several pages; open it and they appear as tabs across the top.' },
+    { path: '/', target: '[data-tour="sidebar"]', prepare: 'sidebar', title: 'Everything is in the sidebar', body: 'Five groups: General, Artists & releases, Money, Reports, Admin. A row with a chevron holds several pages; open it and they appear as tabs across the top. On a phone the ☰ button opens this menu.' },
     { path: '/', target: '[data-tour="search"]', title: 'Search jumps anywhere', body: 'Press / or ⌘K. Type a page, an artist, a vendor or an invoice number.' },
     ...WALK.flatMap((pth) => PAGE_TOURS.filter((t) => t.path === pth && !t.match).flatMap((t) => t.steps.map((st) => ({ ...st, path: pth, page: t.title, ...(t.roles ? { roles: t.roles } : {}) })))),
-    { path: '/', target: '[data-tour="help"]', title: 'That is the dashboard', body: 'Each page also has its own short tour the first time you open it. Replay any of them from Walkthrough in the top bar, or press ? for shortcuts and tours.' },
+    { path: '/', target: '[data-tour="walkthrough"], [data-tour="help"]', title: 'That is the dashboard', body: 'Each page also has its own short tour the first time you open it. Replay any of them from Walkthrough in the top bar (the footprints on a phone), or press ? for shortcuts and tours.' },
   ],
 }
 export const TOURS = [WELCOME, ...PAGE_TOURS]

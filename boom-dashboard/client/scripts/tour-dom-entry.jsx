@@ -21,10 +21,13 @@ const click = (el) => el && el.dispatchEvent(new window.MouseEvent('click', { bu
 const scenario = (typeof process !== 'undefined' && process.env.TOUR_SCENARIO) || 'fresh'
 globalThis.__TOUR_SCENARIO__ = scenario
 globalThis.__HOME_ROLE__ = scenario === 'user' ? 'User' : 'Superadmin'
+if (scenario === 'mobile') window.matchMedia = () => ({ matches: true, addEventListener() {}, removeEventListener() {} })
+const prepared = []
+window.addEventListener('tour:prepare', (e) => prepared.push(`${e.detail.prepare}:${e.detail.active ? 'on' : 'off'}`))
 window.__TOUR_WAIT_MS__ = 600
 // jsdom has no layout: give the anchors a size so `visible()` is true
 const origRect = window.HTMLElement.prototype.getBoundingClientRect
-window.HTMLElement.prototype.getBoundingClientRect = function () { if (this.hasAttribute && (this.hasAttribute('data-tour') || this.hasAttribute('data-quick-actions') || this.hasAttribute('data-week') || this.hasAttribute('data-activity') || this.hasAttribute('data-brand-drop') || this.hasAttribute('data-brand-filter') || this.hasAttribute('data-directory') || this.hasAttribute('data-invite') || this.hasAttribute('data-legend') || (this.tagName === 'ASIDE' && this.closest('[data-settings-shell]')))) return { top: 100, left: 100, width: 200, height: 40, right: 300, bottom: 140 }; return origRect.call(this) }
+window.HTMLElement.prototype.getBoundingClientRect = function () { if (this.hasAttribute && this.hasAttribute('data-hidden')) return { top: 0, left: 0, width: 0, height: 0, right: 0, bottom: 0 }; if (this.hasAttribute && (this.hasAttribute('data-tour') || this.hasAttribute('data-quick-actions') || this.hasAttribute('data-week') || this.hasAttribute('data-activity') || this.hasAttribute('data-brand-drop') || this.hasAttribute('data-brand-filter') || this.hasAttribute('data-directory') || this.hasAttribute('data-invite') || this.hasAttribute('data-legend') || (this.tagName === 'ASIDE' && this.closest('[data-settings-shell]')))) return { top: 100, left: 100, width: 200, height: 40, right: 300, bottom: 140 }; return origRect.call(this) }
 
 // One fake page per route, each rendering the anchors its real page has —
 // so the welcome tour can walk them under jsdom.
@@ -36,12 +39,13 @@ function Page() {
   const { pageTour, tours, startTour } = useTour()
   window.__START__ = startTour
   const loc = useLocation()
-  const names = ANCHORS[loc.pathname] || []
+  const names = (ANCHORS[loc.pathname] || []).filter((n) => !(scenario === 'mobile' && n === 'help'))
   return (
     <div>
       <p data-where>{loc.pathname}</p>
       {names.map((n) => <div key={n} data-tour={n}>{n}</div>)}
-      {loc.pathname === '/' && <><div data-quick-actions>start</div><div data-week>week</div><div data-activity>activity</div></>}
+      {scenario === 'mobile' && loc.pathname === '/' && <div data-tour="help" data-hidden>help (hidden below sm)</div>}
+      {loc.pathname === '/' && <><div data-quick-actions>start</div><div data-week>week</div><div data-activity>activity</div>{scenario === 'mobile' && <div data-tour="walkthrough">icon</div>}</>}
       {loc.pathname === '/brand' && <div data-brand-drop>drop</div>}
       {loc.pathname === '/team' && <><div data-directory>people</div><div data-invite>add</div></>}
       {loc.pathname === '/calendar' && <div data-legend>legend</div>}
@@ -93,6 +97,24 @@ async function main() {
     assert('the pages skipped with Skip this page (Home, My Work) are NOT marked done — they keep their first-open tour', !list.some((t) => t.id === 'home') && !list.some((t) => t.id === 'my-work'))
     await sleep(1200)
     assert('…but Home\'s tour does not pounce the moment the walk ends', !ov())
+  } else if (scenario === 'mobile') {
+    const card = () => ov()?.querySelector('[data-tour-card]')
+    assert('on a phone the welcome tour still auto-starts', ov()?.getAttribute('data-tour-id') === 'welcome')
+    assert('the card is a bottom sheet, not a floating box', card()?.getAttribute('data-tour-sheet') === '1' && !card().style.top)
+    click(card().querySelector('[data-tour-next]')); await sleep(500)
+    assert('the sidebar step asks Layout to open the drawer', /Everything is in the sidebar/.test(textOf(card())) && prepared.includes('sidebar:on'))
+    assert('…and spotlights the sidebar once the drawer has slid in', !!ov().querySelector('[data-tour-spotlight]'))
+    click(card().querySelector('[data-tour-next]')); await sleep(300)
+    assert('moving on closes the drawer again', prepared[prepared.length - 1] === 'sidebar:off' && /Search jumps anywhere/.test(textOf(card())))
+    let guard = 0
+    while (ov() && guard < 60) {
+      const isLast = /Done/.test(textOf(card().querySelector('[data-tour-next]')))
+      if (isLast) break
+      const b = card().querySelector('[data-tour-next]'); if (b && !b.disabled) click(b); await sleep(450); guard += 1
+    }
+    assert('the last step skips the HIDDEN desktop help button and spotlights the walkthrough icon instead', ov() && /That is the dashboard/.test(textOf(card())) && !!ov().querySelector('[data-tour-spotlight]') && ov().getAttribute('data-tour-waiting') === '0')
+    click(card().querySelector('[data-tour-next]')); await sleep(300)
+    assert('Done closes it', !ov())
   } else if (scenario === 'user') {
     assert('a User on People: the People tour (admin views) does not auto-start', !ov())
     assert('the page reports no tour for it, and the list omits People', /^none · \d+ tours/.test(textOf(host.querySelector('[data-page-tour]'))) && !document.body.textContent.includes('people ·'))
