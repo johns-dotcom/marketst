@@ -65,7 +65,7 @@ function FileLink({ entryId, type, label, hasFile, onUploaded, onPreview }) {
           <button
             onClick={() => {
               const url = `/api/bk/entries/${entryId}/file/${type}?token=${localStorage.getItem('token')}`
-              onPreview ? onPreview(url, `${label}-${entryId}`) : window.open(url, '_blank')
+              onPreview ? onPreview(url, `${label}-${entryId}`) : window.open(url, '_blank', 'noopener,noreferrer')
             }}
             style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 12, fontWeight: 600, fontFamily: 'inherit', color }}
           >

@@ -26,12 +26,21 @@ const aiValidationLimiter = rateLimit({
   legacyHeaders: false,
   message: { valid: true, issues: [], rate_limited: true },
 });
+// …and a daily ceiling per IP, since each call is a paid AI read of a 10 MB document.
+const aiDailyLimiter = rateLimit({
+  windowMs: 24 * 60 * 60 * 1000,
+  max: 300,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { valid: true, issues: [], rate_limited: true },
+});
 
 const { secureFileFilter } = require('../middleware/secureUpload');
 const { postEvent } = require('../lib/activityBot');
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 10 * 1024 * 1024 },
+  // Public and in memory: cap the COUNT too, or 133 declared slots × 10 MB is a 1.3 GB request.
+  limits: { fileSize: 10 * 1024 * 1024, files: 60, fields: 120, parts: 200, fieldSize: 256 * 1024 },
   fileFilter: secureFileFilter,
 });
 
@@ -156,7 +165,15 @@ const fileFieldsSafe = (req, res, next) => fileFields(req, res, (err) => {
   return res.status(400).json({ error: 'We could not read that upload. Please check the files and try again.' });
 });
 
-const singleUpload = upload.single('file');
+// The same courtesy fileFieldsSafe gives the submit: a refused file (blocked or
+// missing extension, too large) is a 400 with a sentence, not a bare 500 the
+// global handler logs and Cloudflare would eat.
+const singleUploadRaw = upload.single('file');
+const singleUpload = (req, res, next) => singleUploadRaw(req, res, (err) => {
+  if (!err) return next();
+  if (err.code === 'LIMIT_FILE_SIZE') return res.status(400).json({ error: 'That file is too large — each file must be under 10 MB.' });
+  return res.status(400).json({ error: err.message || 'That file could not be accepted.' });
+});
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const isValidEmail = (s) => EMAIL_RE.test(String(s || '').trim());
@@ -330,7 +347,7 @@ async function validateWithAI(fileBuffer, filename, prompt) {
 }
 
 // POST /api/vendor/validate-invoice
-router.post('/validate-invoice', aiValidationLimiter, singleUpload, async (req, res) => {
+router.post('/validate-invoice', aiValidationLimiter, aiDailyLimiter, singleUpload, async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ valid: false, issues: ['No file uploaded'] });
 
@@ -394,7 +411,7 @@ If ANY requirement fails, set valid=false and list the specific issues. Be stric
 });
 
 // POST /api/vendor/validate-w9
-router.post('/validate-w9', aiValidationLimiter, singleUpload, async (req, res) => {
+router.post('/validate-w9', aiValidationLimiter, aiDailyLimiter, singleUpload, async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ valid: false, issues: ['No file uploaded'] });
 
@@ -468,7 +485,7 @@ Only flag genuine problems that would make the form legally invalid. Return only
 
 // POST /api/vendor/parse-invoice — public AI parse for the vendor-submit form
 // Mirrors /api/bk/parse but with no auth (the dashboard route is admin-only).
-router.post('/parse-invoice', aiValidationLimiter, singleUpload, async (req, res) => {
+router.post('/parse-invoice', aiValidationLimiter, aiDailyLimiter, singleUpload, async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ success: false, data: {} });
 
@@ -801,11 +818,12 @@ router.get('/payment-on-file', async (req, res) => {
          FROM vendor_payment_details WHERE LOWER(vendor_email) = LOWER($1)`, [email]);
     const r = rows[0];
     if (!r) return res.json({ on_file: false });
+    // Method + last four is what the form needs to ask "still correct?"; the name on the
+    // account beside them was a phishing kit for anyone who knew a vendor's email.
     return res.json({
       on_file: true,
       method: r.method,
       last4: r.account_last4,
-      holder_name: r.holder_name,
       updated_at: r.updated_at,
     });
   } catch (err) {
@@ -861,7 +879,9 @@ router.get('/check-similar', async (req, res) => {
   const vendorName = (req.query.vendor_name || '').trim();
   const amount = parseFloat(req.query.amount);
   const currency = (req.query.currency || 'USD').trim().toUpperCase().slice(0, 6);
-  if (!Number.isFinite(amount) || amount <= 0 || (!email && !vendorName)) return res.json({ similar: null });
+  // The email is the shared secret here, as on /lookup: a vendor NAME plus a guessed amount
+  // must not confirm that an invoice exists (the name is printed on every invoice we pay).
+  if (!Number.isFinite(amount) || amount <= 0 || !email) return res.json({ similar: null });
   try {
     const params = [];
     const conds = [];

@@ -467,7 +467,7 @@ function FileCell({ hasFile, href, entryId, fileType, onUploaded, onPreview, onD
       ) : hasFile ? (
         <>
           <button
-            onClick={() => onPreview ? onPreview(authHref, `${fileType}-${entryId}`) : window.open(authHref, '_blank')}
+            onClick={() => onPreview ? onPreview(authHref, `${fileType}-${entryId}`) : window.open(authHref, '_blank', 'noopener,noreferrer')}
             style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#15803d', fontWeight: 700, fontSize: 12, fontFamily: 'inherit' }}>
             View
           </button>
@@ -1577,7 +1577,7 @@ export default function BkLedger({ bank = false }) {
       // The export contains the page. A workbook that silently included the
       // other 2,326 rows would disagree with the screen it came from — and this
       // one goes to the accountant.
-      window.open(`${apiBase}/bk/export?token=${token}&source=${bank ? 'bank' : 'invoices'}`, '_blank')
+      window.open(`${apiBase}/bk/export?token=${token}&source=${bank ? 'bank' : 'invoices'}`, '_blank', 'noopener,noreferrer')
     },
   })
 
@@ -3468,7 +3468,7 @@ export default function BkLedger({ bank = false }) {
                           if (filterCat) q.set('category', filterCat)
                           if (search.trim()) q.set('search', search.trim())
                         }
-                        window.open(`${apiBase}${item.path}?${q}`, '_blank')
+                        window.open(`${apiBase}${item.path}?${q}`, '_blank', 'noopener,noreferrer')
                         setExportMenuOpen(false)
                       }}
                       style={{

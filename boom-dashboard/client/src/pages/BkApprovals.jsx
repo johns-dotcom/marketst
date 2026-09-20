@@ -88,7 +88,7 @@ function FileChip({ filename, hasFile, type, entryId, onPreview, theme }) {
   const url = `/api/bk/entries/${entryId}/file/${type}?token=${localStorage.getItem('token')}`
   return (
     <button
-      onClick={() => onPreview ? onPreview(url, filename) : window.open(url, '_blank')}
+      onClick={() => onPreview ? onPreview(url, filename) : window.open(url, '_blank', 'noopener,noreferrer')}
       style={{
         display: 'inline-flex', alignItems: 'center', gap: 5,
         background: C.elevBg, border: '1px solid ' + C.border, borderRadius: 6,
@@ -120,7 +120,7 @@ function AttachmentChip({ attachment, entryId, onPreview, theme }) {
   const url = `/api/bk/entries/${entryId}/receipts/${attachment.id}?token=${localStorage.getItem('token')}`
   return (
     <button
-      onClick={() => onPreview ? onPreview(url, name) : window.open(url, '_blank')}
+      onClick={() => onPreview ? onPreview(url, name) : window.open(url, '_blank', 'noopener,noreferrer')}
       title={`Sent by the vendor with this invoice — ${name}`}
       style={{
         display: 'inline-flex', alignItems: 'center', gap: 5,

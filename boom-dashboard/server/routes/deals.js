@@ -463,6 +463,7 @@ router.get('/:id/files', authMiddleware, async (req, res) => {
 // DELETE /api/deals/:id/files/:fileId
 router.delete('/:id/files/:fileId', authMiddleware, async (req, res) => {
   try {
+    if (!['Admin', 'Superadmin', 'Approver'].includes(req.user?.role)) return res.status(403).json({ success: false, error: 'Admin or Approver required' });
     const result = await pool.query(
       `DELETE FROM entity_files WHERE id = $1 AND entity_type = 'deal' AND entity_id = $2 RETURNING *`,
       [req.params.fileId, req.params.id]

@@ -1432,6 +1432,8 @@ router.get('/:id(\\d+)/onboarding', authMiddleware, async (req, res) => {
 // PUT /api/artists/:id/contact — email, phone, manager, socials, Spotify link
 router.put('/:id(\\d+)/contact', authMiddleware, async (req, res) => {
   try {
+    // The email here is the key vendor_payment_details is filed under; not a field every User may move.
+    if (!['Admin', 'Superadmin', 'Approver'].includes(req.user?.role)) return res.status(403).json({ success: false, error: 'Admin or Approver required' });
     const b = req.body || {};
     const str = (v) => (v === undefined ? undefined : (v === null ? null : (String(v).trim() || null)));
     const email = str(b.email), mgrEmail = str(b.manager_email);

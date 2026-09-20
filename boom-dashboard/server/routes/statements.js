@@ -1374,7 +1374,7 @@ async function runFundingPairSweep({ dryRun = false } = {}) {
         if (l.b_match) await carryEntryState(pool, gone.id, l.b_match).catch(() => {});
         const fill = [];
         const vals = [];
-        if (!String(l.b_artist || '').trim() && String(l.pp_artist || '').trim()) { vals.push(l.pp_artist); fill.push(`artist = ${vals.length}`); }
+        if (!String(l.b_artist || '').trim() && String(l.pp_artist || '').trim()) { vals.push(l.pp_artist); fill.push(`artist = $${vals.length}`); }
         if (!String(l.b_song || '').trim() && String(l.pp_song || '').trim()) { vals.push(l.pp_song); fill.push(`song = $${vals.length}`); }
         if (!String(l.b_category || '').trim() && String(l.pp_category || '').trim()) { vals.push(l.pp_category); fill.push(`category = $${vals.length}`); }
         if (fill.length && l.b_match) {

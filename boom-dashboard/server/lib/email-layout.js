@@ -52,7 +52,7 @@ function rows(pairs, { valueStyle = '' } = {}) {
 }
 const p = (text, opts = {}) => `<p style="margin:0 0 14px;font-family:${SANS};font-size:${opts.small ? 13 : 15}px;line-height:1.6;color:${opts.muted ? PALETTE.muted : PALETTE.ink};${opts.pre ? 'white-space:pre-wrap;' : ''}">${opts.raw ? text : esc(text)}</p>`;
 const button = (label, href, accent = 'sign') => `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:6px 0 4px;"><tr><td style="background:${ACCENT[accent] || ACCENT.sign};">
-  <a href="${esc(href)}" style="display:inline-block;padding:12px 22px;font-family:${MONO};font-size:13px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#fff;text-decoration:none;">${esc(label)}</a></td></tr></table>`;
+  <a href="${esc(/^(https?:|mailto:)/i.test(String(href || '')) ? href : APP_URL)}" style="display:inline-block;padding:12px 22px;font-family:${MONO};font-size:13px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#fff;text-decoration:none;">${esc(label)}</a></td></tr></table>`;
 
 function layout({ title, eyebrow, body, cta, accent = 'forest', preheader, footerNote }) {
   const l = labelInfo();

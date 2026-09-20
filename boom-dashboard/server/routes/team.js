@@ -576,6 +576,12 @@ router.put('/tasks/:id', authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
     const { description, priority, status, due_date, category, notes, release_id, progress } = req.body;
+    {
+      const { rows: [own] } = await pool.query('SELECT user_id, assigned_by FROM tasks WHERE id = $1', [id]);
+      if (!own) return res.status(404).json({ success: false, error: 'Task not found' });
+      const admin = ['Admin', 'Superadmin'].includes(req.user.role);
+      if (!admin && Number(own.user_id) !== Number(req.user.id) && Number(own.assigned_by) !== Number(req.user.id)) return res.status(403).json({ success: false, error: 'Not your task' });
+    }
 
     // release_id uses an explicit-presence check so partial updates (e.g. just
     // { progress }) don't silently unlink a task from its release. Pass

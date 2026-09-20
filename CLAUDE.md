@@ -777,6 +777,54 @@ Authoritative project guide: **`boom-dashboard/CLAUDE.md`** — read it before m
   draft saves one invoice's answers for a multi-invoice batch (restore lands
   them on invoice 1); a 429 on the pre-flight parse is still silent (the
   server gate still runs at Submit).
+- **Security pass (2026-09-20, John: "do a security check on this app").**
+  Two audits (auth/routes and client/deps), every finding verified by reading
+  the code, then one fix pass — `server/scripts/security-gates-fixture.cjs`
+  (39) asserts each gate in BOTH directions. **Auth:** `authMiddleware` now
+  authenticates only a SESSION token (`id` AND `tv` present — the OAuth
+  `state` JWTs share the secret and used to pass; a token without `tv` could
+  never be revoked), and accepts `?token=` ONLY on GET requests to file-ish
+  paths (`QUERY_TOKEN_PATHS`: `/file`, `/receipts/:id`, `/proof`, `/export*`,
+  `/uploads/`, `/statements/:id/file`) — every other route needs the header.
+  Add a new file/export route to that regex or the browser link 401s.
+  `/auth/register` applies the same tiering as Settings (an Admin creates
+  Users/Approvers only); `/auth/google` checks `email_verified` and sits behind
+  `loginLimiter`; impersonation mints a token carrying `imp: <superadmin id>`
+  and writes a `security_audit_log` row (`event_type 'impersonate'`). An
+  admin-set password bumps `token_version`. **Per-row and role gates:** `PUT
+  /bk/entries/:id`, every `/file/:type` and `/receipts` route and the
+  installment proof run `userCanActOnEntry`; the W-9 file is bookkeeping roles
+  only; `entry_source` on `POST /bk/entries` is honoured only for `isAdmin`
+  (it writes the row approved+paid); label-issued invoices PUT/DELETE, artist
+  contact PUT, deal file DELETE and flag assign-to-others need
+  Admin/Superadmin/Approver; a task is edited by its assignee, assigner or an
+  admin; a calendar event is deleted by its creator or an admin; `GET /flags`
+  drops the ledger-derived categories for a non-BK role; `GET /label` strips
+  the bank block (`BANK_FIELDS`) for non-BK roles — `masked(row, req.user)`
+  everywhere, the PUT response included (label-fixture caught the miss).
+  **Public form:** `/payment-on-file` no longer returns `holder_name` (both
+  form surfaces stopped rendering it); `/check-similar` requires the email;
+  multer caps `files: 60, fields: 120, parts: 200`; the three AI routes carry
+  a 300/day limiter after the per-minute one and their multer errors are 400s
+  with a sentence (`singleUpload` wrapper); `secureFileFilter` uses
+  `path.extname`, refuses a dotless name and octet-stream outside a document
+  allowlist. **Output:** CSV cells starting `= + - @ \t \r` are prefixed `'`
+  (formula injection — payee and invoice number are vendor-typed); the entry
+  file GET serves inline only for pdf/png/jpeg/gif/webp/bmp; `notifyAssigned`
+  escapes assigner/description; `email-layout.button` rejects non
+  `https?:|mailto:` hrefs; helmet `referrerPolicy: no-referrer`; prod CORS
+  uses `allowedOrigins` instead of reflecting any origin; the dormant
+  `express.static('/uploads')` is gone; every `window.open` passes
+  `noopener,noreferrer`. Small bug: statements.js `artist = ${vals.length}`
+  was missing its `$`. **Recommended, not done** (each moves behaviour or is
+  a major upgrade): a Content-Security-Policy (Vite/recharts inline styles),
+  multer@2 (busboy advisories — `npm audit` 5 high server / 1 critical client
+  via jspdf→dompurify; `npm audit fix` without `--force` changes nothing),
+  scoping `express.json({ limit: '50mb' })` to the routes that need it,
+  `db.js` `rejectUnauthorized: false`, in-memory rate limiters if replicas
+  grow, raw `err.message` in many 500 bodies, LIKE wildcard escaping in
+  search, scoped short-lived file tokens instead of the session JWT in
+  `?token=` URLs, cookie sessions instead of localStorage.
 - **Bank-statement heuristics were tuned on Boom's Bank of America statements.** The own-name lists (`statements.js` stop-words, `funding-pairs.js` account-trailer strip) now say Market Street, but the layout parsers have not seen a Market Street statement yet. Expect the AI fallback to do the work until they do.
 
 ## Commands (run from `boom-dashboard/`)

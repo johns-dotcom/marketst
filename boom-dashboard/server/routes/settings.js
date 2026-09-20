@@ -207,7 +207,7 @@ router.put('/users/:id', adminOnly, async (req, res) => {
       const repClause = repProvided ? ', boom_rep=$7' : '';
       const idIdx = repProvided ? 8 : 7;
       await pool.query(
-        `UPDATE users SET name=$1, email=$2, role=$3, department=$4, hierarchy_level=$5, password_hash=$6${repClause} WHERE id=$${idIdx}`,
+        `UPDATE users SET name=$1, email=$2, role=$3, department=$4, hierarchy_level=$5, password_hash=$6, token_version = COALESCE(token_version, 0) + 1${repClause} WHERE id=$${idIdx}`,
         params
       );
     } else {

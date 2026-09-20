@@ -132,7 +132,7 @@ async function notifyAssigned({ assignee, assigner, description, priority, due_d
   if (!(await mail.isConnected('team'))) return false;
   const due = due_date ? ` · due ${String(due_date).slice(0, 10)}` : '';
   await mail.sendMail({ kind: 'task_assigned', purpose: 'team', to: assignee.email, subject: `New task from ${assigner}: ${String(description).slice(0, 60)}`,
-    html: wrap('A task for you', `<p><strong>${assigner}</strong> assigned you: ${description}</p><p style="color:#666;">${priority || 'Medium'} priority${due}</p><p><a href="${APP_URL}/my-work">Open My Work</a></p>`), entity: { type: 'task' } });
+    html: wrap('A task for you', `<p><strong>${L.esc(String(assigner || ''))}</strong> assigned you: ${L.esc(String(description || ''))}</p><p style="color:#666;">${priority || 'Medium'} priority${due}</p><p><a href="${APP_URL}/my-work">Open My Work</a></p>`), entity: { type: 'task' } });
   return true;
 }
 

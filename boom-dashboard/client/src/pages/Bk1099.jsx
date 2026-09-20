@@ -91,7 +91,7 @@ export default function Bk1099() {
   const download = (includeTin) => {
     const q = new URLSearchParams({ year: String(year), token: localStorage.getItem('token') || '' })
     if (includeTin) q.set('include_tin', '1')
-    window.open(`/api/bk/1099/export?${q}`, '_blank')
+    window.open(`/api/bk/1099/export?${q}`, '_blank', 'noopener,noreferrer')
   }
 
   const buckets = useMemo(() => {

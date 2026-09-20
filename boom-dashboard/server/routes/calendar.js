@@ -229,7 +229,9 @@ router.post('/', authMiddleware, async (req, res) => {
 // DELETE /api/calendar/:id — remove manual event
 router.delete('/:id', authMiddleware, async (req, res) => {
   try {
-    await pool.query(`DELETE FROM calendar_events WHERE id = $1`, [req.params.id])
+    const admin = ['Admin', 'Superadmin'].includes(req.user?.role)
+    const { rowCount } = await pool.query(`DELETE FROM calendar_events WHERE id = $1 AND ($2::boolean OR created_by = $3)`, [req.params.id, admin, req.user.id])
+    if (!rowCount) return res.status(403).json({ success: false, error: 'Not your event' })
     res.json({ success: true })
   } catch (err) {
     res.status(500).json({ error: err.message })

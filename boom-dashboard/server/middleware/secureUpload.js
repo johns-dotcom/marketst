@@ -44,10 +44,18 @@ const BLOCKED_EXTENSIONS = new Set([
   '.html', '.htm', '.svg', // Can contain XSS
 ]);
 
+// application/octet-stream is what a browser sends for anything it cannot name.
+// It is accepted only when the extension says it is a document we serve.
+const OCTET_OK_EXT = new Set(['.pdf', '.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp', '.tif', '.tiff', '.heic', '.xlsx', '.xls', '.csv', '.doc', '.docx', '.txt', '.zip']);
 function secureFileFilter(req, file, cb) {
-  // Check extension
-  const ext = '.' + (file.originalname.split('.').pop() || '').toLowerCase();
+  // Check extension — path.extname, so "payload" (no dot) and "x.svg." are refused rather
+  // than yielding ".payload" / "." and slipping past the block list.
+  const ext = require('path').extname(String(file.originalname || '')).toLowerCase();
+  if (!ext || ext === '.') return cb(new Error('The file needs an extension (.pdf, .png, .jpg…)'), false);
   if (BLOCKED_EXTENSIONS.has(ext)) {
+    return cb(new Error(`File type ${ext} is not allowed`), false);
+  }
+  if (file.mimetype === 'application/octet-stream' && !OCTET_OK_EXT.has(ext)) {
     return cb(new Error(`File type ${ext} is not allowed`), false);
   }
 

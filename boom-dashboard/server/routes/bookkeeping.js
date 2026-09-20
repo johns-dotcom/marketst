@@ -1074,7 +1074,8 @@ router.post('/entries', async (req, res) => {
       checklist,
     } = req.body;
     const ALLOWED_SOURCES = new Set(['recoupments', 'artist_campaigns']);
-    const entrySource = ALLOWED_SOURCES.has(entry_source) ? entry_source : null;
+    // A source that writes the row approved AND paid is an admin's shortcut, not a body field a User may set.
+    const entrySource = ALLOWED_SOURCES.has(entry_source) && isAdmin(req.user) ? entry_source : null;
 
     // ── The checklist gate, BEFORE anything is written ────────────────────
     //
@@ -1616,6 +1617,8 @@ async function stubDuplicateWarning(updated, body) {
 router.put('/entries/:id', async (req, res) => {
   try {
     const { id } = req.params;
+    // Same per-entry check DELETE and restore carry: a rep-scoped User may edit only rows they can see.
+    if (!(await userCanActOnEntry(req.user, Number(id)))) return res.status(403).json({ success: false, error: 'Not visible to you' });
     const allowed = [
       'invoice_date','payee','description','category','artist','song',
       'invoice_number','amount','currency','payment_method','payment_date',
@@ -2888,6 +2891,11 @@ router.get('/entries/:id/file/:type', async (req, res) => {
   try {
     const type = req.params.type;
     if (!FILE_TYPES[type]) return res.status(400).json({ success: false, error: 'Invalid file type' });
+    // Documents follow the row's visibility. The W-9 carries a TIN, so it is
+    // bookkeeping roles only — the TIN itself is already role-gated and audited
+    // (/vendors/:payee/tin); the scanned form was served to anyone with the id.
+    if (!(await userCanActOnEntry(req.user, Number(req.params.id)))) return res.status(403).json({ success: false, error: 'Not visible to you' });
+    if (type === 'w9' && !isAdmin(req.user)) return res.status(403).json({ success: false, error: 'W-9 forms are shown to bookkeeping roles' });
 
     const [dataCol, nameCol] = FILE_TYPES[type];
     const keyCol = FILE_R2_COLUMNS[type]; // null for receipt
@@ -2954,9 +2962,13 @@ router.get('/entries/:id/file/:type', async (req, res) => {
     // For non-ASCII (accents, curly quotes, em dashes, etc.) include the
     // RFC 5987 filename*=UTF-8'' form so the real name survives downloads.
     const asciiName = finalName.replace(/[^\x20-\x7E]/g, '_').replace(/["\\]/g, '_');
+    // Inline only for types a browser renders without running anything; an SVG
+    // or an unknown type downloads (the same rule /uploads/:filename applies).
+    const inlineOk = ['application/pdf', 'image/png', 'image/jpeg', 'image/gif', 'image/webp', 'image/bmp'].includes(mime);
+    const disp = inlineOk ? 'inline' : 'attachment';
     const disposition = /[^\x20-\x7E]/.test(finalName)
-      ? `inline; filename="${asciiName}"; filename*=UTF-8''${encodeURIComponent(finalName)}`
-      : `inline; filename="${asciiName}"`;
+      ? `${disp}; filename="${asciiName}"; filename*=UTF-8''${encodeURIComponent(finalName)}`
+      : `${disp}; filename="${asciiName}"`;
 
     res.setHeader('Content-Type', mime);
     res.setHeader('Content-Disposition', disposition);
@@ -2971,6 +2983,7 @@ router.post('/entries/:id/file/:type', upload.single('file'), async (req, res) =
   try {
     const type = req.params.type;
     if (!FILE_TYPES[type]) return res.status(400).json({ success: false, error: 'Invalid file type' });
+    if (!(await userCanActOnEntry(req.user, Number(req.params.id)))) return res.status(403).json({ success: false, error: 'Not visible to you' });
     if (!req.file) return res.status(400).json({ success: false, error: 'No file uploaded' });
 
     const id = req.params.id;
@@ -3198,6 +3211,8 @@ router.delete('/entries/:id/file/:type', async (req, res) => {
   try {
     const type = req.params.type;
     if (!FILE_TYPES[type]) return res.status(400).json({ success: false, error: 'Invalid file type' });
+    if (!(await userCanActOnEntry(req.user, Number(req.params.id)))) return res.status(403).json({ success: false, error: 'Not visible to you' });
+    if (type === 'w9' && !isAdmin(req.user)) return res.status(403).json({ success: false, error: 'Only bookkeeping roles remove a W-9' });
 
     const [dataCol, nameCol] = FILE_TYPES[type];
     const keyCol = FILE_R2_COLUMNS[type]; // undefined for receipt (legacy base64 only)
@@ -4982,6 +4997,7 @@ router.post('/entries/:id/receipts', upload.single('file'), async (req, res) => 
 // GET /api/bk/entries/:id/receipts
 router.get('/entries/:id/receipts', async (req, res) => {
   try {
+    if (!(await userCanActOnEntry(req.user, Number(req.params.id)))) return res.status(403).json({ success: false, error: 'Not visible to you' });
     const { rows } = await pool.query(
       `SELECT id, filename, original_name, file_size, uploaded_at
        FROM entity_files
@@ -4998,6 +5014,7 @@ router.get('/entries/:id/receipts', async (req, res) => {
 // GET /api/bk/entries/:id/receipts/:fileId — serve the file
 router.get('/entries/:id/receipts/:fileId', async (req, res) => {
   try {
+    if (!(await userCanActOnEntry(req.user, Number(req.params.id)))) return res.status(403).json({ success: false, error: 'Not visible to you' });
     const { rows } = await pool.query(
       `SELECT r2_key, file_data, mime_type, original_name FROM entity_files
        WHERE id = $1 AND entity_type = 'expense_receipt' AND entity_id = $2`,
@@ -5018,6 +5035,7 @@ router.get('/entries/:id/receipts/:fileId', async (req, res) => {
 // DELETE /api/bk/entries/:id/receipts/:fileId
 router.delete('/entries/:id/receipts/:fileId', async (req, res) => {
   try {
+    if (!(await userCanActOnEntry(req.user, Number(req.params.id)))) return res.status(403).json({ success: false, error: 'Not visible to you' });
     const { rows } = await pool.query(
       `DELETE FROM entity_files WHERE id = $1 AND entity_type = 'expense_receipt' AND entity_id = $2 RETURNING id, r2_key`,
       [req.params.fileId, req.params.id]
@@ -8064,6 +8082,10 @@ router.delete('/installments/:installmentId', async (req, res) => {
 // GET /api/bk/installments/:installmentId/proof — stream the proof file from R2.
 router.get('/installments/:installmentId/proof', async (req, res) => {
   try {
+    {
+      const { rows: [inst] } = await pool.query('SELECT expense_id FROM payment_installments WHERE id = $1', [Number(req.params.installmentId)]).catch(() => ({ rows: [] }));
+      if (inst && !(await userCanActOnEntry(req.user, Number(inst.expense_id)))) return res.status(403).json({ success: false, error: 'Not visible to you' });
+    }
     const { rows } = await pool.query(
       `SELECT proof_filename, proof_r2_key FROM expense_payments WHERE id = $1`,
       [req.params.installmentId]
@@ -13313,7 +13335,9 @@ router.post('/ledger-matching', upload.single('file'), async (req, res) => {
 
     // CSV row escape — wraps every field in quotes, doubles internal
     // quotes per RFC 4180 so Excel opens the output cleanly.
-    const csvCell = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+    // A cell starting with = + - @ or a tab is a FORMULA to Excel; a vendor controls payee and
+    // invoice number, so neutralise the first character (RFC 4180 quoting alone does not).
+    const csvCell = (v) => { const t = String(v ?? ''); const safe = /^[=+\-@\t\r]/.test(t) ? `'${t}` : t; return `"${safe.replace(/"/g, '""')}"`; };
 
     res.setHeader('Content-Disposition', `attachment; filename="ledger-matching-${new Date().toISOString().slice(0,10)}.zip"`);
     res.setHeader('Content-Type', 'application/zip');

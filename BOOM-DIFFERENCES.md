@@ -300,6 +300,25 @@ drawer), `routes/bookkeeping.js` (`GET /entries/:id/history`, `/templates`
 CRUD, table `ledger_templates`). Nothing label-shaped. Root CLAUDE.md "Ledger,
 second pass" has the rules; the storage-key bump matters when porting.
 
+## 21. Security pass — PORT
+
+`middleware/auth.js` (session-token check, `QUERY_TOKEN_PATHS`),
+`routes/auth.js` (register tiering, `email_verified`, impersonation `imp`
+claim + audit), `routes/bookkeeping.js` (per-row checks on PUT and every
+document route, W-9 role gate, `entry_source` admin-only, inline MIME
+allowlist, CSV formula guard), `routes/label.js` (`BANK_FIELDS` masking),
+`routes/team.js` `routes/calendar.js` `routes/invoices.js` `routes/artists.js`
+`routes/deals.js` `routes/flags.js` (owner/role gates), `routes/settings.js`
+(token_version bump), `routes/vendor-submit.js` (holder_name dropped,
+check-similar needs email, multer caps, daily AI limiter, `singleUpload` 400s),
+`middleware/secureUpload.js`, `lib/notifier.js`, `lib/email-layout.js`,
+`index.js` (CORS, referrer policy, static uploads removed, google limiter),
+`routes/statements.js` one-character fix; client `window.open` noopener and the
+vendor form no longer showing the account holder. Fixture
+`server/scripts/security-gates-fixture.cjs`. Nothing label-shaped — Boom has
+every one of these holes; port the whole commit. Root CLAUDE.md "Security pass"
+lists what was recommended but not done.
+
 ## Suggested order for Cadence
 
 1. Sections 3, 4, 7 (sidebar, presets, Settings) — they define the shape

@@ -5,8 +5,15 @@ const pool = require('../db');
 pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS token_version INT DEFAULT 0')
   .catch(e => console.warn('token_version migration:', e.message));
 
+// A token in the QUERY STRING is accepted only for GET requests to the routes
+// that serve or export a file — the browser has to open those as plain URLs.
+// It was accepted everywhere, so a session JWT that reached an access log or a
+// Referer header replayed against the whole API (security pass 2026-09-20).
+const QUERY_TOKEN_PATHS = /(\/file(\/|$)|\/files\/|\/receipts\/\d+|\/proof$|\/export|\/download|\/uploads\/|\/statements\/\d+\/file|\.(xlsx|csv|zip)$)/;
 const authMiddleware = async (req, res, next) => {
-  const token = req.headers.authorization?.split(' ')[1] || req.query.token;
+  const headerToken = req.headers.authorization?.split(' ')[1];
+  const queryToken = req.method === 'GET' && QUERY_TOKEN_PATHS.test(req.path) ? req.query.token : undefined;
+  const token = headerToken || queryToken;
 
   if (!token) {
     return res.status(401).json({ success: false, error: 'No token provided' });
@@ -14,6 +21,13 @@ const authMiddleware = async (req, res, next) => {
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    // Only a SESSION token authenticates: it names a user and carries the
+    // token_version it was minted at. The OAuth `state` JWTs are signed with the
+    // same secret and used to pass here (no id → no version check); a token
+    // without `tv` could never be revoked by logout-all.
+    if (!decoded || typeof decoded !== 'object' || !decoded.id || decoded.tv === undefined) {
+      return res.status(401).json({ success: false, error: 'Invalid or expired token' });
+    }
     req.user = decoded;
 
     // Verify token_version hasn't been bumped (session invalidation), and

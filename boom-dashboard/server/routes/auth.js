@@ -134,6 +134,8 @@ router.post('/google', async (req, res) => {
     });
     const payload = ticket.getPayload();
     const { email, name } = payload;
+    // Google says whether it verified the address; an unverified claim must not log anyone in.
+    if (payload.email_verified === false) return res.status(403).json({ success: false, error: 'This Google account\'s email is not verified.' });
 
     // Look up the user by email — must already exist in the system
     const result = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
@@ -196,6 +198,12 @@ router.post('/register', authMiddleware, async (req, res) => {
     if (!name || !email || !password) {
       return res.status(400).json({ success: false, error: 'Name, email, and password required' });
     }
+    // The same tiering Settings enforces: an Admin creates Users and Approvers;
+    // only a Superadmin creates Admins or Superadmins. This route took `role`
+    // straight from the body, a second door onto the same table.
+    const wantedRole = role || 'User';
+    if (!['User', 'Approver', 'Admin', 'Superadmin'].includes(wantedRole)) return res.status(400).json({ success: false, error: 'Unknown role' });
+    if (['Admin', 'Superadmin'].includes(wantedRole) && req.user.role !== 'Superadmin') return res.status(403).json({ success: false, error: 'Only a Superadmin can create Admin or Superadmin accounts' });
 
     const passwordHash = await bcrypt.hash(password, 10);
 
@@ -270,11 +278,18 @@ router.post('/impersonate/:userId', authMiddleware, async (req, res) => {
       return res.status(404).json({ success: false, error: 'User not found' });
     }
 
+    // The token remembers WHO is impersonating (`imp`), and the act is written to
+    // the security audit — before this an impersonated session was byte-identical
+    // to the person's own and left no trail naming the Superadmin.
     const token = jwt.sign(
-      { id: target.id, email: target.email, name: target.name, role: target.role, department: target.department, hierarchy_level: target.hierarchy_level, tv: target.token_version || 0 },
+      { id: target.id, email: target.email, name: target.name, role: target.role, department: target.department, hierarchy_level: target.hierarchy_level, tv: target.token_version || 0, imp: req.user.id },
       process.env.JWT_SECRET,
       { expiresIn: '2h' }
     );
+    try {
+      const { logSecurityEvent } = require('../middleware/securityAudit');
+      await logSecurityEvent({ event_type: 'impersonate', severity: 'critical', user_id: req.user.id, user_name: req.user.name || req.user.email, ip: req.ip, user_agent: req.get('user-agent'), endpoint: req.originalUrl, details: `Viewing as ${target.name || target.email} (#${target.id}, ${target.role}) for up to 2h` });
+    } catch (e) { console.warn('impersonate audit failed:', e.message); }
 
     res.json({ success: true, data: { token, user: target } });
   } catch (error) {

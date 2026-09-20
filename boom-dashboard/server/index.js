@@ -52,6 +52,7 @@ app.use(helmet({
   crossOriginEmbedderPolicy: false,
   crossOriginResourcePolicy: { policy: 'cross-origin' },
   crossOriginOpenerPolicy: { policy: 'unsafe-none' }, // Required for Google SSO popup flow
+  referrerPolicy: { policy: 'no-referrer' },          // file links carry a token; it must not ride a Referer
 }));
 
 // ── Rate Limiting ─────────────────────────────────────────────────────────
@@ -151,7 +152,7 @@ if (process.env.NODE_ENV !== 'production') {
 } else {
   // Production: allow same-origin + Railway deploy previews
   app.use('/api', cors({
-    origin: true, // Reflect request origin (safe since frontend is same-origin)
+    origin: allowedOrigins, // the frontend is same-origin; only FRONTEND_URL is a permitted cross origin
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
     allowedHeaders: ['Content-Type', 'Authorization'],
@@ -175,7 +176,8 @@ app.use(sanitize);
 // plain <a href> links). These are contract PDFs and admin-vault docs,
 // some Superadmin-gated at the API layer — previously the raw bytes were
 // world-readable by guessable timestamp-filename.
-app.use('/uploads', authMiddleware, express.static(path.join(__dirname, 'uploads')));
+// (express.static on server/uploads is gone: it served files INLINE by extension, ahead of the
+// DB-backed /uploads/:filename handler with its inline allowlist. Nothing writes to that directory.)
 app.get('/uploads/:filename', authMiddleware, async (req, res) => {
   try {
     const { loadFileBuffer } = require('./lib/r2');
@@ -225,6 +227,7 @@ app.use(securityAuditMiddleware);
 
 // Routes — with targeted rate limiters
 app.use('/api/auth/login', loginLimiter);
+app.use('/api/auth/google', loginLimiter);
 app.use('/api/auth/register', loginLimiter);
 app.use('/api/auth', authRoutes);
 // Public — vendor submit reads from this. Auth-gated admin CRUD for

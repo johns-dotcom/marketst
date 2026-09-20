@@ -1513,6 +1513,13 @@ router.get('/', authMiddleware, async (req, res) => {
     const role = req.user?.role;
     const isBkRole = role === 'Admin' || role === 'Superadmin' || role === 'Approver';
     const isBankRole = role === 'Admin' || role === 'Superadmin';
+    // The ledger-derived categories (duplicate vendors / invoices, artist and
+    // song problems on ledger rows) read `expenses`; a User without a
+    // bookkeeping role sees the catalog and roster categories only.
+    if (!isBkRole) {
+      const LEDGER_KINDS = new Set(['duplicate_vendors', 'duplicate_invoices', 'artist_multi_normalize', 'artist_placeholder', 'artist_missing', 'artist_multi_name', 'artist_song_mismatch', 'artist_likely_typo', 'artist_unknown', 'artist_variants', 'ledger_missing_song', 'ledger_missing_socials']);
+      for (let i = categories.length - 1; i >= 0; i -= 1) if (LEDGER_KINDS.has(categories[i].kind)) categories.splice(i, 1);
+    }
     if (isBkRole) {
       const [flaggedExpenses, flaggedTxns] = await Promise.all([
         getFlaggedExpenses(),
@@ -1635,6 +1642,8 @@ router.post('/assign', authMiddleware, async (req, res) => {
   try {
     const { kind, key = '*', user_id, due_date, title, to, severity } = req.body || {};
     if (!kind || !user_id) return res.status(400).json({ success: false, error: 'kind and user_id required' });
+    // Anyone may take a flag themselves; handing one to someone else (which emails them) is Admin/Approver.
+    if (Number(user_id) !== Number(req.user.id) && !['Admin', 'Superadmin', 'Approver'].includes(req.user?.role)) return res.status(403).json({ success: false, error: 'Only an Admin or Approver assigns flags to others' });
     const [{ rows: [assignee] }, { rows: [actor] }] = await Promise.all([
       pool.query(`SELECT id, name, email, hierarchy_level, notification_prefs FROM users WHERE id = $1`, [user_id]),
       pool.query(`SELECT id, name, hierarchy_level FROM users WHERE id = $1`, [req.user.id]),
@@ -1655,6 +1664,10 @@ router.delete('/assign', authMiddleware, async (req, res) => {
   try {
     const { kind, key = '*' } = req.query || {};
     if (!kind) return res.status(400).json({ success: false, error: 'kind required' });
+    if (!['Admin', 'Superadmin', 'Approver'].includes(req.user?.role)) {
+      const { rows: [a] } = await pool.query('SELECT assigned_to FROM flag_assignments WHERE kind = $1 AND key = $2', [kind, String(key)]);
+      if (!a || Number(a.assigned_to) !== Number(req.user.id)) return res.status(403).json({ success: false, error: 'Not your assignment' });
+    }
     const ok = await require('../lib/flags-register').unassign({ kind, key: String(key) });
     res.json({ success: true, removed: ok });
   } catch (err) { res.status(500).json({ success: false, error: err.message }); }

@@ -33,7 +33,7 @@ export const ROLES = [
       'Archive and merge artists and releases; delete anyone\'s chat message; see everyone\'s tasks',
       'Full TINs in the 1099 export and the deleted-rows ledger',
     ],
-    cannot: ['Create or edit another Admin or a Superadmin', 'Write the EIN or bank account number', 'View as another person', 'Read Restricted admin documents'],
+    cannot: ['Create or edit another Admin or a Superadmin (the register API refuses it too)', 'Write the EIN or bank account number', 'View as another person', 'Read Restricted admin documents'],
   },
   {
     id: 'Approver', short: 'A bookkeeping admin with no say over people or the app.',
@@ -45,6 +45,7 @@ export const ROLES = [
       'See every rep\'s invoices, not just their own',
       'Reports, categories, artist budgets, campaign pay fields, contracts in search',
       'Invoices they enter are approved on the spot instead of waiting',
+      'Edit or delete a label-issued invoice, an artist\'s contact details and deal files; hand a flag to someone else',
     ],
     cannot: ['Manage people or settings', 'Bank statements or bank flags', 'Admin documents, Activity, Analytics', 'Delete artists or releases'],
   },
@@ -59,7 +60,7 @@ export const ROLES = [
       'Their own settings: profile, sign-in, notifications, mailbox, theme, sidebar',
       'Delete their own messages and their own brand uploads',
     ],
-    cannot: ['See another rep\'s invoices unless shared', 'Approve or pay anything', 'Open a page nobody granted'],
+    cannot: ['See another rep\'s invoices unless shared, or edit, attach to or open documents on them', 'Approve or pay anything', 'Open a page nobody granted', 'Open a W-9 (a tax form belongs to the bookkeeping roles)', 'Read the label\'s bank block', 'Edit someone else\'s task or delete their calendar event', 'Assign a flag to anyone but themselves'],
   },
 ]
 export const roleById = (id) => ROLES.find((r) => r.id === id) || null

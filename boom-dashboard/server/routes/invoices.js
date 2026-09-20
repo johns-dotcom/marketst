@@ -159,6 +159,7 @@ router.post('/', async (req, res) => {
 // PUT update invoice
 router.put('/:id', async (req, res) => {
   try {
+    if (!['Admin', 'Superadmin', 'Approver'].includes(req.user?.role)) return res.status(403).json({ success: false, error: 'Bookkeeping roles only' });
     // `due_by` is no longer settable directly — it is DERIVED. Leaving it writable
     // alongside payment_terms would let the printed deadline and the terms
     // disagree, which is the state this change exists to remove.
@@ -219,6 +220,7 @@ router.put('/:id', async (req, res) => {
 // DELETE invoice
 router.delete('/:id', async (req, res) => {
   try {
+    if (!['Admin', 'Superadmin', 'Approver'].includes(req.user?.role)) return res.status(403).json({ success: false, error: 'Bookkeeping roles only' });
     await pool.query('DELETE FROM boom_invoices WHERE id = $1', [req.params.id]);
     res.json({ success: true });
   } catch (err) {

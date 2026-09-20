@@ -1935,7 +1935,7 @@ export default function VendorSubmitLab() {
                       <span className="text-sm font-bold text-gray-700">
                         {payOnFile.method} ••••{payOnFile.last4}
                       </span>
-                      {payOnFile.holder_name && (
+                      {false && (
                         <span className="text-sm text-gray-500">· {payOnFile.holder_name}</span>
                       )}
                       <span className="text-sm text-gray-500">— still correct?</span>
