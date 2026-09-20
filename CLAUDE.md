@@ -549,6 +549,7 @@ No lint, no formatter, no test runner — verify changes by running `dev:server`
 
 - `boom-dashboard/` — the monorepo (client + server)
 - `README.md` — what the app is and what it is for, plus the fork status
+- `BOOM-DIFFERENCES.md` — every difference from the Boom dashboard since the fork, tagged PORT / PORT (config) / LABEL, written as the porting guide for the Cadence project. Update it when a fork rule is added.
 - `tools/` — one-off operator scripts, run by hand, never by the app
   - `get-refresh-token.js` / `.py` — mint a Gmail API refresh token for the server's `GMAIL_REFRESH_TOKEN`. They need a Google OAuth `client_secret_*.json` beside them (sensitive — gitignored, not copied from Boom)
 
