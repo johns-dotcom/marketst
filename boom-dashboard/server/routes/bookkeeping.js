@@ -17,6 +17,7 @@ const { rescanInvoice, rescanW9, INVOICE_SCAN_FIELDS, W9_SCAN_FIELDS } = require
 const { callClaude } = require('../services/claude');
 const { CATEGORIES, PAYMENT_METHODS } = require('../lib/constants');
 const paymentCrypto = require('../lib/payment-crypto');
+const qbo = require('../lib/qbo'); // QuickBooks push queue — enqueue is a no-op until QuickBooks is connected
 const { categoryVocabulary } = require('../lib/category-vocab');
 const { parseInvoiceLines } = require('../lib/invoice-lines');
 const { extractPdfText } = require('../lib/statement-pdf');
@@ -3892,6 +3893,7 @@ router.post('/entries/:id/approve', async (req, res) => {
       }
     }
 
+    qbo.enqueue('bill', entryId, req.user.id);
     res.json({ success: true, pending_email });
 
     // Activity feed. Fired AFTER the response and never awaited — the approval
@@ -4102,6 +4104,7 @@ router.post('/bulk-approve', async (req, res) => {
       }
     }
 
+    for (const id of ids) qbo.enqueue('bill', Number(id), req.user.id);
     res.json({ success: true, approved: rowCount, notified: toNotify.length, pending_emails });
 
     // One line for the batch, not one per invoice — a 40-invoice bulk approve
@@ -7553,6 +7556,7 @@ router.put('/payments/:id', async (req, res) => {
       }
     }
 
+    if (payment_status === 'Paid') qbo.enqueue('payment', Number(req.params.id), req.user.id);
     await logBkAction(req.user, 'payment_updated', Number(req.params.id),
       target.payee, 'payment_status', null, payment_status,
       hasFamily ? `cascaded to split family (root=${rootId})` : null);

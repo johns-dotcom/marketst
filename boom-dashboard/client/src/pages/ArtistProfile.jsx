@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useParams, Link, useSearchParams } from 'react-router-dom'
-import { Music, FileText, ExternalLink, Users, Disc3, Globe2, Loader, Plus, Trash2, Link2, Archive, Activity, Wallet, PiggyBank, Megaphone, ArrowRight } from 'lucide-react'
+import { Music, FileText, ExternalLink, Users, Disc3, Globe2, Loader, Plus, Trash2, Link2, Archive, Activity, Wallet, PiggyBank, Megaphone, ArrowRight, RefreshCw } from 'lucide-react'
 import api from '../api'
 import { formatDate, daysUntilLocal, isPastLocal, artistBucket } from '../utils'
 import Skeleton from '../components/Skeleton'
@@ -76,6 +76,60 @@ function PopularityRing({ value, size = 64, label }) {
   )
 }
 
+// The daily feed (artist_stats): followers + popularity from the Spotify Web
+// API, monthly listeners from Chartmetric when configured. History, not live.
+const fmtDelta = (n) => (n == null ? null : `${n > 0 ? '+' : ''}${n.toLocaleString()}`)
+function Sparkline({ points, width = 160, height = 36 }) {
+  const vals = points.filter((v) => v != null)
+  if (vals.length < 2) return null
+  const min = Math.min(...vals), max = Math.max(...vals), span = max - min || 1
+  const d = points.map((v, i) => `${(i / (points.length - 1)) * width},${height - 3 - ((v - min) / span) * (height - 6)}`).join(' ')
+  return <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} className="text-green-500" aria-hidden="true"><polyline fill="none" stroke="currentColor" strokeWidth="1.5" points={d} /></svg>
+}
+export function ArtistStatsBlock({ artistId }) {
+  const [h, setH] = useState(null)
+  const [busy, setBusy] = useState(false)
+  const load = () => api.get(`/artists/${artistId}/stats`).then((r) => setH(r.data.data)).catch(() => setH(false))
+  useEffect(() => { load() }, [artistId]) // eslint-disable-line react-hooks/exhaustive-deps
+  const refresh = async () => { setBusy(true); try { const r = await api.post(`/artists/${artistId}/stats/refresh`); setH(r.data.data) } catch { /* the block keeps what it had */ } setBusy(false) }
+  if (h === null) return <div className="card p-4 text-xs text-gray-400" data-artist-stats>Loading tracked stats…</div>
+  if (h === false) return null
+  const sp = h.spotify, cm = h.chartmetric
+  const nothing = !sp && !cm
+  return (
+    <div className="card p-4" data-artist-stats data-has-stats={nothing ? '0' : '1'}>
+      <div className="flex items-start justify-between gap-3 flex-wrap mb-3">
+        <div>
+          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Tracked daily · last {h.days} days</p>
+          <p className="text-xs text-gray-500 mt-0.5">Followers and popularity from Spotify{h.sources.chartmetric ? ', monthly listeners from Chartmetric' : ''}. Spotify for Artists has no API, so streams are not here.</p>
+        </div>
+        {(h.sources.spotify || h.sources.chartmetric) && <button onClick={refresh} disabled={busy} className="inline-flex items-center gap-1 text-[11px] font-semibold border border-rule rounded-md px-2 py-1 hover:bg-gray-50" data-stats-refresh><RefreshCw size={11} className={busy ? 'animate-spin' : ''} /> Refresh now</button>}
+      </div>
+      {nothing ? (
+        <p className="text-sm text-gray-500" data-stats-empty>{h.sources.spotify ? 'No numbers yet — the feed runs each morning; Refresh now fetches today’s.' : 'Spotify keys are not configured on the server, so nothing is tracked.'}</p>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          {sp && <div data-stat="followers"><p className="text-[11px] text-gray-500">Spotify followers</p><p className="text-xl font-bold text-gray-900 tabular-nums">{fmtNum(sp.followers)}{sp.followers_delta != null && <span className={`text-xs ml-2 ${sp.followers_delta >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{fmtDelta(sp.followers_delta)}</span>}</p><Sparkline points={sp.series.map((r) => r.followers)} /></div>}
+          {sp && <div data-stat="popularity"><p className="text-[11px] text-gray-500">Popularity (0–100)</p><p className="text-xl font-bold text-gray-900 tabular-nums">{sp.popularity ?? '—'}{sp.popularity_delta != null && sp.popularity_delta !== 0 && <span className={`text-xs ml-2 ${sp.popularity_delta >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{fmtDelta(sp.popularity_delta)}</span>}</p><Sparkline points={sp.series.map((r) => r.popularity)} /></div>}
+          {cm && <div data-stat="listeners"><p className="text-[11px] text-gray-500">Monthly listeners <span className="text-gray-400">· Chartmetric</span></p><p className="text-xl font-bold text-gray-900 tabular-nums">{fmtNum(cm.monthly_listeners)}{cm.listeners_delta != null && <span className={`text-xs ml-2 ${cm.listeners_delta >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{fmtDelta(cm.listeners_delta)}</span>}</p><Sparkline points={cm.series.map((r) => r.monthly_listeners)} /></div>}
+        </div>
+      )}
+      {sp?.day && <p className="text-[10px] text-gray-400 mt-2">Last fetched {new Date(sp.fetched_at || sp.day).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</p>}
+    </div>
+  )
+}
+function ArtistStatsChip({ artistId }) {
+  const [h, setH] = useState(null)
+  useEffect(() => { api.get(`/artists/${artistId}/stats`).then((r) => setH(r.data.data)).catch(() => setH(false)) }, [artistId])
+  if (!h || (!h.spotify && !h.chartmetric)) return null
+  return (
+    <span className="text-xs font-semibold bg-green-50 text-green-700 border border-green-200 px-2 py-0.5 rounded-full tabular-nums inline-flex items-center gap-1.5" data-stats-chip title="From the daily Spotify feed">
+      {h.spotify && <span>{fmtNum(h.spotify.followers)} followers</span>}
+      {h.chartmetric && <span className="text-green-600/70">· {fmtNum(h.chartmetric.monthly_listeners)} monthly</span>}
+    </span>
+  )
+}
+
 function SpotifyTab({ artistId }) {
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -105,11 +159,12 @@ function SpotifyTab({ artistId }) {
 
   if (error) {
     return (
+      <div className="space-y-6"><ArtistStatsBlock artistId={artistId} />
       <div className="card p-8 text-center">
         <Disc3 size={32} className="mx-auto mb-3 text-gray-300" />
         <p className="text-sm text-gray-500">{error}</p>
         <p className="text-xs text-gray-400 mt-1">Make sure SPOTIFY_CLIENT_ID and SPOTIFY_CLIENT_SECRET are set.</p>
-      </div>
+      </div></div>
     )
   }
 
@@ -130,6 +185,7 @@ function SpotifyTab({ artistId }) {
 
   return (
     <div className="space-y-6">
+      <ArtistStatsBlock artistId={artistId} />
       {/* Profile stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {profile?.popularity > 0 && (
@@ -592,6 +648,7 @@ export default function ArtistProfile() {
                 {activeContracts.length} active contract{activeContracts.length !== 1 ? 's' : ''}
               </span>
             )}
+            <ArtistStatsChip artistId={id} />
           </div>
           {/* Links */}
           {data.links && data.links.length > 0 && (

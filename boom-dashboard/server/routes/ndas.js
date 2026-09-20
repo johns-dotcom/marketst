@@ -22,7 +22,7 @@ router.post('/', async (req, res) => {
   try {
     const {
       effective_date, owner_name, owner_address,
-      recipient_name, recipient_address, disclosed_to,
+      recipient_name, recipient_address, disclosed_to, recipient_email,
       signatory_name, signatory_title, custom_body,
       include_non_circumvention, include_non_solicitation,
       template_id, template_data,
@@ -48,8 +48,8 @@ router.post('/', async (req, res) => {
          (effective_date, owner_name, owner_address, recipient_name, recipient_address,
           disclosed_to, signatory_name, signatory_title, custom_body,
           include_non_circumvention, include_non_solicitation, created_by,
-          template_id, template_data)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14::jsonb) RETURNING *`,
+          template_id, template_data, recipient_email)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14::jsonb, $15) RETURNING *`,
       [
         effective_date, owner_name, owner_address || null, recipient_name, recipient_address || null,
         disclosed_to || null, signatory_name || null, signatory_title || null, custom_body || null,
@@ -58,6 +58,7 @@ router.post('/', async (req, res) => {
         req.user?.name || 'Unknown',
         safeTemplateId,
         safeTemplateData ? JSON.stringify(safeTemplateData) : null,
+        recipient_email ? String(recipient_email).trim().toLowerCase().slice(0, 200) : null,
       ]
     );
     res.json({ success: true, data: rows[0] });
@@ -72,7 +73,7 @@ router.put('/:id', async (req, res) => {
     const allowed = ['effective_date', 'owner_name', 'owner_address', 'recipient_name',
       'recipient_address', 'disclosed_to', 'signatory_name', 'signatory_title', 'custom_body',
       'include_non_circumvention', 'include_non_solicitation',
-      'template_id', 'template_data'];
+      'template_id', 'template_data', 'recipient_email'];
     const fields = Object.keys(req.body).filter(k => allowed.includes(k));
     if (!fields.length) return res.status(400).json({ success: false, error: 'No valid fields' });
     // template_data is JSONB — cast the placeholder so pg stringifies

@@ -10,6 +10,7 @@ import useHotkeys from '../hooks/useHotkeys'
 import PageHeader from '../components/PageHeader'
 import SearchableSelect from '../components/SearchableSelect'
 import NextStepPrompt, { useNextStep } from '../components/NextStepPrompt'
+import { SendForSignatureButton, useEnvelopes } from '../components/SendForSignature'
 
 // A deal's type, in the contract form's vocabulary (only where the two agree).
 const CONTRACT_TYPES_FROM_DEAL = { '360 Deal': 'Recording', 'Master License': 'Licensing', 'Single License': 'Licensing', 'Distribution': 'Distribution', 'Publishing': 'Publishing' }
@@ -17,6 +18,7 @@ const BLANK_CONTRACT = { artist_id: '', type: '', status: 'Active', date_signed:
 
 export default function Contracts() {
   const [contracts, setContracts] = useState([])
+  const [envelopes, reloadEnvelopes] = useEnvelopes('contract')   // DocuSign: latest envelope per contract
   const [artists, setArtists] = useState([])
   const [searchTerm, setSearchTerm] = useState('')
   const [typeFilter, setTypeFilter] = useState('')
@@ -1468,7 +1470,8 @@ export default function Contracts() {
                         )
                       })()}
                     </td>
-                    <td className="table-cell text-right">
+                    <td className="table-cell text-right" onClick={(e) => e.stopPropagation()}>
+                      <SendForSignatureButton docType="contract" docId={contract.id} envelope={envelopes[contract.id]} defaults={{ name: contract.artist_name, email: contract.artist_email }} onChanged={() => { reloadEnvelopes(); fetchContracts() }} />
                       <button
                         onClick={(e) => handleDeleteContract(contract, e)}
                         disabled={deletingId === contract.id}

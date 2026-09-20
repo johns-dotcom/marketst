@@ -4,6 +4,7 @@ import { jsPDF } from 'jspdf'
 import api from '../api'
 import Skeleton from '../components/Skeleton'
 import useLabel from '../hooks/useLabel'
+import { SendForSignatureButton, useEnvelopes } from '../components/SendForSignature'
 
 // Market Street defaults — pre-fill the standing values so most waivers
 // only require the deal-specific fields (artist names, song, label,
@@ -122,6 +123,7 @@ function freshBlankForm() {
 
 export default function CreateLabelWaiver() {
   const [waivers, setWaivers] = useState([])
+  const [envelopes, reloadEnvelopes] = useEnvelopes('waiver')   // DocuSign: latest envelope per waiver
   const [loading, setLoading] = useState(true)
   const [creating, setCreating] = useState(false)
   const [form, setForm] = useState(freshBlankForm)
@@ -579,6 +581,8 @@ export default function CreateLabelWaiver() {
                         <button onClick={() => handleDownload(w)} className="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-md transition-colors" title="Download PDF">
                           <Download size={14} />
                         </button>
+                        <SendForSignatureButton docType="waiver" docId={w.id} envelope={envelopes[w.id]} defaults={{ name: w.other_label_artist || w.releasing_label, email: w.contact_email }}
+                          getPdf={() => buildWaiverPDF(w).output('blob')} onChanged={reloadEnvelopes} className="p-1.5 text-gray-400 hover:text-boom-700 hover:bg-boom-50 rounded-md transition-colors" />
                         <button onClick={() => handleDelete(w.id)} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors" title="Delete">
                           <Trash2 size={14} />
                         </button>

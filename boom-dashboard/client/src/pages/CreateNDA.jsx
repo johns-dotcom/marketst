@@ -5,6 +5,7 @@ import { jsPDF } from 'jspdf'
 import api from '../api'
 import Skeleton from '../components/Skeleton'
 import useLabel from '../hooks/useLabel'
+import { SendForSignatureButton, useEnvelopes } from '../components/SendForSignature'
 import {
   NDA_TEMPLATES, getTemplate, renderSignatureFor,
   BOOM_DEFAULTS, applyLabelDefaults, formatEffectiveDate, escapeRegex, getHeadingLevel,
@@ -20,6 +21,7 @@ const BASE_BLANK = {
   owner_name: BOOM_DEFAULTS.owner_name,
   owner_address: BOOM_DEFAULTS.owner_address,
   recipient_name: '',
+  recipient_email: '',
   recipient_address: '',
   signatory_name: BOOM_DEFAULTS.signatory_name,
   signatory_title: BOOM_DEFAULTS.signatory_title,
@@ -106,6 +108,7 @@ export default function CreateNDA() {
   const activeTemplate = getTemplate(params.template)
 
   const [ndas, setNdas] = useState([])
+  const [envelopes, reloadEnvelopes] = useEnvelopes('nda')   // DocuSign: latest envelope per NDA
   const [loading, setLoading] = useState(true)
   const [creating, setCreating] = useState(false)
   const [form, setForm] = useState(() => freshBlankForm(activeTemplate))
@@ -305,6 +308,7 @@ export default function CreateNDA() {
       owner_name: nda.owner_name || BOOM_DEFAULTS.owner_name,
       owner_address: nda.owner_address || '',
       recipient_name: nda.recipient_name || '',
+      recipient_email: nda.recipient_email || '',
       recipient_address: nda.recipient_address || '',
       signatory_name: nda.signatory_name || BOOM_DEFAULTS.signatory_name,
       signatory_title: nda.signatory_title || BOOM_DEFAULTS.signatory_title,
@@ -739,6 +743,17 @@ export default function CreateNDA() {
                 />
               </div>
               <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Recipient Email <span className="text-gray-400 font-normal">for DocuSign</span></label>
+                <input
+                  type="email"
+                  value={form.recipient_email}
+                  onChange={e => setField('recipient_email', e.target.value)}
+                  placeholder="name@example.com"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-boom-500 focus:border-boom-500 outline-none"
+                  data-recipient-email
+                />
+              </div>
+              <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Recipient Address</label>
                 <input
                   type="text"
@@ -951,6 +966,8 @@ export default function CreateNDA() {
                         >
                           <Download size={14} />
                         </button>
+                        <SendForSignatureButton docType="nda" docId={nda.id} envelope={envelopes[nda.id]} defaults={{ name: nda.recipient_name, email: nda.recipient_email }}
+                          getPdf={() => buildNdaPdf(nda).doc.output('blob')} onChanged={reloadEnvelopes} className="p-1.5 text-gray-400 hover:text-boom-700 hover:bg-boom-50 rounded-md transition-colors" />
                         <button
                           onClick={() => handleDownloadWord(nda)}
                           className="p-1.5 text-gray-400 hover:text-blue-700 hover:bg-blue-50 rounded-md transition-colors text-[10px] font-black leading-none"

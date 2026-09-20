@@ -12,6 +12,8 @@ const dealsRoutes = require('./routes/deals');
 const labelRoutes = require('./routes/label');
 const brandRoutes = require('./routes/brand');
 const mailRoutes = require('./routes/mail');
+const quickbooksRoutes = require('./routes/quickbooks');
+const docusignRoutes = require('./routes/docusign');
 const dashboardRoutes = require('./routes/dashboard');
 const searchRoutes = require('./routes/search');
 const dspRoutes = require('./routes/dsp');
@@ -242,6 +244,8 @@ app.use('/api/deals', dealsRoutes);
 app.use('/api/label', labelRoutes);
 app.use('/api/brand', brandRoutes);
 app.use('/api/mail', mailRoutes);
+app.use('/api/quickbooks', quickbooksRoutes);
+app.use('/api/docusign', docusignRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/search', searchRoutes);
 app.use('/api/dsp', dspRoutes);
@@ -1520,6 +1524,8 @@ await pool.query(`ALTER TABLE expenses ADD COLUMN IF NOT EXISTS ai_scan JSONB`).
   await pool.query(`CREATE TABLE IF NOT EXISTS mail_jobs (job TEXT NOT NULL, period TEXT NOT NULL, ran_at TIMESTAMPTZ DEFAULT NOW(), PRIMARY KEY (job, period))`).catch(err => console.error('mail_jobs migration failed:', err.message));
   // The environment sender becomes the first shared mailbox (no-op once any mailbox exists).
   await require('./lib/mail').importEnvMailbox();
+  // QuickBooks · DocuSign · artist stats tables (lib/integrations-schema.js)
+  await require('./lib/integrations-schema').ensure();
 
   // Invites (2026-09-19): a person is created with no password and a one-time
   // link (token hashed here) that sets it. Seven days; resend voids the old one.
@@ -3043,6 +3049,7 @@ await pool.query(`ALTER TABLE expenses ADD COLUMN IF NOT EXISTS ai_scan JSONB`).
 
   // Notification preferences → mail, hourly, through the Team mailbox (lib/notifier.js).
   require('./lib/notifier').start();
+  require('./lib/integrations-worker').start();
 
   // Salary employees — standalone payroll roster (not tied to users table)
   await pool.query(`

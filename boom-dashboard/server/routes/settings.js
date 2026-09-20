@@ -621,7 +621,24 @@ router.get('/integrations', adminOnly, async (req, res) => {
         return { key: 'gmail', label: 'Mail (Google)', configured: rows.length > 0, powers: 'payment confirmations, welcome and invite emails, notifications', detail: rows.length ? `${rows.length} mailbox${rows.length === 1 ? '' : 'es'}: ${rows.map((r) => r.address).join(', ')}` : (has('GMAIL_CLIENT_ID', 'GMAIL_CLIENT_SECRET') ? 'OAuth client ready — connect a mailbox in the Mail card above' : 'needs GMAIL_CLIENT_ID and GMAIL_CLIENT_SECRET on Railway'), last_used: rows.map((r) => r.last_used_at).filter(Boolean).sort().pop() || null };
       })(),
       { key: 'google_signin', label: 'Google sign-in', configured: has('GOOGLE_CLIENT_ID'), powers: 'one-click login for the team (the client also needs VITE_GOOGLE_CLIENT_ID at build time)', detail: null, last_used: null },
-      { key: 'spotify', label: 'Spotify', configured: has('SPOTIFY_CLIENT_ID', 'SPOTIFY_CLIENT_SECRET'), powers: 'cover art and artist lookup on releases', detail: null, last_used: null },
+      await (async () => {
+        const qbo = require('../lib/qbo'); const st = await qbo.status().catch(() => null);
+        return { key: 'quickbooks', label: 'QuickBooks Online', configured: !!st?.connected, powers: 'approved invoices as Bills, vendors, and payments as BillPayments in the ledger',
+          detail: st?.connected ? `${st.company_name || st.realm_id}${st.env === 'sandbox' ? ' · sandbox' : ''}${st.status === 'needs_reconnect' ? ' · needs reconnect' : ''}${st.queue.error ? ` · ${st.queue.error} failed` : ''}` : (qbo.isConfigured() ? 'app configured, not connected' : 'needs QBO_CLIENT_ID and QBO_CLIENT_SECRET'), last_used: st?.last_synced_at || null };
+      })(),
+      await (async () => {
+        const ds = require('../lib/docusign'); const st = await ds.status().catch(() => null);
+        return { key: 'docusign', label: 'DocuSign', configured: !!st?.connected, powers: 'sending contracts, NDAs and waivers for signature; the signed copy lands on the artist',
+          detail: st?.connected ? `${st.account_name || st.user_email}${st.env === 'demo' ? ' · demo' : ''}${st.status === 'needs_reconnect' ? ' · needs reconnect' : ''}` : (ds.isConfigured() ? 'app configured, not connected' : 'needs DOCUSIGN_INTEGRATION_KEY and DOCUSIGN_SECRET'), last_used: st?.last_sent_at || null };
+      })(),
+      await (async () => {
+        const { rows: [r] } = await pool.query(`SELECT MAX(fetched_at) AS t, COUNT(DISTINCT artist_id)::int AS n FROM artist_stats WHERE source = 'spotify'`).catch(() => ({ rows: [{}] }));
+        return { key: 'spotify', label: 'Spotify', configured: has('SPOTIFY_CLIENT_ID', 'SPOTIFY_CLIENT_SECRET'), powers: 'cover art, artist lookup, and the daily followers and popularity feed on the roster', detail: r?.n ? `${r.n} artists tracked` : null, last_used: r?.t || null };
+      })(),
+      await (async () => {
+        const { rows: [r] } = await pool.query(`SELECT MAX(fetched_at) AS t, COUNT(DISTINCT artist_id)::int AS n FROM artist_stats WHERE source = 'chartmetric'`).catch(() => ({ rows: [{}] }));
+        return { key: 'chartmetric', label: 'Chartmetric', configured: has('CHARTMETRIC_REFRESH_TOKEN'), powers: 'monthly listeners per artist (Spotify for Artists has no API; this is the paid substitute)', detail: r?.n ? `${r.n} artists tracked` : null, last_used: r?.t || null };
+      })(),
       { key: 'storage', label: 'File storage (R2)', configured: has('R2_ACCOUNT_ID', 'R2_ACCESS_KEY_ID', 'R2_SECRET_ACCESS_KEY', 'R2_BUCKET_NAME'), powers: 'invoices, W-9s, proofs, contracts and documents', detail: process.env.R2_BUCKET_NAME ? `bucket ${process.env.R2_BUCKET_NAME}` : null, last_used: null },
       { key: 'ai', label: 'AI (Anthropic)', configured: has('ANTHROPIC_API_KEY'), powers: 'invoice reading, W-9 checks, statement parsing fallback, contract scans', detail: null, last_used: await lastAudit('ai%') },
       { key: 'encryption', label: 'Encryption key', configured: has('PAYMENT_DETAILS_KEY'), powers: 'storing vendor and label bank details, EINs and TINs', detail: null, last_used: null },

@@ -38,23 +38,23 @@ const PAGE_TOURS = [
     ],
   },
   {
-    id: 'contracts', title: 'Contracts', path: '/contracts', version: '2026-09-19',
+    id: 'contracts', title: 'Contracts', path: '/contracts', version: '2026-09-20',
     steps: [
-      { target: '[data-tour="contracts-header"]', title: 'Contracts on file', body: 'Active agreements with their terms and expiry. Expiring ones surface under Renewals and on the calendar. Saving a contract offers the next step: the release.' },
+      { target: '[data-tour="contracts-header"]', title: 'Contracts on file', body: 'Active agreements with their terms and expiry. Expiring ones surface under Renewals and on the calendar. Saving a contract offers the next step: the release. The pen icon on a row sends the contract PDF for signature through DocuSign; the badge beside it shows who still has to sign.' },
     ],
   },
   {
-    id: 'artists', title: 'Artists', path: '/artists', version: '2026-09-19',
+    id: 'artists', title: 'Artists', path: '/artists', version: '2026-09-20',
     steps: [
       { target: '[data-tour="artists-header"]', title: 'The roster', body: 'Everyone signed to the label. Add artist creates a profile by hand; a deal moved to Signed does it for you.' },
-      { target: '[data-tour="artist-card"], [data-tour="artists-header"]', title: 'Open a profile', body: 'The profile is the hub: releases, contracts, documents, budget, recoupments, campaigns, and the onboarding checklist for a newly signed artist.' },
+      { target: '[data-tour="artist-card"], [data-tour="artists-header"]', title: 'Open a profile', body: 'The profile is the hub: releases, contracts, documents, budget, recoupments, campaigns, the onboarding checklist for a newly signed artist, and the daily Spotify follower count shown on each card here.' },
     ],
   },
   {
-    id: 'artist-profile', title: "An artist's profile", path: '/artists', version: '2026-09-19', match: /^\/artists\/\d+/,
+    id: 'artist-profile', title: "An artist's profile", path: '/artists', version: '2026-09-20', match: /^\/artists\/\d+/,
     steps: [
       { target: '[data-onboarding], [data-tour="artist-tabs"]', title: 'Onboarding', body: 'For an artist signed through the pipeline: contract on file, payment details and W-9, advance paid, budget set, first release. It ticks itself from the data and collapses when complete.' },
-      { target: '[data-tour="artist-tabs"]', title: 'Every side of the artist', body: 'Releases and contracts, then the money: Budget, Recoupments and Campaigns, each read-only here with a link to its full page.' },
+      { target: '[data-tour="artist-tabs"]', title: 'Every side of the artist', body: 'Spotify (followers and popularity tracked daily, monthly listeners when Chartmetric is on), releases and contracts, then the money: Budget, Recoupments and Campaigns, each read-only here with a link to its full page.' },
     ],
   },
   {

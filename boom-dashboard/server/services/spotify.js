@@ -177,4 +177,4 @@ async function searchArtworkUrl(artist, title) {
   return null;
 }
 
-module.exports = { getArtworkUrl, searchArtworkUrl };
+module.exports = { getArtworkUrl, searchArtworkUrl, getAccessToken };

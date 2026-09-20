@@ -117,6 +117,7 @@ async function main() {
   say('\nINTEGRATIONS')
   click(host.querySelector('[data-tab="integrations"]')); await sleep(200)
   const it = host.querySelector('[data-tab-integrations]')
+  assert('the QuickBooks and DocuSign cards render (unconnected, with the label signer line)', !!it?.querySelector('[data-quickbooks-card][data-connected="0"]') && !!it?.querySelector('[data-docusign-card][data-connected="0"]') && /no email yet/.test(it?.querySelector('[data-ds-signer]')?.textContent || ''))
   assert('integrations list status, what each powers, and a detail', it?.querySelector('[data-integration="gmail"]')?.getAttribute('data-configured') === '0' && it?.querySelector('[data-integration="storage"]')?.getAttribute('data-configured') === '1' && /bucket ms-files/.test(textOf(it)))
   assert('no key is rendered anywhere', !/[A-Za-z0-9]{32,}/.test(textOf(it)))
   assert('nothing threw', errors.length === 0)

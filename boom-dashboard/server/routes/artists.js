@@ -51,7 +51,7 @@ router.get('/', authMiddleware, async (req, res) => {
     // — yesterday's release is in past 365 days, next month's release
     // is also >= a-year-ago).
     const query = `
-      SELECT a.*,
+      SELECT a.*, st.followers AS spotify_followers, st.popularity AS spotify_popularity, st.monthly_listeners, st.day AS stats_day,
              EXISTS(
                SELECT 1 FROM releases r
                 WHERE r.artist_id = a.id
@@ -60,6 +60,10 @@ router.get('/', authMiddleware, async (req, res) => {
                   AND r.release_date >= CURRENT_DATE - INTERVAL '365 days'
              ) AS has_recent_release
         FROM artists a
+        LEFT JOIN LATERAL (
+          SELECT s.followers, s.popularity, s.day, (SELECT c.monthly_listeners FROM artist_stats c WHERE c.artist_id = a.id AND c.source = 'chartmetric' ORDER BY c.day DESC LIMIT 1) AS monthly_listeners
+          FROM artist_stats s WHERE s.artist_id = a.id AND s.source = 'spotify' ORDER BY s.day DESC LIMIT 1
+        ) st ON TRUE
         ${whereClause.replace(/LOWER\(name\)/g, 'LOWER(a.name)')}
        ORDER BY a.name ASC
        LIMIT $${params.length + 1} OFFSET $${params.length + 2}
@@ -1155,6 +1159,30 @@ async function resolveSpotifyArtistId(artistId, artistName, token) {
   const data = await searchRes.json();
   return data.artists?.items?.[0]?.id || null;
 }
+
+// ─── Artist stats: the daily Spotify (+ Chartmetric) feed, lib/artist-stats.js ───
+// GET  /api/artists/:id/stats            latest + last 90 days, both sources
+// POST /api/artists/:id/stats/refresh    fetch today's numbers for this artist now
+// POST /api/artists/stats/refresh        admin: the whole roster now
+router.post('/stats/refresh', authMiddleware, async (req, res) => {
+  try {
+    if (!['Admin', 'Superadmin'].includes(req.user.role)) return res.status(403).json({ success: false, error: 'Admin only' });
+    res.json({ success: true, data: await require('../lib/artist-stats').refreshAll() });
+  } catch (err) { console.error('stats refresh error:', err); res.status(500).json({ success: false, error: 'Internal server error' }); }
+});
+router.get('/:id/stats', authMiddleware, async (req, res) => {
+  try { res.json({ success: true, data: await require('../lib/artist-stats').history(Number(req.params.id)) }); }
+  catch (err) { console.error('stats error:', err); res.status(500).json({ success: false, error: 'Internal server error' }); }
+});
+router.post('/:id/stats/refresh', authMiddleware, async (req, res) => {
+  try {
+    const { rows: [artist] } = await pool.query('SELECT id, name, spotify_id, spotify_url, chartmetric_id FROM artists WHERE id = $1', [Number(req.params.id)]);
+    if (!artist) return res.status(404).json({ success: false, error: 'Artist not found' });
+    const stats = require('../lib/artist-stats');
+    const out = await stats.refreshArtist(artist);
+    res.json({ success: true, data: { ...out, ...(await stats.history(artist.id)) } });
+  } catch (err) { console.error('stats refresh error:', err); res.status(500).json({ success: false, error: 'Internal server error' }); }
+});
 
 // GET /api/artists/:id/spotify — full Spotify profile for an artist
 // Uses current (2026) Spotify Web API — many endpoints deprecated, so we use

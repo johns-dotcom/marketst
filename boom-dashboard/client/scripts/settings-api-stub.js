@@ -16,6 +16,9 @@ const api = {
     if (url === '/settings/me/sessions') return ok([{ id: 1, logged_in_at: new Date().toISOString(), ip_address: '10.0.0.1', user_agent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X) Chrome/128 Safari/537' }])
     if (url === '/settings/me/notifications') return ok({ approvals_waiting: false, payments_due: true, tasks_assigned: false, renewals_coming: false, weekly_digest: false }, { delivery: { gmail: false } })
     if (url === '/label') return ok({ id: 1, legal_name: 'Market Street Records LLC', display_name: 'Market Street', address_line1: '', address_line2: '', contact_name: '', contact_email: 'ap@marketst.test', contact_phone: '', bank_name: '', bank_address: '', bank_account_name: '', bank_account_type: '', bank_routing_ach: '', bank_routing_wire: '', bank_swift: '', signatory_name: 'John Skead', signatory_title: 'Managing Member', default_payment_terms: 'Net 30', ein_set: true, ein_last4: '6789', bank_account_set: false, bank_account_last4: null })
+    if (url === '/quickbooks/status') return ok({ configured: false, connected: false, queue: {}, settings: {} })
+    if (url === '/docusign/status') return ok({ configured: false, connected: false, label_signer: { name: 'Market Street', email: null } })
+    if (url.startsWith('/docusign/envelopes')) return ok([])
     if (url === '/settings/integrations') return ok([
       { key: 'gmail', label: 'Gmail', configured: false, powers: 'payment confirmations', detail: null, last_used: null },
       { key: 'storage', label: 'File storage (R2)', configured: true, powers: 'invoices and documents', detail: 'bucket ms-files', last_used: null },

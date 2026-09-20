@@ -1206,6 +1206,12 @@ function renderArtistCard(artist, { isArchived, onArchive, onView, genreColor, a
             <span className="text-[11px] text-gray-400 tabular-nums">
               {releaseCount} {releaseCount === 1 ? 'release' : 'releases'}
             </span>
+            {artist.spotify_followers != null && (
+              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-green-50 text-green-700 border border-green-200 tabular-nums" data-followers-chip
+                title={`Spotify followers as of ${artist.stats_day ? new Date(artist.stats_day).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'today'}${artist.monthly_listeners != null ? ` · ${Number(artist.monthly_listeners).toLocaleString()} monthly listeners (Chartmetric)` : ''}`}>
+                {Number(artist.spotify_followers) >= 1000 ? `${(artist.spotify_followers / 1000).toFixed(artist.spotify_followers >= 100000 ? 0 : 1)}K` : artist.spotify_followers} followers
+              </span>
+            )}
             {onboarding && !onboarding.complete && (
               <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200 tabular-nums" data-onboarding-chip
                 title={onboarding.steps.filter((x) => !x.done).map((x) => x.label).join(' · ')}>

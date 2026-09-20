@@ -428,6 +428,71 @@ Authoritative project guide: **`boom-dashboard/CLAUDE.md`** — read it before m
   on purpose: drag-reorder, pins, per-task calendar view, group-by
   switcher, the My Releases tab (the agenda carries my releases). Harness:
   `npm run mywork-dom` (21, full · empty). The my-work tour has four steps.
+- **Three integrations (2026-09-20, John: "add quickbooks online, docusign,
+  spotify for artists").** Shared plumbing: `server/lib/integrations-schema.js`
+  (all tables, called from runMigrations after the mail tables),
+  `server/lib/http-json.js` (the one HTTPS helper), `server/lib/integrations-worker.js`
+  (its OWN ticker — notifier's tick bails when the Team mailbox is off — every
+  10 min: QuickBooks queue + DocuSign poll; daily ≥06:00 LA: artist stats,
+  claimed in `integration_jobs`). Every OAuth follows routes/mail.js: state =
+  signed JWT, PUBLIC `oauth/callback`, redirect to `/settings?tab=integrations&qb|ds=…`,
+  tokens encrypted under PAYMENT_DETAILS_KEY. Each has a `*_DRY_RUN=1` in-memory
+  fake so its fixture runs with no keys (server on :3011 with all three dry-run
+  vars). Integrations rows for quickbooks/docusign/spotify/chartmetric in
+  routes/settings.js are DB-backed IIFEs.
+  **QuickBooks Online is a PUSH** (`lib/qbo.js`, `routes/quickbooks.js`,
+  `components/QuickBooksCard.jsx`; env QBO_CLIENT_ID/SECRET, QBO_ENV): the
+  ledger is `expenses` (NOT boom_invoices — those are invoices the label
+  issues; there is no vendors table, vendors are payee strings). Approve
+  (`/bk/entries/:id/approve`, bulk-approve) enqueues `bill`; PUT
+  `/bk/payments/:id` to Paid enqueues `payment` — `qbo.enqueue` is fire-and-
+  forget AFTER the response and a no-op until connected. `qbo_queue` (one row
+  per kind+root expense, SKIP LOCKED claim, backoff 1h→24h, 10 attempts; a 4xx
+  from Intuit is `retryable: false` and fails once with Intuit's sentence),
+  `qbo_links` (Vendor/Bill/BillPayment ids + SyncToken so a second push UPDATES),
+  `qbo_connection` (one row; refresh tokens ROTATE — always store the one that
+  comes back; 100-day idle expiry → `needs_reconnect`). One Bill per family
+  (root + split children as lines), account per line from
+  `settings.category_map[category]` else `default_expense_account` else the
+  push fails naming the category; BillPayment = Check from `settings.bank_account`
+  linked to the Bill; success flags `expenses.in_quickbooks='Yes'`. The card
+  maps categories → accounts (read live from QuickBooks) and shows the queue
+  with Retry. `server/scripts/qbo-fixture.cjs` (21).
+  **DocuSign** (`lib/docusign.js`, `routes/docusign.js`,
+  `components/DocuSignCard.jsx` + `components/SendForSignature.jsx`; env
+  DOCUSIGN_INTEGRATION_KEY/SECRET, DOCUSIGN_ENV=demo|production): one account
+  row; `POST /docusign/send` (multipart) makes an envelope — counterparty
+  routingOrder 1, then the label signer from `label_settings.signatory_name`
+  + NEW `signatory_email` (Settings › Label; refused with a sentence until set);
+  FREE-FORM signing (no anchor tabs — the PDFs come in several layouts). Docs:
+  contract (PDF from its entity_files, or uploaded), nda (rendered in the
+  browser by `buildNdaPdf` and POSTed along — the server has no NDA bytes;
+  `boom_ndas.recipient_email` is new), waiver (`file_id`). The source PDF is
+  kept as an entity_files row on the doc. `signature_envelopes` tracks status;
+  polled every 10 min / on demand / nudged by the public Connect webhook
+  (which only re-reads DocuSign, never trusts the body). Completion stores the
+  combined signed PDF on the ARTIST's Documents (label "Signed contract" etc.)
+  and on the contract's own files, stamping `contracts.date_signed`. The pen
+  icon + `SignatureBadge` sit in the row actions of Contracts, NDAs and
+  Waivers. `server/scripts/docusign-fixture.cjs` (22).
+  **Spotify for Artists has NO API** — the "Spotify" integration is
+  `lib/artist-stats.js`: the Spotify Web API (client credentials via
+  `services/spotify.getAccessToken`, now exported) writes followers,
+  popularity and top tracks to `artist_stats` (one row per artist·source·day;
+  `artists.spotify_id` resolved from spotify_url → artist_links → name search
+  and stored), and Chartmetric (paid, CHARTMETRIC_REFRESH_TOKEN; `artists.chartmetric_id`
+  looked up from the Spotify id via `/artist/spotify/:id/get-ids` — that
+  endpoint's shape is read defensively and UNVERIFIED against a live key)
+  writes monthly listeners. `GET /artists/:id/stats` (latest + 90-day series +
+  deltas), `POST /artists/:id/stats/refresh`, admin `POST /artists/stats/refresh`;
+  the roster list LEFT JOINs the latest row (`spotify_followers`,
+  `monthly_listeners`, `stats_day`) for the card chip. Profile: `ArtistStatsBlock`
+  at the top of the Spotify tab (sparklines, Refresh now) and a header chip.
+  `server/scripts/artist-stats-fixture.cjs` (8). Tours bumped to 2026-09-20:
+  artists, artist-profile, contracts. Ops: create the Intuit app (redirect
+  `…/api/quickbooks/oauth/callback`), the DocuSign app (`…/api/docusign/oauth/callback`),
+  set the env vars, connect both under Settings › Integrations, fill
+  Settings › Label › Signatory email, map QuickBooks accounts.
 - **Bank-statement heuristics were tuned on Boom's Bank of America statements.** The own-name lists (`statements.js` stop-words, `funding-pairs.js` account-trailer strip) now say Market Street, but the layout parsers have not seen a Market Street statement yet. Expect the AI fallback to do the work until they do.
 
 ## Commands (run from `boom-dashboard/`)
