@@ -92,6 +92,11 @@ async function main() {
     assert('ArrowRight on the page advances one step', /Search jumps anywhere/.test(textOf(card())))
     window.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true })); await sleep(200)
     assert('ArrowLeft goes back one', /Everything is in the sidebar/.test(textOf(card())))
+    // Focus stays on Next after a click; the arrows must still work from there.
+    card().querySelector('[data-tour-next]').dispatchEvent(new window.KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true })); await sleep(200)
+    assert('ArrowRight with the Next BUTTON focused still advances (only Enter is left to the click)', /Search jumps anywhere/.test(textOf(card())))
+    card().querySelector('[data-tour-back]')?.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true })); await sleep(200)
+    assert('ArrowLeft with a tour button focused goes back', /Everything is in the sidebar/.test(textOf(card())))
     click(card().querySelector('[data-tour-skip-page]')); await sleep(600)
     assert('Skip this page jumps to the next page in sidebar order: My Work, its orientation step', where() === '/my-work' && /· My Work/.test(textOf(card())) && !!ov().querySelector('[data-tour-spotlight]'))
     assert('the counter says where this step sits within its page', /My Work 1 of 4/.test(textOf(card().querySelector('[data-tour-counter]'))))

@@ -204,13 +204,20 @@ function TourOverlay({ tour, index, setIndex, onFinish, canView, role }) {
     if (nextPagePos === -1) onFinish(true, skippedPaths.current); else setIndex(order[nextPagePos])
   }
   useEffect(() => {
-    // Keys typed into a field, or Enter on a focused button (which also clicks), are not tour shortcuts.
+    // Keys typed into a field are not tour shortcuts. Enter on a focused
+    // button or link is not either (it also clicks) — but the ARROWS are, even
+    // then: clicking Next leaves focus on the Next button, and a guard that
+    // dropped every key while a button had focus killed the arrows after the
+    // first click (John, 2026-09-20: "allow the arrow keys to go through the
+    // walkthroughs"). Arrows never mean anything to a button, so they are safe.
     const onKey = (e) => {
       const el = e.target
-      if (el && (/^(INPUT|TEXTAREA|SELECT|BUTTON|A)$/.test(el.tagName) || el.isContentEditable)) return
+      if (el && (/^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName) || el.isContentEditable)) return
+      const onControl = !!(el && /^(BUTTON|A)$/.test(el.tagName))
       if (e.key === 'Escape') onFinish(false)
-      else if ((e.key === 'ArrowRight' || e.key === 'Enter') && !waiting) next()
-      else if (e.key === 'ArrowLeft') back()
+      else if (e.key === 'ArrowRight') { e.preventDefault(); if (!waiting) next() }
+      else if (e.key === 'ArrowLeft') { e.preventDefault(); back() }
+      else if (e.key === 'Enter' && !onControl && !waiting) next()
     }
     window.addEventListener('keydown', onKey); return () => window.removeEventListener('keydown', onKey)
   }) // eslint-disable-line react-hooks/exhaustive-deps
