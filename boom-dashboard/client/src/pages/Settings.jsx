@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Fragment } from 'react'
 import { Users, Plus, Trash2, X, Loader, CheckCircle2, Check, SlidersHorizontal, Sun, Moon, Monitor, Archive, Download, FileSpreadsheet, FolderArchive, AlertTriangle, EyeOff, Search, ChevronRight, ChevronDown, UserCircle2, KeyRound, Bell, Building2, Plug, ScrollText, Send, ExternalLink, LogOut } from 'lucide-react'
 import api from '../api'
 import { NAV_PAGES, NAV_GROUPS } from '../navConfig'
@@ -7,6 +7,7 @@ import { refreshLabel } from '../hooks/useLabel'
 import MailCard, { MyMailbox } from '../components/MailCard'
 import QuickBooksCard from '../components/QuickBooksCard'
 import DocuSignCard from '../components/DocuSignCard'
+import { ROLES, AXES } from '../lib/roles'
 import { useAuth } from '../context/AuthContext'
 import { useTheme } from '../context/ThemeContext'
 import PageHeader from '../components/PageHeader'
@@ -430,6 +431,7 @@ const TAB_META = {
   mynav:         ['My Nav', 'Which pages appear in your sidebar.'],
   label:         ['Label', 'What prints on invoices, NDAs and waivers.'],
   integrations:  ['Integrations', 'What is connected, and what each one powers.'],
+  roles:         ['Roles', 'What each role can do — and what only a Superadmin can.'],
   archive:       ['Archive', 'Archived releases and artists.'],
 }
 export default function Settings() {
@@ -438,7 +440,7 @@ export default function Settings() {
   const isAdmin = currentUserRole === 'Admin' || currentUserRole === 'Superadmin'
   const [searchParams] = useSearchParams()
   const wanted = searchParams.get('tab') || 'profile'
-  const allowed = new Set(['profile', 'signin', 'notifications', 'mailbox', 'theme', 'mynav', ...(isAdmin ? ['label', 'integrations'] : []), ...(currentUserRole === 'Superadmin' ? ['archive'] : [])])
+  const allowed = new Set(['profile', 'signin', 'notifications', 'mailbox', 'theme', 'mynav', ...(isAdmin ? ['label', 'integrations', 'roles'] : []), ...(currentUserRole === 'Superadmin' ? ['archive'] : [])])
   const tab = allowed.has(wanted) ? wanted : 'profile'
   const [title, subtitle] = TAB_META[tab]
   return (
@@ -454,6 +456,7 @@ export default function Settings() {
       {tab === 'theme'         && <ThemeTab />}
       {tab === 'mynav'         && <MyNavTab />}
       {tab === 'label'         && isAdmin && <LabelTab />}
+      {tab === 'roles'         && isAdmin && <RolesTab />}
       {tab === 'integrations'  && isAdmin && <IntegrationsTab />}
       {tab === 'archive'       && currentUserRole === 'Superadmin' && <ArchiveTab />}
     </div>
@@ -582,6 +585,45 @@ function LabelTab() {
 }
 
 // ─── Integrations — status only; keys live in Railway ───────────────────────
+// ─── Roles — described from the code that enforces them (lib/roles.js) ────
+const ROLE_TONE = { Superadmin: 'bg-purple-50 text-purple-700 border-purple-200', Admin: 'bg-blue-50 text-blue-700 border-blue-200', Approver: 'bg-emerald-50 text-emerald-700 border-emerald-200', User: 'bg-gray-50 text-gray-700 border-gray-200' }
+function RolesTab() {
+  return (
+    <div className="max-w-3xl space-y-6" data-tab-roles>
+      <p className="text-sm text-gray-600">A role is what a person may <em>do</em>. Which pages they can <em>open</em> is set separately on their profile under People. Superadmin and Admin differ in three ways: only a Superadmin manages other admins, writes the label's EIN and bank account, and can view the app as someone else.</p>
+      <div className="grid gap-4 md:grid-cols-2">
+        {ROLES.map((r) => (
+          <div key={r.id} className="card p-4 space-y-3" data-role-card={r.id}>
+            <div>
+              <span className={`inline-block text-[11px] font-bold px-2 py-0.5 rounded-full border ${ROLE_TONE[r.id]}`}>{r.id}</span>
+              <p className="text-sm font-semibold text-gray-900 mt-2">{r.short}</p>
+              <p className="text-xs text-gray-500 mt-0.5">{r.who}</p>
+            </div>
+            <div>
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Can</p>
+              <ul className="text-xs text-gray-700 space-y-1 list-disc pl-4">{r.can.map((c) => <li key={c}>{c}</li>)}</ul>
+            </div>
+            {r.cannot?.length > 0 && (
+              <div>
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Cannot</p>
+                <ul className="text-xs text-gray-500 space-y-1 list-disc pl-4">{r.cannot.map((c) => <li key={c}>{c}</li>)}</ul>
+              </div>
+            )}
+            <p className="text-[11px] text-gray-500 border-t border-divider pt-2"><span className="font-semibold text-gray-700">Pages:</span> {r.pages}</p>
+          </div>
+        ))}
+      </div>
+      <div className="card p-4" data-role-axes>
+        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Four things that are not the same</p>
+        <dl className="grid sm:grid-cols-[140px_minmax(0,1fr)] gap-x-4 gap-y-2 text-xs">
+          {AXES.map(([k, v]) => (<Fragment key={k}><dt className="font-semibold text-gray-900">{k}</dt><dd className="text-gray-600">{v}</dd></Fragment>))}
+        </dl>
+        <p className="text-[11px] text-gray-400 mt-3">Change a role on the person's profile under People. Only a Superadmin can hand out Admin or Superadmin.</p>
+      </div>
+    </div>
+  )
+}
+
 function IntegrationsTab() {
   const [rows, setRows] = useState(null)
   useEffect(() => { api.get('/settings/integrations').then((r) => setRows(r.data.data || [])).catch(() => setRows([])) }, [])

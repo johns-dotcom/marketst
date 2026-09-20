@@ -24,6 +24,7 @@ export const LABEL_ITEMS = [
   { id: 'people',       label: 'People',       icon: Users,       to: '/team',    path: '/team' },
   { id: 'label',        label: 'Label',        icon: Building2,   to: '/settings?tab=label' },
   { id: 'integrations', label: 'Integrations', icon: Plug,        to: '/settings?tab=integrations' },
+  { id: 'roles',        label: 'Roles',        icon: KeyRound,    to: '/settings?tab=roles' },
   { id: 'activity',     label: 'Activity',     icon: ScrollText,  to: '/activity', path: '/activity' },
   { id: 'admin',        label: 'Admin docs',   icon: ShieldCheck, to: '/admin',    path: '/admin', strict: true },
   { id: 'sandbox',      label: 'Sandbox',      icon: Send,        to: '/admin/vendor-lab', external: true },

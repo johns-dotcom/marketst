@@ -84,9 +84,9 @@ const PAGE_TOURS = [
     ],
   },
   {
-    id: 'settings', title: 'Settings', path: '/settings', version: '2026-09-19',
+    id: 'settings', title: 'Settings', path: '/settings', version: '2026-09-20',
     steps: [
-      { target: '[data-settings-shell] aside', title: 'Two halves', body: "My settings is yours: profile, sign-in, notifications, your own mailbox, theme, sidebar. Label settings is the label's: people, the Label record, integrations and mail, activity, archive." },
+      { target: '[data-settings-shell] aside', title: 'Two halves', body: "My settings is yours: profile, sign-in, notifications, your own mailbox, theme, sidebar. Label settings is the label's: people, the Label record, integrations and mail, activity, archive. Roles explains what a Superadmin, Admin, Approver and User can each do." },
     ],
   },
   {

@@ -4,6 +4,8 @@
 // EXISTING person, saved to /settings/permissions/:id. Extracted verbatim from
 // Settings.jsx when Users and the Permissions matrix retired into /team.
 import { useState, useEffect } from 'react'
+import { Link } from 'react-router-dom'
+import { roleById } from '../lib/roles'
 import { Plus, Pencil, Trash2, X, Loader, Check, ChevronRight, ChevronDown, Search, AlertTriangle } from 'lucide-react'
 import api from '../api'
 import { NAV_PAGES } from '../navConfig'
@@ -354,11 +356,9 @@ export function PersonModal({ user, onClose, onSaved, currentUserRole }) {
               >
                 {availableRoles.map(r => <option key={r} value={r}>{r}</option>)}
               </select>
-              <p className="text-[11px] text-gray-500 mt-1.5 leading-snug">
-                {form.role === 'Superadmin' && 'Full access everywhere + can grant any role.'}
-                {form.role === 'Admin' && 'Full app access. Can manage users and grant Admin/User roles.'}
-                {form.role === 'Approver' && 'Bookkeeping admin — full Approvals page (approve, reject, edit, split, aliases). No user management or app-level deletes.'}
-                {form.role === 'User' && 'Sees only the pages explicitly granted below. Expenses they create go to pending.'}
+              <p className="text-[11px] text-gray-500 mt-1.5 leading-snug" data-role-help>
+                {roleById(form.role)?.short}{' '}
+                <Link to="/settings?tab=roles" className="text-boom-700 hover:underline">All roles compared</Link>
               </p>
             </div>
             <div>
