@@ -422,7 +422,15 @@ Authoritative project guide: **`boom-dashboard/CLAUDE.md`** — read it before m
   fallback that does, and that it starts and ends on Home.
   `npm run tours-fixture` (`client/scripts/tours-fixture.mjs`) fails when a
   tour names a page not in the nav or a selector no page renders — run it with
-  nav-fixture before pushing. `npm run tour-dom` drives the engine (fresh ·
+  nav-fixture before pushing. **`npm run anchors-dom`** (2026-09-20, second
+  bug-test) renders every page tour's REAL page component against an EMPTY
+  label (`scripts/anchors-api-stub.js`, every list `[]`) and asserts each
+  step's selector list finds an element — the check that actually catches an
+  anchor that only renders with data (jsdom has no layout, so existence not
+  visibility; Layout-owned anchors are skipped there and covered by tour-dom;
+  `/settings` is wrapped in `SettingsShell` as Layout does). Run it when a
+  tour or a page's anchors change. It showed `releases-list` and `deal-board`
+  DO render empty — the fallbacks on those steps are belt-and-braces. `npm run tour-dom` drives the engine (fresh ·
   done). Adding a page: add its tour, or the page has no first-open help. The
   header has a **Walkthrough** button beside the manual (`WalkthroughButton`
   in Layout): one click replays this page's tour, the chevron lists them all;
