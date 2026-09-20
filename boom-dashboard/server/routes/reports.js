@@ -369,6 +369,7 @@ async function bankRows(from, to) {
            -- this is the difference between a reported figure and a guess.
            e.entry_source AS m_entry_source,
            e.song AS m_song, e.invoice_number AS m_invoice, e.fx_rate_to_usd AS m_fx,
+           e.boom_rep AS m_rep,
            COALESCE(e.currency, 'USD') AS m_currency,
            ai.income_type AS m_income_type, ai.artist_name AS m_income_artist,
            ai.description AS m_income_desc
@@ -556,6 +557,91 @@ async function reversalExclusions(from, to) {
 // fx_rate_to_usd speaks for the LEDGER amount's currency — applying it to a
 // USD bank settle of a GBP invoice inflated the row ($137.45 → ~$189).
 // Use the lock only when the bank row actually settles in that currency.
+// ── THE BASIS (2026-09-20, John: a selectable basis with a data-driven default) ──
+//
+//   bank     statements are the master — every bank line once, the ledger
+//            supplies categories (the original, and the only PROVABLE basis)
+//   ledger   cash by the LEDGER: every alive approved row marked Paid, dated by
+//            payment_date, counted whether or not a statement vouches for it —
+//            what a label with no statements yet can read today
+//   accrual  every alive approved row dated by invoice date, paid or not —
+//            the commitment view Financials used to be the only home of
+//
+// ledgerRows returns rows in bankRows' SHAPE so everything downstream —
+// reversals, dismissals (by the same fingerprint, so a payment dismissed on
+// one basis is dismissed on all), sections, contra, artists, drills, exports —
+// runs unchanged. Each ledger row is its own part: a split family is the root
+// (its own slice) plus its children, and every row carries its own category
+// and artist, so no m_parts and no root arithmetic. Income comes from
+// artist_income by income_date on both ledger bases.
+const BASES = new Set(['bank', 'ledger', 'accrual']);
+const basisParam = (v) => (BASES.has(String(v || '')) ? String(v) : null);
+const BASIS_LABEL = { bank: 'Bank statements', ledger: 'Ledger — paid', accrual: 'Accrual — invoiced' };
+async function ledgerRows(from, to, basis) {
+  const wanted = new Set(monthsBetween(from, to));
+  const dateSql = basis === 'accrual' ? 'COALESCE(e.invoice_date, e.created_at::date)' : 'e.payment_date';
+  const paidSql = basis === 'accrual' ? '' : "AND e.payment_status = 'Paid' AND e.payment_date IS NOT NULL";
+  const { rows: ex } = await pool.query(`
+    SELECT e.id, ${dateSql} AS txn_date, e.amount, COALESCE(e.currency, 'USD') AS currency,
+           e.payee, e.vendor_email, e.description, e.flagged,
+           e.category AS m_category, e.artist AS m_artist, e.payee AS m_payee, e.amount AS m_root_amount,
+           e.entry_source AS m_entry_source, e.song AS m_song, e.invoice_number AS m_invoice,
+           e.fx_rate_to_usd AS m_fx, COALESCE(e.currency, 'USD') AS m_currency, e.boom_rep AS m_rep,
+           e.payment_status, e.status
+      FROM expenses e
+     WHERE COALESCE(e.status, 'approved') = 'approved'
+       AND (e.deleted = false OR e.deleted IS NULL) AND (e.voided = false OR e.voided IS NULL)
+       AND e.amount > 0
+       ${paidSql}
+       AND ${dateSql} BETWEEN $1 AND $2`, [from, to]);
+  const { rows: inc } = await pool.query(`
+    SELECT ai.id, ai.income_date AS txn_date, ai.amount, ai.income_type AS m_income_type,
+           ai.artist_name AS m_income_artist, ai.description AS m_income_desc
+      FROM artist_income ai WHERE ai.income_date BETWEEN $1 AND $2 AND ai.amount > 0`, [from, to]).catch(() => ({ rows: [] }));
+  const { rows: dis } = await pool.query('SELECT txn_fingerprint FROM report_dismissals WHERE txn_fingerprint IS NOT NULL').catch(() => ({ rows: [] }));
+  const dismissed = new Set(dis.map((d) => d.txn_fingerprint));
+  const source = BASIS_LABEL[basis];
+  const out = [];
+  for (const e of ex) {
+    const r = {
+      id: `e${e.id}`, statement_id: null, txn_date: e.txn_date, amount: Math.abs(Number(e.amount)), direction: 'debit',
+      currency: e.currency, payee_guess: e.payee, description: e.description || e.payee, payee_email: e.vendor_email || null,
+      matched_expense_id: e.id, matched_income_id: null, match_method: basis, flagged: !!e.flagged,
+      account: 'ledger', filename: source,
+      m_category: e.m_category, m_artist: e.m_artist, m_payee: e.m_payee, m_root_amount: e.m_root_amount,
+      m_entry_source: e.m_entry_source, m_song: e.m_song, m_invoice: e.m_invoice, m_fx: e.m_fx, m_currency: e.m_currency, m_rep: e.m_rep,
+      m_income_type: null, m_income_artist: null, m_income_desc: null,
+      unpaid: e.payment_status !== 'Paid',
+    };
+    const month = ym(r.txn_date);
+    if (!wanted.has(month)) continue;
+    out.push({ ...r, report_dismissed: dismissed.has(fingerprintOf(r)), report_month: month, moved_from: null });
+  }
+  for (const i of inc) {
+    const r = {
+      id: `i${i.id}`, statement_id: null, txn_date: i.txn_date, amount: Math.abs(Number(i.amount)), direction: 'credit',
+      currency: 'USD', payee_guess: i.m_income_desc, description: i.m_income_desc, payee_email: null,
+      matched_expense_id: null, matched_income_id: i.id, match_method: basis, flagged: false,
+      account: 'ledger', filename: source,
+      m_income_type: i.m_income_type, m_income_artist: i.m_income_artist, m_income_desc: i.m_income_desc,
+    };
+    const month = ym(r.txn_date);
+    if (!wanted.has(month)) continue;
+    out.push({ ...r, report_dismissed: dismissed.has(fingerprintOf(r)), report_month: month, moved_from: null });
+  }
+  return out;
+}
+const rowsFor = (from, to, basis) => (basis && basis !== 'bank' ? ledgerRows(from, to, basis) : bankRows(from, to));
+
+// What the page should open on: the bank once a month has been RECONCILED
+// (statements uploaded and closed), the ledger before that. A fresh label with
+// no statements read as zero under the bank basis, however much it had paid.
+async function defaultBasis() {
+  const { rows } = await pool.query('SELECT month_key FROM statement_months WHERE reconciled_at IS NOT NULL ORDER BY month_key DESC LIMIT 1').catch(() => ({ rows: [] }));
+  const { rows: [st] } = await pool.query(`SELECT COUNT(*)::int AS n FROM bank_statements WHERE status = 'ready'`).catch(() => ({ rows: [{ n: 0 }] }));
+  return { default: rows.length ? 'bank' : 'ledger', reconciled_through: rows[0]?.month_key || null, statements: st?.n || 0, bases: BASIS_LABEL };
+}
+
 const txnUsd = (r) => {
   const cur = (r.currency || 'USD').toUpperCase();
   if (cur === 'USD') return parseFloat(r.amount || 0);
@@ -679,7 +765,8 @@ async function buildPnl(from, to, artist, opts = {}) {
   // once; the ledger contributes categories, artists, and FX — never a
   // second copy of the money. Ledger-paid entries with no bank evidence are
   // reported separately and NOT counted.
-  let rows = await bankRows(from, to);
+  const basis = basisParam(opts.basis) || 'bank';
+  let rows = await rowsFor(from, to, basis);
   const unfilteredRows = rows;
   if (artist) rows = rows.filter((r) => namesArtist(r, artist));
 
@@ -966,11 +1053,14 @@ async function buildPnl(from, to, artist, opts = {}) {
   // Through the shared definition, so the drill and the search list exactly the
   // rows this band counts — including its dismissal filter, which is why this
   // no longer loads dismissedExpenseIds() a second time here.
-  const { rows: unverifiedRows, dismissed_count: unverifiedDismissed } =
-    await unverifiedLedgerRows({
+  // "Paid in the ledger, no bank line" is a bank-basis question only: on the
+  // ledger bases those rows ARE the report.
+  const { rows: unverifiedRows, dismissed_count: unverifiedDismissed } = basis === 'bank'
+    ? await unverifiedLedgerRows({
       from, to, artist,
       cols: `r.id, r.payment_date, COALESCE(r.currency,'USD') AS currency, r.fx_rate_to_usd`,
-    });
+    })
+    : { rows: [], dismissed_count: 0 };
   const unverifiedSeries = {};
   let unverifiedTotal = 0;
   for (const m of months) unverifiedSeries[m] = 0;
@@ -1164,7 +1254,7 @@ async function buildPnl(from, to, artist, opts = {}) {
     // places. Counted over the whole approved ledger here — this deck
     // recategorises any P&L row, not only bank bookings.
     category_usage: categoryUsage,
-    basis: 'bank',
+    basis, basis_label: BASIS_LABEL[basis],
     // Ranked operating spend per artist, plus the unattributed remainder.
     // `by_artist.total` equals expenseTotals.total by construction — see
     // bumpArtist. `/reports/spend-by-artist` serves this slice; the P&L page
@@ -1408,7 +1498,7 @@ function summarizeDismissed(dismissedRows, months, catKeys = new Set()) {
 // month, or the row total when no month is given). Same master, same
 // dedupe, same filters as buildPnl — the modal total must equal the cell.
 // kind='unverified' drills the not-counted ledger row instead.
-async function pnlDetail({ kind, key, keys, month, from, to, artist, drillCategory }) {
+async function pnlDetail({ kind, key, keys, month, from, to, artist, drillCategory, basis = 'bank' }) {
   const artistKeySet = keys && keys.length ? new Set(keys) : null;
   let lo = from, hi = to;
   if (month) {
@@ -1418,6 +1508,7 @@ async function pnlDetail({ kind, key, keys, month, from, to, artist, drillCatego
   }
 
   if (kind === 'unverified') {
+    if (basis !== 'bank') return { rows: [], total: 0, row_count: 0, truncated: false, basis };
     // The SAME definition the band uses. This branch used to carry its own copy
     // of the predicate without the multi-invoice-link correction, so it listed
     // five payments the band did not count and disagreed with the cell it was
@@ -1440,7 +1531,7 @@ async function pnlDetail({ kind, key, keys, month, from, to, artist, drillCatego
     return { rows: out, total: out.reduce((s, r) => s + r.usd, 0), row_count: out.length, truncated: false };
   }
 
-  let rows = await bankRows(lo, hi);
+  let rows = await rowsFor(lo, hi, basis);
   if (artist) rows = rows.filter((r) => namesArtist(r, artist));
   // Same exclusion as buildPnl, or the drill-down total wouldn't equal the cell
   // it was opened from — the failure mode this whole file is arranged to avoid.
@@ -2021,6 +2112,22 @@ async function buildBalanceSheet(asOf) {
     // whole report — the same hazard the reversal banner's `pairs || []` guards
     // against. Remove once the deployed bundle is known to read net_assets.
     equity: { total: netAssets, note: 'deprecated — use net_assets' },
+    // Honesty (2026-09-20): four sources, no journal. This sheet cannot fail
+    // to balance because nothing on it is double-entered — so it does not claim
+    // to. Say where each figure comes from and what is unknown.
+    proof: {
+      balances: null,
+      cash_known: cashAll.length > 0,
+      note: cashAll.length
+        ? 'Positions from four sources (statement balances, unpaid issued invoices, approved unpaid bills, drawdowns received). There is no journal, so this sheet cannot fail to balance and does not claim to; the funding block is derived, not proved.'
+        : 'No bank statement has been uploaded, so cash is UNKNOWN — not zero. Receivables and payables come from the ledger; there is no journal, so nothing here is proved by balancing.',
+      sources: [
+        ...cashAll.map((c) => ({ line: `Cash — ${String(c.account).toUpperCase()}`, from: `statement ${c.source || ''} ending ${String(c.as_of).slice(0, 10)}`.trim(), as_of: String(c.as_of).slice(0, 10) })),
+        { line: 'Accounts receivable', from: 'label-issued invoices not marked Paid (no payment date recorded, so as-of cannot be restated)', as_of: null },
+        { line: 'Accounts payable', from: 'approved bills unpaid at the date, by invoice date', as_of: asOf },
+        { line: 'Drawdowns received', from: 'artist_income rows of type Drawdown Fund', as_of: asOf },
+      ],
+    },
   };
 }
 
@@ -2032,7 +2139,7 @@ router.get('/pnl', async (req, res) => {
     const badRange = rangeProblem(from, to);
     if (badRange) return res.status(400).json({ success: false, error: badRange });
     const artist = String(req.query.artist || '').trim() || null;
-    res.json({ success: true, data: await buildPnl(from, to, artist) });
+    res.json({ success: true, data: await buildPnl(from, to, artist, { basis: basisParam(req.query.basis) }) });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
@@ -2061,7 +2168,7 @@ router.get('/spend-by-artist', async (req, res) => {
     const from = String(req.query.from || `${to.slice(0, 4)}-01-01`);
     const badRange = rangeProblem(from, to);
     if (badRange) return res.status(400).json({ success: false, error: badRange });
-    const pnl = await buildPnl(from, to, null);
+    const pnl = await buildPnl(from, to, null, { basis: basisParam(req.query.basis) });
     const adv = pnl.advances_by_artist || { by_key: {}, artists: [], total: 0, unattributed: 0, other_total: 0 };
 
     // Advances riding alongside operating spend, not inside it. `spend` keeps
@@ -2353,7 +2460,9 @@ router.get('/pnl/detail', async (req, res) => {
     const badRange = rangeProblem(from, to);
     if (badRange) return res.status(400).json({ success: false, error: badRange });
     const artist = String(req.query.artist || '').trim() || null;
-    res.json({ success: true, data: await pnlDetail({ kind, key, keys, month, from, to, artist, drillCategory }) });
+    const basis = basisParam(req.query.basis) || 'bank';
+    const detail = await pnlDetail({ kind, key, keys, month, from, to, artist, drillCategory, basis });
+    res.json({ success: true, data: { ...detail, basis } });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
@@ -4162,6 +4271,340 @@ function renderExcel(wb, sheetName, model) {
   return ws;
 }
 
+// ── Reports, second pass (2026-09-20, John's calls) ─────────────────────────
+// A selectable basis (above), spend by vendor / rep, invoices received, budget
+// vs actual, and the monthly accountant pack. Every cut here runs off rowsFor
+// + the P&L's own helpers, so none can disagree with the P&L on the same basis.
+
+// GET /api/reports/basis — what the page should open on, and why.
+router.get('/basis', async (req, res) => {
+  try {
+    if (!isBkAdmin(req.user)) return res.status(403).json({ success: false, error: 'Admin required' });
+    res.json({ success: true, data: await defaultBasis() });
+  } catch (err) { res.status(500).json({ success: false, error: err.message }); }
+});
+
+// Operating spend grouped by vendor (payee) or rep, months across. Reversed,
+// dismissed and non-operating rows are out — exactly the P&L's expense total
+// partitioned a different way.
+async function buildSpendBy(from, to, basis, dim) {
+  const months = monthsBetween(from, to);
+  const rows = await rowsFor(from, to, basis);
+  const { ids: reversed } = await reversalExclusions(from, to);
+  const cls = await reportSections();
+  const catKeys = await dismissedCategoryKeys();
+  const by = new Map();
+  for (const r of rows) {
+    if (r.direction !== 'debit' || reversed.has(r.id) || r.report_dismissed) continue;
+    const parts = txnParts(r);
+    const amounts = splitUsd(txnUsd(r), parts);
+    parts.forEach((p, i) => {
+      if (cls.section('expense', p.cat) !== 'operating') return;
+      if (catKeys.size && catKeys.has(cellKeyOf('expense', p.cat))) return;
+      const key = dim === 'rep'
+        ? (String(r.m_rep || '').trim() || 'No rep')
+        : (String(r.m_payee || r.payee_guess || r.description || '').trim() || 'Unnamed');
+      const slot = by.get(key) || { key, series: Object.fromEntries(months.map((m) => [m, 0])), total: 0, count: 0, categories: {} };
+      slot.series[r.report_month] = (slot.series[r.report_month] || 0) + amounts[i];
+      slot.total += amounts[i];
+      slot.count += 1;
+      slot.categories[p.cat] = (slot.categories[p.cat] || 0) + amounts[i];
+      by.set(key, slot);
+    });
+  }
+  const list = [...by.values()]
+    .map((s) => ({ ...s, total: round2(s.total), series: Object.fromEntries(Object.entries(s.series).map(([m, v]) => [m, round2(v)])),
+      top_category: Object.entries(s.categories).sort((a, b) => b[1] - a[1])[0]?.[0] || null }))
+    .sort((a, b) => b.total - a.total || a.key.localeCompare(b.key));
+  return { from, to, basis, basis_label: BASIS_LABEL[basis], dim, months, rows: list, total: round2(list.reduce((s, r) => s + r.total, 0)), count: list.length };
+}
+
+// GET /api/reports/spend-by?dim=vendor|rep&from=&to=&basis=
+router.get('/spend-by', async (req, res) => {
+  try {
+    if (!isBkAdmin(req.user)) return res.status(403).json({ success: false, error: 'Admin required' });
+    const to = String(req.query.to || new Date().toISOString().slice(0, 10));
+    const from = String(req.query.from || `${to.slice(0, 4)}-01-01`);
+    const badRange = rangeProblem(from, to);
+    if (badRange) return res.status(400).json({ success: false, error: badRange });
+    const dim = req.query.dim === 'rep' ? 'rep' : 'vendor';
+    res.json({ success: true, data: await buildSpendBy(from, to, basisParam(req.query.basis) || 'bank', dim) });
+  } catch (err) { res.status(500).json({ success: false, error: err.message }); }
+});
+
+// GET /api/reports/intake?from=&to= — invoices RECEIVED by month (vendor
+// invoices arriving, by invoice date; bank-born rows are not invoices), with
+// the pending / approved / paid split. Basis-free: this is the inflow of
+// paperwork, not money.
+router.get('/intake', async (req, res) => {
+  try {
+    if (!isBkAdmin(req.user)) return res.status(403).json({ success: false, error: 'Admin required' });
+    const to = String(req.query.to || new Date().toISOString().slice(0, 10));
+    const from = String(req.query.from || `${to.slice(0, 4)}-01-01`);
+    const badRange = rangeProblem(from, to);
+    if (badRange) return res.status(400).json({ success: false, error: badRange });
+    const months = monthsBetween(from, to);
+    const { rows } = await pool.query(`
+      SELECT to_char(COALESCE(e.invoice_date, e.created_at::date), 'YYYY-MM') AS month, e.status, e.payment_status,
+             e.amount, COALESCE(e.currency, 'USD') AS currency, e.fx_rate_to_usd
+        FROM expenses e
+       WHERE e.parent_id IS NULL AND e.status IN ('pending', 'approved')
+         AND (e.deleted = false OR e.deleted IS NULL) AND (e.voided = false OR e.voided IS NULL)
+         AND COALESCE(e.entry_source, '') <> 'bank_statement'
+         AND COALESCE(e.invoice_date, e.created_at::date) BETWEEN $1 AND $2`, [from, to]);
+    const series = Object.fromEntries(months.map((m) => [m, { count: 0, usd: 0, pending_count: 0, pending_usd: 0, approved_usd: 0, paid_usd: 0 }]));
+    for (const r of rows) {
+      const s = series[r.month]; if (!s) continue;
+      const v = usdOf(r.amount, r.currency, r.fx_rate_to_usd) || 0;
+      s.count += 1; s.usd += v;
+      if (r.status === 'pending') { s.pending_count += 1; s.pending_usd += v; }
+      else if (r.payment_status === 'Paid') s.paid_usd += v;
+      else s.approved_usd += v;
+    }
+    for (const s of Object.values(series)) for (const k of Object.keys(s)) if (k.endsWith('usd')) s[k] = round2(s[k]);
+    res.json({ success: true, data: { from, to, months, series, total: round2(Object.values(series).reduce((t, s) => t + s.usd, 0)), count: rows.length } });
+  } catch (err) { res.status(500).json({ success: false, error: err.message }); }
+});
+
+// GET /api/reports/budget-vs-actual?from=&to=&basis= — the simple artist
+// budget sheet (Advance, Total marketing) against the P&L's own per-artist
+// figures: marketing spent in the range and over all time, advance paid over
+// all time. Left = budget − lifetime, because a budget is not a per-month thing.
+router.get('/budget-vs-actual', async (req, res) => {
+  try {
+    if (!isBkAdmin(req.user)) return res.status(403).json({ success: false, error: 'Admin required' });
+    const to = String(req.query.to || new Date().toISOString().slice(0, 10));
+    const from = String(req.query.from || `${to.slice(0, 4)}-01-01`);
+    const badRange = rangeProblem(from, to);
+    if (badRange) return res.status(400).json({ success: false, error: badRange });
+    const basis = basisParam(req.query.basis) || 'bank';
+    const [range, life, { rows: budgets }, { rows: roster }] = await Promise.all([
+      buildPnl(from, to, null, { basis }),
+      buildPnl('2000-01-01', to, null, { basis }),
+      pool.query(`SELECT artist_key, section, amount FROM artist_budget_sections WHERE section IN ('advance', 'marketing')`).catch(() => ({ rows: [] })),
+      pool.query(`SELECT id, name FROM artists WHERE (archived = false OR archived IS NULL)`),
+    ]);
+    const byKey = {};
+    const slot = (k) => (byKey[k] = byKey[k] || { key: k, name: null, artist_id: null, budget_marketing: 0, budget_advance: 0, spent_marketing_range: 0, spent_marketing_life: 0, advance_paid_life: 0 });
+    for (const b of budgets) { const s = slot(b.artist_key); if (b.section === 'advance') s.budget_advance = Number(b.amount) || 0; else s.budget_marketing = Number(b.amount) || 0; }
+    for (const a of (range.by_artist?.artists || [])) { if (a.key) { const s = slot(a.key); s.spent_marketing_range = a.total; s.name = s.name || a.name; } }
+    for (const a of (life.by_artist?.artists || [])) { if (a.key) { const s = slot(a.key); s.spent_marketing_life = a.total; s.name = s.name || a.name; } }
+    for (const a of (life.advances_by_artist?.artists || [])) { if (a.key) { const s = slot(a.key); s.advance_paid_life = a.total; s.name = s.name || a.name; } }
+    for (const r of roster) { const k = artistBucketKey(r.name); if (byKey[k]) { byKey[k].name = r.name; byKey[k].artist_id = r.id; } }
+    const rows = Object.values(byKey).map((s) => ({
+      ...s, name: s.name || s.key,
+      left_marketing: s.budget_marketing ? round2(s.budget_marketing - s.spent_marketing_life) : null,
+      left_advance: s.budget_advance ? round2(s.budget_advance - s.advance_paid_life) : null,
+      over_marketing: s.budget_marketing > 0 && s.spent_marketing_life > s.budget_marketing,
+      has_budget: s.budget_marketing > 0 || s.budget_advance > 0,
+    })).sort((a, b) => (b.has_budget - a.has_budget) || (b.budget_marketing + b.budget_advance) - (a.budget_marketing + a.budget_advance) || b.spent_marketing_life - a.spent_marketing_life);
+    const sum = (f) => round2(rows.reduce((t, r) => t + (r[f] || 0), 0));
+    res.json({ success: true, data: { from, to, basis, basis_label: BASIS_LABEL[basis], rows,
+      totals: { budget_marketing: sum('budget_marketing'), spent_marketing_range: sum('spent_marketing_range'), spent_marketing_life: sum('spent_marketing_life'), budget_advance: sum('budget_advance'), advance_paid_life: sum('advance_paid_life') },
+      budgeted: rows.filter((r) => r.has_budget).length, over: rows.filter((r) => r.over_marketing).length } });
+  } catch (err) { res.status(500).json({ success: false, error: err.message }); }
+});
+
+// ── The accountant pack ─────────────────────────────────────────────────────
+// One workbook: Cover (who, what range, which basis, reconciled through, what
+// was excluded), P&L, Balance sheet as of the range end, Spend by artist, by
+// vendor, by rep, and the Dismissed list. Downloaded from the page or sent on
+// a day of the month by lib/notifier (job accountant_pack) to the recipients
+// in report_pack_settings.
+async function ensurePackSchema() {
+  await pool.query(`CREATE TABLE IF NOT EXISTS report_pack_settings (
+    id INTEGER PRIMARY KEY DEFAULT 1 CHECK (id = 1),
+    enabled BOOLEAN NOT NULL DEFAULT FALSE, day INTEGER NOT NULL DEFAULT 5,
+    recipients TEXT NOT NULL DEFAULT '', basis TEXT NOT NULL DEFAULT 'bank',
+    last_sent_period TEXT, last_sent_at TIMESTAMPTZ, last_error TEXT,
+    updated_at TIMESTAMPTZ DEFAULT NOW(), updated_by INTEGER
+  )`).catch(() => {});
+}
+async function packSettings() {
+  await ensurePackSchema();
+  const { rows: [r] } = await pool.query(`SELECT * FROM report_pack_settings WHERE id = 1`).catch(() => ({ rows: [] }));
+  return r || { id: 1, enabled: false, day: 5, recipients: '', basis: 'bank', last_sent_period: null, last_sent_at: null, last_error: null };
+}
+const prevMonthRange = (now = new Date()) => {
+  const d = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const from = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`;
+  const to = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate()).padStart(2, '0')}`;
+  return { from, to };
+};
+
+async function buildPack(from, to, basis) {
+  const b = basisParam(basis) || 'bank';
+  const [pnl, bs, vendors, reps, label, { rows: recon }, { rows: dismissedRows }] = await Promise.all([
+    buildPnl(from, to, null, { basis: b }),
+    buildBalanceSheet(to).catch((e) => ({ error: e.message })),
+    buildSpendBy(from, to, b, 'vendor'),
+    buildSpendBy(from, to, b, 'rep'),
+    pool.query(`SELECT display_name, legal_name FROM label_settings LIMIT 1`).then((r) => r.rows[0] || {}).catch(() => ({})),
+    pool.query(`SELECT month_key FROM statement_months WHERE reconciled_at IS NOT NULL ORDER BY month_key DESC LIMIT 1`).catch(() => ({ rows: [] })),
+    pool.query(`
+      SELECT d.scope, d.cell_kind, d.cell_key, d.reason, d.dismissed_by, d.dismissed_at,
+             COALESCE(t.txn_date, e.payment_date) AS date, COALESCE(e.payee, t.payee_guess, t.description) AS payee,
+             COALESCE(t.amount, e.amount) AS amount, COALESCE(e.currency, t.currency, 'USD') AS currency
+        FROM report_dismissals d
+        LEFT JOIN bank_transactions t ON t.id = d.txn_id
+        LEFT JOIN expenses e ON e.id = d.expense_id
+       ORDER BY d.dismissed_at DESC LIMIT 500`).catch(() => ({ rows: [] })),
+  ]);
+  const wb = new ExcelJS.Workbook();
+  const fmtM = '"$"#,##0.00;[Red]("$"#,##0.00)';
+
+  // Cover
+  const cover = wb.addWorksheet('Cover', { views: [{ showGridLines: false }] });
+  cover.columns = [{ width: 28 }, { width: 70 }];
+  const line = (a, bv, bold = false) => { const r = cover.addRow([a, bv]); if (bold) r.font = { bold: true }; return r; };
+  line(label.display_name || label.legal_name || 'Market Street', 'Accountant pack', true).font = { bold: true, size: 14 };
+  line('Period', `${from} to ${to}`);
+  line('Basis', `${BASIS_LABEL[b]} — ${b === 'bank' ? 'every bank line once; the ledger supplies categories. Paid invoices no statement vouches for are listed, not counted.' : b === 'ledger' ? 'every approved row marked Paid, by payment date, whether or not a bank statement covers it.' : 'every approved row by invoice date, paid or not (commitments).'}`);
+  line('Bank reconciled through', recon[0]?.month_key || 'no month reconciled yet');
+  line('Balance sheet as of', to);
+  line('Generated', new Date().toISOString().replace('T', ' ').slice(0, 16) + ' UTC');
+  cover.addRow([]);
+  line('Income (operating)', round2(pnl.income_totals?.total || 0)).getCell(2).numFmt = fmtM;
+  line('Expenses (operating)', round2(pnl.expense_totals?.total || 0)).getCell(2).numFmt = fmtM;
+  line('Net (operating)', round2(pnl.net?.total || 0), true).getCell(2).numFmt = fmtM;
+  line('Below the line — expenses', round2(pnl.below?.expense_totals?.total || 0)).getCell(2).numFmt = fmtM;
+  line('Non-recurring — expenses', round2(pnl.non_recurring?.expense_totals?.total || 0)).getCell(2).numFmt = fmtM;
+  cover.addRow([]);
+  line('Excluded, disclosed', '', true);
+  line('Dismissed items', `${pnl.dismissed?.count || 0} items, ${round2(pnl.dismissed?.total || 0)} USD — see the Dismissed sheet`);
+  line('Reversal pairs', `${pnl.reversals?.count || 0} rows, ${round2(pnl.reversals?.total || 0)} USD (money that never moved)`);
+  if (b === 'bank') line('Paid in ledger, no bank line', `${pnl.unverified?.count || 0} rows, ${round2(pnl.unverified?.total || 0)} USD — listed on the P&L, not counted`);
+  line('Month reassignments', `${pnl.reassigned?.count || 0} moved in, ${pnl.reassigned?.moved_out?.count || 0} moved out`);
+  cover.addRow([]);
+  line('Sheets', 'P&L · Balance sheet · Spend by artist · Spend by vendor · Spend by rep · Dismissed');
+  line('Prepared by', 'Market Street dashboard — every figure opens to its rows on the Reports page');
+
+  renderExcel(wb, 'P&L', pnlRows(pnl, { from, to, artist: null }));
+  if (!bs.error) renderExcel(wb, 'Balance sheet', balanceSheetRows(bs, { as_of: to }));
+  else { const ws = wb.addWorksheet('Balance sheet'); ws.addRow(['Balance sheet could not be built', bs.error]); }
+  const sba = { ...pnl.by_artist, excluded: {
+    below_line: pnl.below?.expense_totals?.total || 0, non_recurring: pnl.non_recurring?.expense_totals?.total || 0,
+    dismissed: { total: pnl.dismissed?.total || 0, count: pnl.dismissed?.count || 0 },
+    reversals: { total: pnl.reversals?.total || 0, count: pnl.reversals?.count || 0 },
+    unverified: { total: pnl.unverified?.total || 0, count: pnl.unverified?.count || 0 } } };
+  renderExcel(wb, 'Spend by artist', spendByArtistRows(sba, { from, to, topN: 0 }));
+
+  const simple = (name, data, keyLabel) => {
+    const ws = wb.addWorksheet(name, { views: [{ showGridLines: false, state: 'frozen', xSplit: 1, ySplit: 1 }] });
+    const header = ws.addRow([keyLabel, ...data.months, 'Total', 'Rows', 'Top category']);
+    styleHeader(header);
+    ws.getColumn(1).width = 36;
+    for (const r of data.rows) {
+      const row = ws.addRow([r.key, ...data.months.map((m) => r.series[m] || 0), r.total, r.count, r.top_category || '']);
+      for (let i = 2; i <= data.months.length + 2; i += 1) row.getCell(i).numFmt = fmtM;
+    }
+    const t = ws.addRow(['Total', ...data.months.map((m) => round2(data.rows.reduce((s, r) => s + (r.series[m] || 0), 0))), data.total, data.rows.reduce((s, r) => s + r.count, 0), '']);
+    t.font = { bold: true };
+    for (let i = 2; i <= data.months.length + 2; i += 1) t.getCell(i).numFmt = fmtM;
+    ws.addRow([]);
+    ws.addRow([`Operating spend only, ${data.basis_label}. Dismissed, reversed, below-the-line and non-recurring rows are excluded — the same total as the P&L's operating expenses.`]);
+  };
+  simple('Spend by vendor', vendors, 'Vendor');
+  simple('Spend by rep', reps, 'Rep');
+
+  const dws = wb.addWorksheet('Dismissed', { views: [{ showGridLines: false, state: 'frozen', ySplit: 1 }] });
+  styleHeader(dws.addRow(['Date', 'Payee', 'Amount', 'Currency', 'Scope', 'Line', 'Reason', 'By', 'When']));
+  dws.columns.forEach((c, i) => { c.width = [12, 36, 14, 8, 10, 24, 40, 12, 20][i] || 14; });
+  for (const d of dismissedRows) dws.addRow([d.date ? String(d.date).slice(0, 10) : '', d.payee || '', d.amount != null ? Number(d.amount) : '', d.currency, d.scope || 'item', d.cell_key || '', d.reason || '', d.dismissed_by || '', d.dismissed_at ? new Date(d.dismissed_at).toISOString().slice(0, 16).replace('T', ' ') : '']);
+  if (!dismissedRows.length) dws.addRow(['Nothing has been dismissed.']);
+
+  return { workbook: wb, filename: `marketst-accountant-pack-${from}-to-${to}.xlsx`, summary: { basis: b, from, to, net: round2(pnl.net?.total || 0), income: round2(pnl.income_totals?.total || 0), expenses: round2(pnl.expense_totals?.total || 0), dismissed: pnl.dismissed?.count || 0, reconciled_through: recon[0]?.month_key || null } };
+}
+
+// Send the pack for a range to the recipients. Used by POST /pack/send and
+// the notifier's monthly job. Records the outcome on the settings row.
+async function sendPack({ from, to, basis, recipients, trigger = 'manual', period = null }) {
+  const list = String(recipients || '').split(/[,;\s]+/).map((s) => s.trim()).filter((s) => /.+@.+\..+/.test(s));
+  if (!list.length) throw new Error('No recipients: add at least one email address');
+  const { sendMail } = require('../lib/mail');
+  const { layout, p, rows: lrows } = require('../lib/email-layout');
+  const pack = await buildPack(from, to, basis);
+  const buf = Buffer.from(await pack.workbook.xlsx.writeBuffer());
+  const s = pack.summary;
+  const fmt = (n) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n || 0);
+  const html = layout({
+    title: `Accountant pack — ${from} to ${to}`, eyebrow: 'Reports', accent: 'forest',
+    body: p(`The attached workbook holds the P&L, balance sheet as of ${to}, spend by artist, vendor and rep, and every dismissed item, on the <strong>${BASIS_LABEL[s.basis]}</strong> basis.`)
+      + lrows([['Income (operating)', fmt(s.income)], ['Expenses (operating)', fmt(s.expenses)], ['Net (operating)', fmt(s.net)], ['Dismissed items', String(s.dismissed)], ['Bank reconciled through', s.reconciled_through || 'no month reconciled yet']])
+      + p('Every figure opens to the rows behind it on the Reports page.'),
+    cta: { label: 'Open Reports', href: `${require('../lib/email-layout').APP_URL}/reports?from=${from}&to=${to}&basis=${s.basis}` },
+  });
+  try {
+    await sendMail({ purpose: 'team', kind: 'accountant_pack', to: list.join(', '), subject: `Accountant pack — ${from} to ${to} (${BASIS_LABEL[s.basis]})`, html,
+      attachments: [{ filename: pack.filename, data: buf.toString('base64'), mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }], entity: { type: 'report_pack', id: period || `${from}:${to}` } });
+    await ensurePackSchema();
+    await pool.query(`INSERT INTO report_pack_settings (id, last_sent_period, last_sent_at, last_error) VALUES (1, $1, NOW(), NULL)
+      ON CONFLICT (id) DO UPDATE SET last_sent_period = COALESCE($1, report_pack_settings.last_sent_period), last_sent_at = NOW(), last_error = NULL`, [period]).catch(() => {});
+    return { sent_to: list, filename: pack.filename, summary: s, trigger };
+  } catch (e) {
+    await pool.query(`UPDATE report_pack_settings SET last_error = $1 WHERE id = 1`, [e.message]).catch(() => {});
+    throw e;
+  }
+}
+
+// GET /api/reports/pack.xlsx?from=&to=&basis=
+router.get('/pack.xlsx', async (req, res) => {
+  try {
+    if (!isBkAdmin(req.user)) return res.status(403).json({ success: false, error: 'Admin required' });
+    const to = String(req.query.to || new Date().toISOString().slice(0, 10));
+    const from = String(req.query.from || `${to.slice(0, 4)}-01-01`);
+    const badRange = rangeProblem(from, to);
+    if (badRange) return res.status(400).json({ success: false, error: badRange });
+    const pack = await buildPack(from, to, basisParam(req.query.basis) || 'bank');
+    const buf = await pack.workbook.xlsx.writeBuffer();
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="${pack.filename}"`);
+    res.send(Buffer.from(buf));
+  } catch (err) { res.status(500).json({ success: false, error: err.message }); }
+});
+
+// GET / PUT /api/reports/pack/settings — enabled, day of month, recipients, basis.
+router.get('/pack/settings', async (req, res) => {
+  try {
+    if (!isBkAdmin(req.user)) return res.status(403).json({ success: false, error: 'Admin required' });
+    const s = await packSettings();
+    res.json({ success: true, data: { ...s, next_range: prevMonthRange(new Date(new Date().getFullYear(), new Date().getMonth() + 1, 1)) } });
+  } catch (err) { res.status(500).json({ success: false, error: err.message }); }
+});
+router.put('/pack/settings', async (req, res) => {
+  try {
+    if (!req.user || !['Admin', 'Superadmin'].includes(req.user.role)) return res.status(403).json({ success: false, error: 'Admin required' });
+    await ensurePackSchema();
+    const cur = await packSettings();
+    const b = req.body || {};
+    const enabled = typeof b.enabled === 'boolean' ? b.enabled : cur.enabled;
+    const day = Number.isInteger(Number(b.day)) ? Math.max(1, Math.min(28, Number(b.day))) : cur.day;
+    const recipients = typeof b.recipients === 'string' ? b.recipients.split(/[,;\s]+/).map((x) => x.trim()).filter(Boolean).join(', ') : cur.recipients;
+    const basis = basisParam(b.basis) || cur.basis || 'bank';
+    if (enabled && !recipients) return res.status(400).json({ success: false, error: 'Add at least one recipient before turning the monthly pack on' });
+    const { rows: [r] } = await pool.query(`INSERT INTO report_pack_settings (id, enabled, day, recipients, basis, updated_at, updated_by) VALUES (1, $1, $2, $3, $4, NOW(), $5)
+      ON CONFLICT (id) DO UPDATE SET enabled = $1, day = $2, recipients = $3, basis = $4, updated_at = NOW(), updated_by = $5 RETURNING *`, [enabled, day, recipients, basis, req.user.id]);
+    res.json({ success: true, data: r });
+  } catch (err) { res.status(500).json({ success: false, error: err.message }); }
+});
+
+// POST /api/reports/pack/send { from?, to?, basis?, recipients? } — send it now.
+router.post('/pack/send', async (req, res) => {
+  try {
+    if (!req.user || !['Admin', 'Superadmin'].includes(req.user.role)) return res.status(403).json({ success: false, error: 'Admin required' });
+    const cur = await packSettings();
+    const range = prevMonthRange();
+    const from = String(req.body?.from || range.from), to = String(req.body?.to || range.to);
+    const badRange = rangeProblem(from, to);
+    if (badRange) return res.status(400).json({ success: false, error: badRange });
+    const out = await sendPack({ from, to, basis: basisParam(req.body?.basis) || cur.basis || 'bank', recipients: req.body?.recipients || cur.recipients, trigger: `manual:${req.user.id}` });
+    res.json({ success: true, data: out });
+  } catch (err) {
+    const code = err.code === 'MAIL_NOT_CONNECTED' ? 409 : (/No recipients/.test(err.message) ? 400 : 500);
+    res.status(code).json({ success: false, error: err.message });
+  }
+});
+
 router.get('/pnl/export', async (req, res) => {
   try {
     if (!isBkAdmin(req.user)) return res.status(403).json({ success: false, error: 'Admin required' });
@@ -4170,7 +4613,7 @@ router.get('/pnl/export', async (req, res) => {
     const badRange = rangeProblem(from, to);
     if (badRange) return res.status(400).json({ success: false, error: badRange });
     const artist = String(req.query.artist || '').trim() || null;
-    const pnl = await buildPnl(from, to, artist);
+    const pnl = await buildPnl(from, to, artist, { basis: basisParam(req.query.basis) });
 
     const wb = new ExcelJS.Workbook();
     renderExcel(wb, 'P&L', pnlRows(pnl, { from, to, artist }));
@@ -4202,7 +4645,7 @@ router.get('/spend-by-artist/export', async (req, res) => {
     const topNRaw = req.query.topN === undefined ? 0 : parseInt(req.query.topN, 10);
     const topN = Number.isFinite(topNRaw) ? Math.max(0, Math.min(500, topNRaw)) : 0;
 
-    const pnl = await buildPnl(from, to, null);
+    const pnl = await buildPnl(from, to, null, { basis: basisParam(req.query.basis) });
     const data = {
       ...pnl.by_artist,
       excluded: {
@@ -4325,3 +4768,6 @@ module.exports.buildPnl = buildPnl;
 // The simple artist budget sheet (routes/artist-budgets.js) reads this so its
 // "Advance" line and the P&L's advances column are one definition.
 module.exports.ADVANCE_CATEGORIES = ADVANCE_CATEGORIES;
+module.exports.buildPack = buildPack;
+module.exports.packSettings = packSettings;
+module.exports.sendPack = sendPack;

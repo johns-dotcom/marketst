@@ -310,11 +310,13 @@ const PAGE_TOURS = [
   },
   // ─── Reports ────────────────────────────────────────────────────────────
   {
-    id: 'reports', title: 'Reports', path: '/reports', version: '2026-09-20',
+    id: 'reports', title: 'Reports', path: '/reports', version: '2026-09-22',
     steps: [
-      { target: '[data-tour="reports-header"]', title: 'The numbers', body: 'P&L, balance sheet, spend by artist and the dismissed list, on a cash basis: unpaid invoices are excluded here (they show on Financials).' },
-      { target: '[data-tour="reports-controls"]', title: 'Pick a report and a range', body: 'Choose the tab, set from and to (or As of for the balance sheet), narrow to an artist, then Run. Export to Excel or a Google Sheet on the right.' },
-      { target: '[data-tour="reports-controls"]', title: 'Every number opens', body: 'Click any figure to see the rows behind it. Inside that review deck: Enter accepts, ← skips, f flags, d dismisses, p previews, 1 to 9 pick an option.' },
+      { target: '[data-tour="reports-header"]', title: 'The numbers', body: 'P&L, balance sheet, spend by artist, vendor and rep, budget vs actual, and the dismissed list. Every figure opens to the rows behind it.' },
+      { target: '[data-basis-switch], [data-tour="reports-header"]', title: 'Pick the basis', body: 'Bank statements counts only money the bank proves. Ledger — paid counts every paid invoice by payment date, statement or not. Accrual counts everything invoiced, paid or not. The default follows the data: ledger until a bank month is reconciled.' },
+      { target: '[data-tour="reports-controls"]', title: 'Range, columns, comparison', body: 'Set from and to, then months, quarters or years across, and compare with the previous period or the same period last year. Charts toggles the pictures above the table.' },
+      { target: '[data-report-charts], [data-charts-empty], [data-tour="reports-controls"]', title: 'The charts', body: 'Income, expenses and net by period; where the money went; spend by artist; invoices received by month, with how many; top vendors; the running net. Click a bar to open its rows.' },
+      { target: '[data-pack-open], [data-tour="reports-controls"]', title: 'The accountant pack', body: 'One workbook: a cover stating period, basis and what was excluded, then P&L, balance sheet, spend by artist, vendor and rep, and the dismissed list. Download it now, or have it emailed on a day each month.' },
     ],
   },
   // ─── Admin ──────────────────────────────────────────────────────────────

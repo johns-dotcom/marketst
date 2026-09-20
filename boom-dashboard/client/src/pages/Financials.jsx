@@ -1694,8 +1694,8 @@ function FinancialsLanding() {
           Commitment view — every approved invoice counts from its payment date, or its
           invoice date if unpaid. <strong className="font-semibold text-ink">Unpaid spend is included.</strong>
         </span>
-        <Link to="/reports" className="text-boom-600 hover:text-boom-700 font-semibold whitespace-nowrap">
-          Cash basis? See Reports →
+        <Link to="/reports?basis=accrual" className="text-boom-600 hover:text-boom-700 font-semibold whitespace-nowrap">
+          Reports carries this basis too: open Reports on accrual →
         </Link>
         <ReconciledBadge className="ml-auto" />
       </div>

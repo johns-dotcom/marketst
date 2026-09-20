@@ -1,5 +1,5 @@
-import { useEffect, useState, useRef } from 'react'
-import { Link } from 'react-router-dom'
+import { useEffect, useState, useRef, useMemo } from 'react'
+import { Link, useSearchParams } from 'react-router-dom'
 import { FileBarChart, Download, Loader, Landmark, X, AlertTriangle, Zap, Undo2, ChevronLeft, CheckCircle2, Flag, Ban, Search, FileText, Table2, ExternalLink, CalendarClock, Pencil, ArrowDownUp } from 'lucide-react'
 import FilePreview from '../components/FilePreview'
 import { pickDoc, fileUrl } from '../utils/entryFiles'
@@ -13,6 +13,13 @@ import InlineFilePreview from '../components/InlineFilePreview'
 import ListSearch, { matchesQuery } from '../components/ListSearch'
 import { drillComparator } from '../utils'
 import ReconciledBadge from '../components/ReconciledBadge'
+import BasisSwitch, { BASIS_TEXT } from '../components/reports/BasisSwitch'
+import ReportCharts from '../components/reports/ReportCharts'
+import ComparePanel from '../components/reports/ComparePanel'
+import SpendByTable from '../components/reports/SpendByTable'
+import BudgetVsActual from '../components/reports/BudgetVsActual'
+import PackModal from '../components/reports/PackModal'
+import { rollupPnl, periodRange, periodLabel, shiftRange } from '../lib/pnlRollup'
 
 // Reports — P&L (cash basis) and Balance Sheet, live from the ledger,
 // income entries, outbound invoices, and bank-statement ending balances.
@@ -44,6 +51,8 @@ const fmtFlow = (n, negative = false) => {
   return eff < 0 ? `−${s}` : s
 }
 const monthLabel = (ymStr) => {
+  // Quarter / year columns (lib/pnlRollup) label themselves.
+  if (!/^\d{4}-\d{2}$/.test(String(ymStr))) return periodLabel(String(ymStr))
   const [y, m] = ymStr.split('-')
   return `${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][Number(m) - 1]} ${y.slice(2)}`
 }
@@ -75,7 +84,8 @@ export default function Reports() {
   // 1-9 hotkeys read these, so a newly created category is immediately
   // pickable by number as well as by mouse.
   const { expense: catExpense, income: catIncome } = useCategoriesContext()
-  const [tab, setTab] = useState('pnl')
+  const [searchParams] = useSearchParams()
+  const [tab, setTab] = useState(searchParams.get('tab') || 'pnl')
   const [byArtist, setByArtist] = useState(null)
   // How many artists to list before collapsing the tail. 127 artists with 63
   // of them under $1,000 is not a slide.
@@ -88,7 +98,7 @@ export default function Reports() {
   const [to, setTo] = useState(today())
   const [asOf, setAsOf] = useState(today())
   const [artistF, setArtistF] = useState('')
-  const [pnl, setPnl] = useState(null)
+  const [pnlRaw, setPnl] = useState(null)
   const [bs, setBs] = useState(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -98,6 +108,23 @@ export default function Reports() {
   // Drill-down modal: which cell, and its entries
   const [drill, setDrill] = useState(null) // { kind, key, month }
   const [drillData, setDrillData] = useState(null)
+  // ── Second pass (2026-09-20): basis · compare · granularity · charts · cuts · pack ──
+  // Basis: from the email link, else what this browser last chose, else the
+  // server's data-driven default (ledger until a bank month is reconciled).
+  const basisChosen = useRef(!!(searchParams.get('basis') || localStorage.getItem('reports_basis')))
+  const [basis, setBasis] = useState(() => searchParams.get('basis') || localStorage.getItem('reports_basis') || null)
+  const [basisInfo, setBasisInfo] = useState(null)
+  const [compare, setCompare] = useState(() => localStorage.getItem('reports_compare') || 'none')   // none | prior | yoy
+  const [gran, setGran] = useState(() => localStorage.getItem('reports_gran') || 'month')           // month | quarter | year
+  const [showCharts, setShowCharts] = useState(() => localStorage.getItem('reports_charts') !== '0')
+  const [prevPnl, setPrevPnl] = useState(null)
+  const [intake, setIntake] = useState(null)
+  const [vendors, setVendors] = useState(null)
+  const [reps, setReps] = useState(null)
+  const [bva, setBva] = useState(null)
+  const [packOpen, setPackOpen] = useState(false)
+  // Every P&L reader below sees PERIODS: months, quarters or years.
+  const pnl = useMemo(() => rollupPnl(pnlRaw, gran), [pnlRaw, gran])
   // Invoice / proof / receipt overlay, opened from a row's document button.
   // Same shared FilePreview the ledger and approvals pages use.
   const [previewFile, setPreviewFile] = useState(null)
@@ -106,9 +133,36 @@ export default function Reports() {
     setLoading(true); setError('')
     const artist = artistOverride !== undefined ? artistOverride : artistF
     try {
-      const res = await api.get('/reports/pnl', { params: { from, to, ...(artist ? { artist } : {}) } })
+      const res = await api.get('/reports/pnl', { params: { from, to, basis, ...(artist ? { artist } : {}) } })
       setPnl(res.data.data)
+      // The comparison is a SECOND run of the same report for the shifted range
+      // on the same basis; the charts' extra series ride along. None of these
+      // may take the P&L down — each fails to null on its own.
+      const extras = []
+      if (compare !== 'none') {
+        const r = shiftRange(from, to, compare)
+        extras.push(api.get('/reports/pnl', { params: { from: r.from, to: r.to, basis, ...(artist ? { artist } : {}) } }).then((x) => setPrevPnl({ ...x.data.data, range: r })).catch(() => setPrevPnl(null)))
+      } else setPrevPnl(null)
+      if (showCharts) {
+        extras.push(api.get('/reports/intake', { params: { from, to } }).then((x) => setIntake(x.data.data)).catch(() => setIntake(null)))
+        extras.push(api.get('/reports/spend-by', { params: { dim: 'vendor', from, to, basis } }).then((x) => setVendors(x.data.data)).catch(() => setVendors(null)))
+      }
+      await Promise.all(extras)
     } catch (err) { setError(err.response?.data?.error || err.message) }
+    finally { setLoading(false) }
+  }
+  const fetchSpendBy = async (dim) => {
+    setLoading(true); setError('')
+    try {
+      const res = await api.get('/reports/spend-by', { params: { dim, from, to, basis } })
+      if (dim === 'rep') setReps(res.data.data); else setVendors(res.data.data)
+    } catch (err) { setError(err.response?.data?.error || err.message) }
+    finally { setLoading(false) }
+  }
+  const fetchBva = async () => {
+    setLoading(true); setError('')
+    try { const res = await api.get('/reports/budget-vs-actual', { params: { from, to, basis } }); setBva(res.data.data) }
+    catch (err) { setError(err.response?.data?.error || err.message) }
     finally { setLoading(false) }
   }
   const fetchBs = async () => {
@@ -126,18 +180,31 @@ export default function Reports() {
   const fetchArtists = async () => {
     setLoading(true); setError('')
     try {
-      const res = await api.get(`/reports/spend-by-artist?from=${from}&to=${to}`)
+      const res = await api.get(`/reports/spend-by-artist?from=${from}&to=${to}&basis=${basis}`)
       setByArtist(res.data.data)
     } catch (err) { setError(err.response?.data?.error || err.message) }
     finally { setLoading(false) }
   }
   // The dismissed tab loads its own data (see fetchDismissals below) — it
   // must not fall through to fetchBs().
+  // The basis default comes from the data; nothing money-shaped is fetched
+  // until a basis is known, so the page never briefly shows the wrong one.
   useEffect(() => {
+    api.get('/reports/basis')
+      .then((r) => { const info = r.data?.data || null; setBasisInfo(info); if (!basisChosen.current) setBasis((b) => b || info?.default || 'bank') })
+      .catch(() => { if (!basisChosen.current) setBasis((b) => b || 'bank') })
+  }, [])
+  useEffect(() => { if (basis) { try { localStorage.setItem('reports_basis', basis) } catch { /* private mode */ } } }, [basis])
+  useEffect(() => { try { localStorage.setItem('reports_compare', compare); localStorage.setItem('reports_gran', gran); localStorage.setItem('reports_charts', showCharts ? '1' : '0') } catch { /* private mode */ } }, [compare, gran, showCharts])
+  useEffect(() => {
+    if (!basis) return
     if (tab === 'pnl') fetchPnl()
     else if (tab === 'bs') fetchBs()
     else if (tab === 'artists') fetchArtists()
-  }, [tab]) // eslint-disable-line react-hooks/exhaustive-deps
+    else if (tab === 'vendors') fetchSpendBy('vendor')
+    else if (tab === 'reps') fetchSpendBy('rep')
+    else if (tab === 'budget') fetchBva()
+  }, [tab, basis, compare, showCharts]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Monotonic request token. Without it a slow response could land after the
   // user had already opened a DIFFERENT cell, leaving the modal showing one
@@ -162,8 +229,10 @@ export default function Reports() {
         ? await api.get('/reports/balance-sheet/detail', { params: { kind: kind.slice(3), as_of: asOf } })
         : await api.get('/reports/pnl/detail', {
           params: {
-            kind, key, from, to,
-            ...(month ? { month } : {}),
+            kind, key, basis,
+            // A quarter or year cell asks for its own from/to; a month cell asks by month.
+            ...(month && pnl?.month_of_period ? periodRange(month, pnl.month_of_period) : { from, to }),
+            ...(month && !pnl?.month_of_period ? { month } : {}),
             ...(category ? { category } : {}),
             ...(opts.keys?.length ? { keys: opts.keys.join(',') } : {}),
             // The artist drill is already scoped by its own key; layering the
@@ -879,9 +948,9 @@ export default function Reports() {
     setExporting(true)
     try {
       const url = tab === 'pnl'
-        ? `/reports/pnl/export?from=${from}&to=${to}${artistF ? `&artist=${encodeURIComponent(artistF)}` : ''}`
+        ? `/reports/pnl/export?from=${from}&to=${to}&basis=${basis}${artistF ? `&artist=${encodeURIComponent(artistF)}` : ''}`
         : tab === 'artists'
-          ? `/reports/spend-by-artist/export?from=${from}&to=${to}&topN=${artistTopN}`
+          ? `/reports/spend-by-artist/export?from=${from}&to=${to}&topN=${artistTopN}&basis=${basis}`
           : `/reports/balance-sheet/export?as_of=${asOf}`
       const res = await api.get(url, { responseType: 'blob' })
       const blob = new Blob([res.data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
@@ -1086,19 +1155,17 @@ export default function Reports() {
         <h1 data-tour="reports-header" className="text-xl font-extrabold text-ink">Reports</h1>
         <ReconciledBadge />
       </div>
-      <p className="text-sm text-gray-500 mb-2">Statements are the master: the P&L counts every bank transaction exactly once — the ledger supplies categories, never a second copy of the money. Ledger entries with no bank evidence are shown but not counted. Click any number to see the transactions behind it.</p>
+      <p className="text-sm text-gray-500 mb-2" data-basis-note>{BASIS_TEXT[basis]?.note || 'Choosing a basis…'} Click any number to see the transactions behind it.</p>
       {/* Counterpart to the basis note on Financials — the two pages use
           different date bases and different inclusion rules, so their totals
           for one range legitimately differ. Say which is which. */}
-      <div className="flex flex-wrap items-center gap-2 mb-4 text-[12px] text-gray-500">
-        <span className="font-semibold text-gray-400 uppercase tracking-wider text-[10px]">Basis</span>
-        <span>
-          Cash — money that actually moved, dated when it moved.
-          <strong className="font-semibold text-ink"> Unpaid invoices are excluded.</strong>
-        </span>
-        <Link to="/financials" className="text-boom-600 hover:text-boom-700 font-semibold whitespace-nowrap">
-          Need unpaid commitments? See Financials →
-        </Link>
+      <div className="flex flex-wrap items-center gap-3 mb-4 text-[12px] text-gray-500">
+        <BasisSwitch basis={basis || 'bank'} onChange={(b) => { basisChosen.current = true; setBasis(b) }} info={basisInfo} />
+        {basis !== 'accrual' && (
+          <button onClick={() => { basisChosen.current = true; setBasis('accrual') }} className="text-boom-600 hover:text-boom-700 font-semibold whitespace-nowrap">
+            Need unpaid commitments? Switch to accrual →
+          </button>
+        )}
       </div>
 
       {/* Aggregate exclusion notice. The whole point of "excluded but
@@ -1202,7 +1269,7 @@ export default function Reports() {
 
       <div data-tour="reports-controls" className="flex flex-wrap items-center gap-2 mb-4">
         <div className="flex gap-1">
-          {[['pnl', 'Profit & Loss'], ['bs', 'Balance Sheet'], ['artists', 'Spend by Artist'], ['dismissed', 'Dismissed']].map(([key, label]) => (
+          {[['pnl', 'Profit & Loss'], ['bs', 'Balance Sheet'], ['artists', 'Spend by Artist'], ['vendors', 'Vendors'], ['reps', 'Reps'], ['budget', 'Budget vs actual'], ['dismissed', 'Dismissed']].map(([key, label]) => (
             <button key={key} onClick={() => setTab(key)}
               className={`px-3 py-1.5 rounded-lg text-sm font-semibold border ${tab === key ? 'border-boom-600 text-boom-600 bg-boom-50/40' : 'border-rule text-gray-500 bg-card'}`}>
               {label}
@@ -1233,6 +1300,17 @@ export default function Reports() {
               {(pnl?.artists || []).map((a) => <option key={a} value={a}>{a}</option>)}
             </select>
             <button onClick={() => fetchPnl()} className="border border-rule rounded-lg px-3 py-1.5 text-sm font-semibold text-gray-600 hover:bg-gray-50">Run</button>
+            <select value={gran} onChange={(e) => setGran(e.target.value)} className={inputCls} title="Column granularity" data-gran>
+              <option value="month">Months</option>
+              <option value="quarter">Quarters</option>
+              <option value="year">Years</option>
+            </select>
+            <select value={compare} onChange={(e) => setCompare(e.target.value)} className={inputCls} title="Compare with an earlier range, same basis" data-compare>
+              <option value="none">No comparison</option>
+              <option value="prior">vs previous period</option>
+              <option value="yoy">vs same period last year</option>
+            </select>
+            <button onClick={() => setShowCharts((v) => !v)} className={`border rounded-lg px-3 py-1.5 text-sm font-semibold ${showCharts ? 'border-boom-600 text-boom-600 bg-boom-50/40' : 'border-rule text-gray-600 hover:bg-gray-50'}`} data-charts-toggle>Charts</button>
             {/* Filters the P&L's own lines. Purely client-side over the loaded
                 report, so it needs no Run — unlike the date range and artist
                 filters beside it, which refetch. */}
@@ -1253,13 +1331,30 @@ export default function Reports() {
             <input type="date" value={asOf} onChange={(e) => setAsOf(e.target.value)} className={inputCls} />
             <button onClick={fetchBs} className="border border-rule rounded-lg px-3 py-1.5 text-sm font-semibold text-gray-600 hover:bg-gray-50">Run</button>
           </>
-        ) : (
+        ) : tab === 'dismissed' ? (
           <button onClick={fetchDismissals} className="border border-rule rounded-lg px-3 py-1.5 text-sm font-semibold text-gray-600 hover:bg-gray-50">Refresh</button>
+        ) : (
+          <>
+            <input type="date" value={from} max={to} onChange={(e) => setFrom(e.target.value)} className={inputCls} />
+            <span className="text-gray-400 text-sm">→</span>
+            <input type="date" value={to} min={from} onChange={(e) => setTo(e.target.value)} className={inputCls} />
+            {(tab === 'vendors' || tab === 'reps') && (
+              <select value={gran} onChange={(e) => setGran(e.target.value)} className={inputCls} data-gran>
+                <option value="month">Months</option><option value="quarter">Quarters</option><option value="year">Years</option>
+              </select>
+            )}
+            <button onClick={() => (tab === 'artists' ? fetchArtists() : tab === 'budget' ? fetchBva() : fetchSpendBy(tab === 'reps' ? 'rep' : 'vendor'))} className="border border-rule rounded-lg px-3 py-1.5 text-sm font-semibold text-gray-600 hover:bg-gray-50">Run</button>
+            <ListSearch value={pnlQ} onChange={setPnlQ} placeholder={tab === 'budget' ? 'Filter artists…' : `Filter ${tab}…`} width={200} />
+          </>
         )}
         {/* Neither export covers the dismissed list — there's no report to
             export, and both only know the P&L and balance-sheet shapes. */}
         {tab !== 'dismissed' && (
           <div className="ml-auto flex items-center gap-2">
+            <button onClick={() => setPackOpen(true)} title="One workbook for the accountant: cover, P&L, balance sheet, spend by artist / vendor / rep, dismissed — download now or send monthly"
+              className="inline-flex items-center gap-1.5 border border-rule rounded-lg px-3 py-1.5 text-sm font-semibold text-gray-600 hover:bg-gray-50" data-pack-open>
+              <FileText size={14} /> Accountant pack
+            </button>
             <button onClick={exportSheet} disabled={sheeting}
               title="Write both tabs into the shared Google Sheet"
               className="inline-flex items-center gap-1.5 border border-rule rounded-lg px-3 py-1.5 text-sm font-semibold text-gray-600 hover:bg-gray-50 disabled:opacity-50">
@@ -1439,6 +1534,19 @@ export default function Reports() {
       )}
 
       {/* ── P&L ── */}
+      {tab === 'pnl' && pnl && !loading && showCharts && (
+        <div className="mb-4"><ReportCharts pnl={pnl} intake={intake} vendors={vendors} onDrill={(kind, key) => openDrill(kind, key, null)} /></div>
+      )}
+      {tab === 'pnl' && pnl && !loading && compare !== 'none' && prevPnl && (
+        <ComparePanel cur={pnlRaw} prev={prevPnl} mode={compare} range={prevPnl.range} filter={pnlQ} onDrill={(kind, key) => openDrill(kind, key, null)} />
+      )}
+      {tab === 'pnl' && pnl && !loading && compare !== 'none' && !prevPnl && (
+        <p className="text-[12px] text-gray-400 mb-3" data-compare-missing>The comparison range could not be loaded.</p>
+      )}
+      {tab === 'vendors' && !loading && <SpendByTable data={vendors} dim="vendor" gran={gran} filter={pnlQ} />}
+      {tab === 'reps' && !loading && <SpendByTable data={reps} dim="rep" gran={gran} filter={pnlQ} />}
+      {tab === 'budget' && !loading && <BudgetVsActual data={bva} filter={pnlQ} />}
+      <PackModal open={packOpen} onClose={() => setPackOpen(false)} from={from} to={to} basis={basis || 'bank'} />
       {tab === 'pnl' && pnl && !loading && (
         <div className="bg-card border border-rule rounded-xl overflow-x-auto">
           <table className="w-full" style={{ minWidth: 160 + pnl.months.length * 96 }}>
@@ -1690,6 +1798,17 @@ export default function Reports() {
             <div className="px-4 py-2.5 border-b border-rule">
               <span className="text-sm font-bold text-ink">As of {bs.as_of}</span>
             </div>
+            {bs.proof && (
+              <div className={`px-4 py-2.5 border-b border-rule text-[12px] ${bs.proof.cash_known ? 'text-gray-500' : 'text-amber-800 bg-amber-50/60'}`} data-bs-proof data-bs-cash-known={bs.proof.cash_known ? '1' : '0'}>
+                <p>{bs.proof.note}</p>
+                <details className="mt-1">
+                  <summary className="cursor-pointer text-[11px] font-semibold text-gray-400 hover:text-ink">Where each line comes from</summary>
+                  <ul className="mt-1 space-y-0.5 text-[11px]">
+                    {bs.proof.sources.map((src) => <li key={src.line}><span className="font-semibold text-ink">{src.line}</span> — {src.from}</li>)}
+                  </ul>
+                </details>
+              </div>
+            )}
             <div className="px-4 py-3">
               <div className="text-[11px] font-extrabold uppercase tracking-wider text-boom-700 mb-1">Assets</div>
               {bs.assets.cash.length === 0 && (
@@ -1804,7 +1923,7 @@ export default function Reports() {
                     <div className="pl-3 text-[11px] text-gray-400">{bs.funding.drawdowns.note}</div>
                   )}
                   <div className="flex justify-between py-1 text-[13px]">
-                    <span className="text-ink pl-3">Accumulated deficit</span>
+                    <span className="text-ink pl-3" title="Net assets minus drawdowns. Derived so the block sums; nothing proves it.">Unexplained difference (derived)</span>
                     <span className={`font-mono tabular-nums ${bs.funding.accumulated_deficit.total < 0 ? 'text-rose-600' : ''}`}>
                       {fmt(bs.funding.accumulated_deficit.total)}
                     </span>

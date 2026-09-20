@@ -249,10 +249,10 @@ theme layer using the same hooks, not this one.
 Client (`cd client && npm run …`): `home-dom`, `handoff-dom`, `hub-dom`,
 `calendar-dom`, `budgetsimple-dom`, `onboarding-dom`, `settings-dom`,
 `mywork-dom`, `tour-dom`, `tours-fixture`, `nav-fixture`, `navpresets-fixture`,
-`vendorform-dom`, `flags-dom`, `shortcuts-fixture`. Server (`server/scripts/*.cjs`, against a server on :3011):
+`vendorform-dom`, `flags-dom`, `shortcuts-fixture`, `reports-dom`. Server (`server/scripts/*.cjs`, against a server on :3011):
 `home-loop`, `calendar`, `signing`, `artist-budget-simple`,
 `artist-budget-name`, `settings`, `label`, `invite`, `brand`, `mail`,
-`gmail-transport`, `qbo`, `docusign`, `artist-stats`, `flags-register`. Two harness lessons
+`gmail-transport`, `qbo`, `docusign`, `artist-stats`, `flags-register`, `reports-basis`. Two harness lessons
 worth carrying: migrations run AFTER listen, so fixtures sleep after `/health`;
 and jsdom for the client harnesses lives in `/tmp/domtest`, which macOS prunes.
 
@@ -283,6 +283,14 @@ part is the seed for `artist_required` (Boom's ten category names) and the
 `scripts/shortcuts-fixture.mjs`. Nothing label-shaped in it; GOTO's letters
 follow the nav paths, which Cadence shares. Root CLAUDE.md "Keyboard: ONE
 vocabulary" has the rules.
+
+## 19. Reports: selectable basis, cuts, charts, the accountant pack — PORT
+
+`routes/reports.js` (`rowsFor` / `ledgerRows` / `defaultBasis` / `buildSpendBy` /
+`buildPack` / pack settings + send), `lib/notifier.js` (job `accountant_pack`),
+`components/reports/*`, `lib/pnlRollup.js`, `pages/Reports.jsx`. Table
+`report_pack_settings`. Nothing label-shaped; Cadence is ledger-mastered so its
+default basis would simply be `ledger`. Root CLAUDE.md "Reports, second pass".
 
 ## Suggested order for Cadence
 

@@ -9,6 +9,7 @@
 //   payments_due        Mondays 09:00 LA, what is due in the next 7 days
 //   renewals_coming     daily 09:00 LA, contracts that ENTERED the 90-day window since yesterday
 //   weekly_digest       Fridays 16:00 LA: the loop's counts
+//   accountant_pack     monthly, on the day in report_pack_settings: the Reports workbook by email
 //   tasks_assigned      immediate, from routes/team.js (notifyAssigned below)
 const pool = require('../db');
 const mail = require('./mail');
@@ -71,6 +72,28 @@ const JOBS = {
       const list = rows.map((r) => `<li>${r.name} — ${r.type || 'contract'} — expires ${r.exp}</li>`).join('');
       return sendTo(users, 'notification', `${rows.length} contract${rows.length === 1 ? '' : 's'} expiring in 90 days`,
         wrap('Renewals coming', `<ul style="padding-left:18px;">${list}</ul><p><a href="${APP_URL}/renewals">Open Renewals</a></p>`));
+    },
+  },
+  // The accountant pack (routes/reports buildPack): claimed DAILY at 09:00 and
+  // sent once per month, on or after the day in report_pack_settings, for the
+  // previous calendar month. A daily claim that returns 0 costs nothing; the
+  // settings row remembers which period went out so a later day never resends.
+  accountant_pack: {
+    when: ({ hour }) => hour === 9, period: ({ date }) => `pack:${date}`,
+    run: async () => {
+      const reports = require('../routes/reports');
+      const s = await reports.packSettings();
+      if (!s.enabled || !s.recipients) return 0;
+      const now = new Date();
+      const la = laParts(now).date;
+      if (Number(la.slice(8, 10)) < Number(s.day || 5)) return 0;
+      const prev = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      const period = `${prev.getFullYear()}-${String(prev.getMonth() + 1).padStart(2, '0')}`;
+      if (s.last_sent_period === period) return 0;
+      const from = `${period}-01`;
+      const to = `${period}-${String(new Date(prev.getFullYear(), prev.getMonth() + 1, 0).getDate()).padStart(2, '0')}`;
+      const out = await reports.sendPack({ from, to, basis: s.basis, recipients: s.recipients, trigger: 'monthly', period });
+      return out.sent_to.length;
     },
   },
   weekly_digest: {

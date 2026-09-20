@@ -654,6 +654,56 @@ Authoritative project guide: **`boom-dashboard/CLAUDE.md`** — read it before m
   Not done: Esc as a universal modal close (each modal owns its own), ⌘S on the
   NDA/waiver/Settings forms (they have no single save), Enter/e on Ledger rows
   (inline editing has no single "open").
+- **Reports, second pass (2026-09-20, John's calls: selectable basis with a
+  data-driven default · prior period + year-over-year · budget vs actual ·
+  quarter and year columns · charts incl. invoices received · monthly
+  accountant pack by email · spend by vendor and by rep · an honest balance
+  sheet).** **THE BASIS** (`routes/reports.js`): `rowsFor(from, to, basis)`
+  hands `buildPnl` / `pnlDetail` either `bankRows` (statements are the
+  master — the only PROVABLE basis) or `ledgerRows` in the SAME row shape:
+  `ledger` = every alive approved row marked Paid by `payment_date`, statement
+  or not; `accrual` = every alive approved row by `COALESCE(invoice_date,
+  created_at)`, paid or not; income from `artist_income.income_date` on both.
+  Each ledger row is its own part (a family is root slice + children, each
+  with its own category/artist), dismissals bind by the SAME fingerprint so
+  one dismissal holds on every basis, and the "unverified" band exists only on
+  the bank basis. `?basis=` on /pnl, /pnl/detail, /spend-by-artist and the
+  exports; unknown → bank. `GET /reports/basis` → default `bank` once ANY
+  `statement_months` row is reconciled, else `ledger` — a fresh label read
+  zero under the bank basis however much it had paid. The client remembers a
+  chosen basis (`reports_basis`) and an email link's `?basis=` wins; nothing
+  money-shaped is fetched until a basis is known. **Cuts:** `GET /spend-by?dim=
+  vendor|rep` (`buildSpendBy`: operating expense parts by payee / `m_rep`,
+  months across, equals the P&L's operating total — fixture-asserted),
+  `GET /intake` (vendor invoices RECEIVED by invoice month with the
+  pending/approved/paid split; basis-free), `GET /budget-vs-actual` (the
+  simple sheet's Advance + Marketing vs the P&L's per-artist range and
+  lifetime figures). **Client** (`pages/Reports.jsx` + `components/reports/*`,
+  `lib/pnlRollup.js`): `pnlRaw` is the state, `pnl = rollupPnl(pnlRaw, gran)`
+  sums every month-keyed series into quarters/years (a period drill asks the
+  server for the period's from/to); compare = a SECOND fetch of the same
+  report for `shiftRange(from, to, 'prior'|'yoy')` on the same basis,
+  rendered as `ComparePanel` (totals + biggest movers), never as extra table
+  columns; `ReportCharts` (recharts, measured widths — no ResizeObserver in
+  jsdom; palette validated with the dataviz skill; ONE axis per chart) reads
+  the same payloads as the tables; tabs Vendors · Reps · Budget vs actual.
+  **The accountant pack:** `buildPack(from, to, basis)` → Cover (period,
+  basis, reconciled-through, excluded counts) · P&L · Balance sheet as of `to`
+  · Spend by artist · vendor · rep · Dismissed; `GET /pack.xlsx`;
+  `report_pack_settings` (id 1: enabled, day 1–28, recipients, basis,
+  last_sent_period) via GET/PUT `/pack/settings`; `POST /pack/send` (needs the
+  Team mailbox; `MailNotConnected` → 409); notifier job `accountant_pack`
+  claims DAILY at 09:00 and sends the previous calendar month once, on or
+  after the day, remembering `last_sent_period`. **Balance sheet honesty:**
+  `proof { cash_known, note, sources[] }` — no journal, so it cannot fail to
+  balance and says so; cash is UNKNOWN (not zero) with no statement; the
+  derived line is labelled "Unexplained difference (derived)", not equity.
+  Financials stays (hidden) and links to Reports on accrual. Harnesses:
+  `server/scripts/reports-basis-fixture.cjs` (26, run with `MAIL_DRY_RUN=1`
+  on both sides — it seeds a Team mailbox for the send), `npm run reports-dom`
+  (27: full · empty · bs · vendors · budget). Left open: the 1099 readiness
+  sheet in the pack (its builder is embedded in the /bk/1099 route), saved
+  named reports, cell notes, closed-month locks.
 - **Bank-statement heuristics were tuned on Boom's Bank of America statements.** The own-name lists (`statements.js` stop-words, `funding-pairs.js` account-trailer strip) now say Market Street, but the layout parsers have not seen a Market Street statement yet. Expect the AI fallback to do the work until they do.
 
 ## Commands (run from `boom-dashboard/`)
