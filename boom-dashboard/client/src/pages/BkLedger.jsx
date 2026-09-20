@@ -1,7 +1,7 @@
 import { Fragment, useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { createPortal } from 'react-dom'
 import { Loader, AlertCircle, Trash2, Undo2, Download, ExternalLink, Scissors, Plus, Receipt, Ban, RotateCcw, AlertTriangle, ChevronDown, ChevronUp, Copy, ClipboardList } from 'lucide-react'
-import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import api from '../api'
 import { PAYMENT_METHODS, CURRENCIES, CATEGORIES, SOCIAL_PLATFORMS } from '../constants'
 import { useCategories, useIncomeCategories } from '../context/CategoriesContext'
@@ -20,7 +20,7 @@ import { useShortcuts } from '../context/ShortcutsContext'
 import SearchableSelect from '../components/SearchableSelect'
 import getDarkColors from '../utils/darkColors'
 import { useFxRates } from '../context/FxRatesContext'
-import { usdSuffixForEntry, usdItemsSuffix, normalizeArtistKey, parseAmountQuery, filterSocialsForArtist, familyArtists, isPastLocal, isBankStatementRow, normalizeInvoiceNum } from '../utils'
+import { usdSuffixForEntry, usdItemsSuffix, normalizeArtistKey, parseAmountQuery, filterSocialsForArtist, familyArtists, isPastLocal, isBankStatementRow, normalizeInvoiceNum, bankUnverified } from '../utils'
 import { dispositionOf, summariseStatement, extraTransactions } from '../lib/statementLens'
 // The statement display vocabulary, shared with Bank Matching and the
 // Statements library — one answer to "what is this account called" and "what is
@@ -36,6 +36,9 @@ import LedgerCard from '../components/mobile/LedgerCard'
 import LedgerEntrySheet from '../components/mobile/LedgerEntrySheet'
 import FilterSheet, { FilterField } from '../components/mobile/FilterSheet'
 import EmptyState from '../components/EmptyState'
+import { FilterPopover, ActiveChips, DateRange, AttentionToggle, SavedViews, needsAttention, QUICK_RANGES } from '../components/ledger/LedgerFilters'
+import LedgerSummary from '../components/ledger/LedgerSummary'
+import LedgerDrawer, { TemplatesMenu } from '../components/ledger/LedgerDrawer'
 
 // A stable identity for the invoiced half, which reads no statements. A fresh
 // [] here would be a new dependency on every render for the memos below it.
@@ -83,23 +86,23 @@ function fmtShortDate(dateStr) {
 // Toggleable columns — default visibility set per column
 const TOGGLEABLE_COLS = [
   // Identity
-  { key: 'Description', label: 'Description', defaultOn: true  },
+  { key: 'Description', label: 'Description', defaultOn: false  },
   // What for
   { key: 'Song',        label: 'Song',        defaultOn: true  },
   { key: 'Inv #',       label: 'Inv #',       defaultOn: true  },
   // Money
   { key: 'Currency',    label: 'Currency',    defaultOn: false },
   // Vendor contact
-  { key: 'Email',       label: 'Email',       defaultOn: true  },
+  { key: 'Email',       label: 'Email',       defaultOn: false  },
   { key: 'Address',     label: 'Address',     defaultOn: false },
-  { key: 'Bank',        label: 'Bank',        defaultOn: true  },
-  { key: 'Socials',     label: 'Socials',     defaultOn: true  },
-  { key: 'Market Street Rep',    label: 'Market Street Rep',    defaultOn: true  },
+  { key: 'Bank',        label: 'Bank',        defaultOn: false  },
+  { key: 'Socials',     label: 'Socials',     defaultOn: false  },
+  { key: 'Market Street Rep',    label: 'Market Street Rep',    defaultOn: false  },
   // Payment
   { key: 'Method',      label: 'Method',      defaultOn: true  },
   { key: 'Terms',       label: 'Terms',       defaultOn: false },
   { key: 'Due Date',    label: 'Due Date',    defaultOn: false },
-  { key: 'Paid By',     label: 'Paid By',     defaultOn: true  },
+  { key: 'Paid By',     label: 'Paid By',     defaultOn: false  },
   { key: 'Date Paid',   label: 'Date Paid',   defaultOn: false },
   { key: 'Pay Ref',     label: 'Pay Ref',     defaultOn: false },
   // Documents
@@ -112,8 +115,8 @@ const TOGGLEABLE_COLS = [
   { key: 'Recoupable?', label: 'Recoupable?', defaultOn: false },
   { key: 'UFR?',        label: 'UFR?',        defaultOn: false },
   { key: 'Campaign?',   label: 'Campaign?',   defaultOn: false },
-  { key: 'Tone Labels', label: 'Tone Labels', defaultOn: true  },
-  { key: 'Reimb?',      label: 'Reimb?',      defaultOn: true  },
+  { key: 'Tone Labels', label: 'Recoup label', defaultOn: false }, // the recoupment label; 'Tone Labels' was Boom's name for it — the KEY stays so stored column choices still apply
+  { key: 'Reimb?',      label: 'Reimb?',      defaultOn: false  },
   { key: 'Cobrand?',    label: 'Cobrand?',    defaultOn: false },
   { key: 'Bulk Deal?',  label: 'Bulk Deal?',  defaultOn: false },
   // Meta
@@ -223,7 +226,9 @@ const BANK_MODE_HIDDEN = [
 // half from the new default once; every hide after that persists as normal. The
 // invoiced key is untouched — its default has not changed, so its stored values
 // are real preferences.
-const colStorageKey = (bank) => (bank ? 'bk_bank_ledger_hidden_cols_v2' : 'bk_ledger_hidden_cols')
+// Versioned: the default set shrank to a core (2026-09-20 — the row drawer holds the rest), and a key that
+// held the OLD default would show the old view forever.
+const colStorageKey = (bank) => (bank ? 'bk_bank_ledger_hidden_cols_v3' : 'bk_ledger_hidden_cols_v2')
 // Both halves now start from the same place.
 const loadHiddenColsDefault = () => DEFAULT_HIDDEN
 function loadHiddenCols(bank = false) {
@@ -1422,6 +1427,57 @@ export default function BkLedger({ bank = false }) {
   // Shares sourceBucketKey() with the Source column so the two cannot
   // disagree about which badge a row carries.
   const [filterSource, setFilterSource] = useState('')
+  // ── Second pass (2026-09-20): date range · attention · grouping · drawer · URL ──
+  const [dateFrom, setDateFrom] = useState('')
+  const [dateTo, setDateTo] = useState('')
+  const [filterAttention, setFilterAttention] = useState(false)
+  const [groupBy, setGroupBy] = useState('none')
+  const [drawerId, setDrawerId] = useState(null)
+  const [pendingDrop, setPendingDrop] = useState(null)
+  // Filters live in the URL: a reload keeps them and a pasted link carries them.
+  // Only THESE keys are touched — focus / xhalf / stmt belong to other code here.
+  const [searchParams, setSearchParams] = useSearchParams()
+  const urlReady = useRef(false)
+  useEffect(() => {
+    const g = (k) => searchParams.get(k) || ''
+    if (g('q')) setSearch(g('q')); if (g('amt')) setAmountQuery(g('amt')); if (g('qb')) setFilterQB(g('qb')); if (g('recoup')) setFilterRecoup(g('recoup'))
+    if (g('cat')) setFilterCat(g('cat')); if (g('artist')) setFilterArtist(g('artist')); if (g('paid')) setFilterPaid(g('paid')); if (g('method')) setFilterMethod(g('method'))
+    if (g('flag')) setFilterFlag(g('flag')); if (g('bulk')) setFilterBulk(g('bulk')); if (g('src')) setFilterSource(g('src'))
+    if (g('from')) setDateFrom(g('from')); if (g('to')) setDateTo(g('to')); if (g('attn') === '1') setFilterAttention(true); if (g('group')) setGroupBy(g('group'))
+    if (g('range')) { const r = QUICK_RANGES.find(([k]) => k === g('range')); if (r) { const [a, b] = r[2](); setDateFrom(a); setDateTo(b) } }
+    if (g('sort')) { const [f, d] = g('sort').split(':'); if (f && d) { setSortField(f); setSortDir(d) } }
+    urlReady.current = true
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!urlReady.current) return
+    setSearchParams((prev) => {
+      const n = new URLSearchParams(prev)
+      const put = (k, v) => { if (v) n.set(k, v); else n.delete(k) }
+      put('q', search); put('amt', amountQuery); put('qb', filterQB); put('recoup', filterRecoup); put('cat', filterCat); put('artist', filterArtist)
+      put('paid', filterPaid); put('method', filterMethod); put('flag', filterFlag); put('bulk', filterBulk); put('src', filterSource)
+      put('from', dateFrom); put('to', dateTo); put('attn', filterAttention ? '1' : ''); put('group', groupBy === 'none' ? '' : groupBy)
+      put('sort', `${sortField}:${sortDir}` === 'invoice_date:desc' ? '' : `${sortField}:${sortDir}`)
+      n.delete('range')
+      return n
+    }, { replace: true })
+  }, [search, amountQuery, filterQB, filterRecoup, filterCat, filterArtist, filterPaid, filterMethod, filterFlag, filterBulk, filterSource, dateFrom, dateTo, filterAttention, groupBy, sortField, sortDir]) // eslint-disable-line react-hooks/exhaustive-deps
+  const clearAllFilters = () => { setSearch(''); setAmountQuery(''); setFilterQB(''); setFilterRecoup(''); setFilterCat(''); setFilterArtist(''); setFilterPaid(''); setFilterMethod(''); setFilterFlag(''); setFilterSource(''); setFilterBulk(''); setDateFrom(''); setDateTo(''); setFilterAttention(false) }
+  // A saved view is this object; applying one sets exactly these.
+  const VIEW_KEYS = { q: [search, setSearch], amt: [amountQuery, setAmountQuery], qb: [filterQB, setFilterQB], recoup: [filterRecoup, setFilterRecoup], cat: [filterCat, setFilterCat], artist: [filterArtist, setFilterArtist], paid: [filterPaid, setFilterPaid], method: [filterMethod, setFilterMethod], flag: [filterFlag, setFilterFlag], bulk: [filterBulk, setFilterBulk], src: [filterSource, setFilterSource], from: [dateFrom, setDateFrom], to: [dateTo, setDateTo], attention: [filterAttention ? '1' : '', (v) => setFilterAttention(v === '1')], group: [groupBy === 'none' ? '' : groupBy, (v) => setGroupBy(v || 'none')] }
+  const currentView = Object.fromEntries(Object.entries(VIEW_KEYS).filter(([, [v]]) => v).map(([k, [v]]) => [k, v]))
+  const applyView = (params) => {
+    clearAllFilters()
+    for (const [k, v] of Object.entries(params || {})) {
+      if (k === 'range') { const r = QUICK_RANGES.find(([rk]) => rk === v); if (r) { const [a, b] = r[2](); setDateFrom(a); setDateTo(b) } }
+      else if (VIEW_KEYS[k]) VIEW_KEYS[k][1](v)
+    }
+  }
+  const viewIsActive = (params) => {
+    const want = { ...params }
+    if (want.range) { const r = QUICK_RANGES.find(([rk]) => rk === want.range); if (r) { const [a, b] = r[2](); want.from = a; want.to = b } delete want.range }
+    const keys = new Set([...Object.keys(want), ...Object.keys(currentView)])
+    return [...keys].every((k) => (want[k] || '') === (currentView[k] || ''))
+  }
 
   // ── Selection, for the bulk bar ───────────────────────────────────────────
   //
@@ -1513,6 +1569,7 @@ export default function BkLedger({ bank = false }) {
   // Export moved from x to Shift+X: x is SELECT on every list page now.
   usePageShortcuts('/bk/ledger', {
     j: listKeys.next, k: listKeys.prev, x: () => listKeys.verb('x'), f: focusFilter,
+    Enter: () => { const id = Number(listKeys.focused()?.getAttribute('data-entry-id')); if (id) setDrawerId(id) },
     z: () => handleUndo(),
     c: () => setColPanelOpen(v => !v),
     'shift+x': () => {
@@ -2140,6 +2197,9 @@ export default function BkLedger({ bank = false }) {
     const n = normalizeInvoiceNum(search.trim())
     return n && n.length >= 2 ? n : ''
   })()
+  // "Needs attention" is one predicate (components/ledger/LedgerFilters) shared by the toggle and the summary.
+  const qbConnected = entries.some(x => x.in_quickbooks === 'Yes')
+  const attentionCtx = { qbConnected, isBankRow, bankUnverified }
   const preView = entries.filter(e => {
     const q = search.toLowerCase()
     if (q) {
@@ -2167,6 +2227,9 @@ export default function BkLedger({ bank = false }) {
     // bank_evidence.statement_id is the row's own line, resolved through the
     // family root — the same join the merge uses.
     if (stmtId && String(e.bank_evidence?.statement_id ?? '') !== String(stmtId)) return false
+    if (dateFrom && (!e.invoice_date || String(e.invoice_date).slice(0, 10) < dateFrom)) return false
+    if (dateTo && (!e.invoice_date || String(e.invoice_date).slice(0, 10) > dateTo)) return false
+    if (filterAttention && !needsAttention(e, attentionCtx)) return false
     return true
   })
 
@@ -2216,8 +2279,27 @@ export default function BkLedger({ bank = false }) {
       roots.push(e)
     }
   })
+  // Group by (2026-09-20): a header row per group with its count and subtotal
+  // (family totals — root slice plus children), groups in the order the sort
+  // first meets them, so a date sort makes month groups chronological.
+  const groupKeyOf = (e) => groupBy === 'vendor' ? (e.payee || 'No payee')
+    : groupBy === 'artist' ? (e.artist || 'No artist')
+    : groupBy === 'category' ? (e.category || 'No category')
+    : groupBy === 'month' ? (e.invoice_date ? String(e.invoice_date).slice(0, 7) : 'No date') : null
+  const monthName = (k) => (/^\d{4}-\d{2}$/.test(k) ? `${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][Number(k.slice(5)) - 1]} ${k.slice(0, 4)}` : k)
   const flat = []
-  roots.forEach(e => { flat.push(e); (childrenOf[e.id] || []).forEach(c => flat.push(c)) })
+  if (groupBy && groupBy !== 'none') {
+    const groups = new Map()
+    roots.forEach(e => { const k = groupKeyOf(e); if (!groups.has(k)) groups.set(k, []); groups.get(k).push(e) })
+    for (const [k, list] of groups) {
+      const totals = {}
+      list.flatMap(e => [e, ...(childrenOf[e.id] || [])]).forEach(m => { const c = m.currency || 'USD'; totals[c] = (totals[c] || 0) + (Number(m.amount) || 0) })
+      flat.push({ __group: true, id: `g:${k}`, key: k, label: groupBy === 'month' ? monthName(k) : k, count: list.length, totals })
+      list.forEach(e => { flat.push(e); (childrenOf[e.id] || []).forEach(c => flat.push(c)) })
+    }
+  } else {
+    roots.forEach(e => { flat.push(e); (childrenOf[e.id] || []).forEach(c => flat.push(c)) })
+  }
 
   // ── Incremental render ────────────────────────────────────────────────────
   //
@@ -2234,7 +2316,7 @@ export default function BkLedger({ bank = false }) {
   // a Railway build fails while /health keeps serving the old bundle, and the
   // single-sticky-cell row layout doesn't fit a windowing library's fixed-height
   // row contract without being torn apart.
-  const renderable = flat.filter(e => !(e.parent_id && inSet.has(e.parent_id))
+  const renderable = flat.filter(e => e.__group || !(e.parent_id && inSet.has(e.parent_id))
     || expandedGroups.has(e.parent_id))
   // A ?focus= target BEYOND the render window has to be painted, or the deep-link
   // scroll queries the DOM for a row that was never rendered and silently does
@@ -3151,6 +3233,24 @@ export default function BkLedger({ bank = false }) {
     )
   }
 
+  // The filter model the popover, the chips and the count all read.
+  const filterFields = [
+    { key: 'qb', label: 'QuickBooks', value: filterQB, onChange: setFilterQB, options: [{ value: 'No', label: 'QB — Pending' }, { value: 'Yes', label: 'QB — Done' }] },
+    { key: 'recoup', label: 'Recoupable', value: filterRecoup, onChange: setFilterRecoup, options: [{ value: 'Yes', label: 'Recoupable' }, { value: 'No', label: 'Not recoupable' }] },
+    { key: 'flag', label: 'Flags', value: filterFlag, onChange: setFilterFlag, options: [{ value: 'Yes', label: 'Flagged only' }, { value: 'No', label: 'Unflagged only' }] },
+    { key: 'src', label: 'Source', value: filterSource, onChange: setFilterSource, options: SOURCE_BUCKETS.map(b => ({ value: b.key, label: b.label })) },
+    { key: 'bulk', label: 'Bulk deals', value: filterBulk, onChange: setFilterBulk, options: [{ value: 'Yes', label: 'Bulk deals only' }, { value: 'No', label: 'Non-bulk only' }] },
+    { key: 'cat', label: 'Category', value: filterCat, onChange: setFilterCat, options: allCats, allLabel: 'All categories' },
+    { key: 'artist', label: 'Artist', value: filterArtist, onChange: setFilterArtist, allLabel: 'All artists', render: () => <SearchableSelect value={filterArtist} onChange={setFilterArtist} options={allArtists} placeholder="All artists" allLabel="All artists" style={{ ...filterSty, width: '100%' }} /> },
+    { key: 'paid', label: 'Payment', value: filterPaid, onChange: setFilterPaid, options: ['Unpaid', 'Partial', 'Paid'], allLabel: 'All payments' },
+    { key: 'method', label: 'Method', value: filterMethod, onChange: setFilterMethod, options: PAYMENT_METHODS, allLabel: 'All methods' },
+    { key: 'amt', label: 'Amount', value: amountQuery, onChange: setAmountQuery, display: amountQuery, render: () => <input value={amountQuery} onChange={e => setAmountQuery(e.target.value)} placeholder="500 · 500-1000 · >250" style={{ ...filterSty, width: '100%' }} /> },
+  ]
+  const activeFilterCount = filterFields.filter(f => f.value).length + (dateFrom || dateTo ? 1 : 0) + (filterAttention ? 1 : 0)
+  const attentionCount = (filterAttention ? filtered : preView).filter(e => needsAttention(e, attentionCtx)).length
+  const drawerEntry = drawerId != null ? entries.find(e => e.id === drawerId) || null : null
+  const drawerFamily = drawerEntry ? entries.filter(e => e.parent_id === (drawerEntry.parent_id || drawerEntry.id) && e.id !== drawerEntry.id) : []
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: C.pageBg, fontSize: 14 }}>
 
@@ -3207,7 +3307,9 @@ export default function BkLedger({ bank = false }) {
             <option value="created_at:desc">Uploaded: newest</option>
             <option value="created_at:asc">Uploaded: oldest</option>
           </select>
+          <DateRange from={dateFrom} to={dateTo} onChange={(a, b) => { setDateFrom(a); setDateTo(b) }} C={C} inputStyle={selectSty} />
         </div>
+        <SavedViews current={currentView} onApply={applyView} isActive={viewIsActive} C={C} />
         {/* Filter strip */}
         <div data-tour="ledger-filters" style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
           {/* Leads the strip: the coarse cut comes before the fine filters,
@@ -3259,83 +3361,9 @@ export default function BkLedger({ bank = false }) {
               <div style={{ width: 1, height: 22, background: C.border, flexShrink: 0 }} />
             </>
           )}
-          <select style={filterSty} value={filterQB}     onChange={e => setFilterQB(e.target.value)}>
-            <option value="">All QB</option>
-            <option value="No">QB — Pending</option>
-            <option value="Yes">QB — Done</option>
-          </select>
-          <select style={filterSty} value={filterRecoup}   onChange={e => setFilterRecoup(e.target.value)}>
-            <option value="">All Recoup</option>
-            <option value="Yes">Recoupable</option>
-            <option value="No">Not Recoupable</option>
-          </select>
-          {/* Flag filter — mirrors the shape of All Recoup so the toolbar
-              stays visually consistent. "Flagged" is the primary use case;
-              "Unflagged" is included for completeness. */}
-          <select
-            style={{
-              ...filterSty,
-              ...(filterFlag === 'Yes' ? { borderColor: '#f59e0b', color: '#b45309', fontWeight: 700 } : null),
-            }}
-            value={filterFlag}
-            onChange={e => setFilterFlag(e.target.value)}
-            title="Filter by flag-for-review status"
-          >
-            <option value="">All flags</option>
-            <option value="Yes">Flagged only</option>
-            <option value="No">Unflagged only</option>
-          </select>
-          {/* Filter by row origin — options, order and tint all come from
-              SOURCE_BUCKETS, so this list can't fall behind the column. */}
-          <select
-            style={{
-              ...filterSty,
-              ...(filterSource ? { ...sourceBucket(filterSource).tint, fontWeight: 700 } : null),
-            }}
-            value={filterSource}
-            onChange={e => setFilterSource(e.target.value)}
-            title="Filter by where the row was created"
-          >
-            <option value="">All sources</option>
-            {SOURCE_BUCKETS.map(b => <option key={b.key} value={b.key}>{b.label}</option>)}
-          </select>
-          {/* Bulk-deal filter — matches the teal Bulk key in the Source
-              column. Tints when active, same pattern as the others. */}
-          <select
-            style={{
-              ...filterSty,
-              ...(filterBulk === 'Yes' ? { borderColor: '#0d9488', color: '#0f766e', fontWeight: 700 } : null),
-            }}
-            value={filterBulk}
-            onChange={e => setFilterBulk(e.target.value)}
-            title="Filter bulk deals"
-          >
-            <option value="">All deals</option>
-            <option value="Yes">Bulk deals only</option>
-            <option value="No">Non-bulk only</option>
-          </select>
-          <select style={filterSty} value={filterCat}    onChange={e => setFilterCat(e.target.value)}>
-            <option value="">All categories</option>
-            {allCats.map(c => <option key={c} value={c}>{c}</option>)}
-          </select>
-          <SearchableSelect
-            value={filterArtist}
-            onChange={setFilterArtist}
-            options={allArtists}
-            placeholder="All artists"
-            allLabel="All artists"
-            style={filterSty}
-          />
-          <select style={filterSty} value={filterPaid}   onChange={e => setFilterPaid(e.target.value)}>
-            <option value="">All payments</option>
-            <option value="Unpaid">Unpaid</option>
-            <option value="Partial">Partial</option>
-            <option value="Paid">Paid</option>
-          </select>
-          <select style={filterSty} value={filterMethod} onChange={e => setFilterMethod(e.target.value)}>
-            <option value="">All methods</option>
-            {PAYMENT_METHODS.map(m => <option key={m} value={m}>{m}</option>)}
-          </select>
+          <FilterPopover fields={filterFields} activeCount={activeFilterCount} onClearAll={clearAllFilters} C={C} buttonStyle={toolbarBtn} />
+          <AttentionToggle on={filterAttention} count={attentionCount} onChange={setFilterAttention} C={C} buttonStyle={toolbarBtn} />
+          <ActiveChips fields={filterFields} C={C} />
         </div>
         </div>
 
@@ -3376,10 +3404,11 @@ export default function BkLedger({ bank = false }) {
             style={toolbarBtn}
             onMouseEnter={e => { e.currentTarget.style.borderColor = RED; e.currentTarget.style.color = RED }}
             onMouseLeave={e => { e.currentTarget.style.borderColor = '#e2e2e2'; e.currentTarget.style.color = '#777' }}
-            onClick={() => { setSearch(''); setAmountQuery(''); setFilterQB(''); setFilterRecoup(''); setFilterCat(''); setFilterArtist(''); setFilterPaid(''); setFilterMethod(''); setFilterFlag(''); setFilterSource(''); setFilterBulk('') }}
+            onClick={clearAllFilters}
           >
             Clear
           </button>
+          {isAdmin && !bank && <TemplatesMenu onCreated={async () => { await fetchEntries() }} showToast={showToast} buttonStyle={toolbarBtn} C={C} />}
 
           {/* Export menu — the four admin downloads behind one button */}
           {isAdmin && (
@@ -3711,12 +3740,35 @@ export default function BkLedger({ bank = false }) {
         </div>
       )}
 
+      <LedgerSummary rows={filtered.filter(e => !(e.parent_id && inSet.has(e.parent_id)))} fmt={fmt} byCurrency={byCurrency} sortedCurrencies={sortedCurrencies}
+        usdLine={(usdItemsSuffix(filtered, fxRates) || '').trim().replace(/^\(|\)$/g, '') || null}
+        attention={attentionCount} groupBy={groupBy} onGroupBy={setGroupBy} C={C} selectStyle={selectSty} />
+      {drawerEntry && (
+        <LedgerDrawer entry={drawerEntry} family={drawerFamily} canEdit={isAdmin} pendingFile={pendingDrop} onPendingFileUsed={() => setPendingDrop(null)}
+          showToast={showToast} onClose={() => { setDrawerId(null); setPendingDrop(null) }}
+          onRefresh={async () => { await fetchEntries() }} />
+      )}
+
       {/* ── Table ────────────────────────────────────────────────────────── */}
       <div data-tour="ledger-table" style={{ flex: 1, overflowX: 'auto', overflowY: 'auto' }}>
         {flat.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '60px 20px', color: '#777', fontSize: 14 }}>
-            No entries found.
-          </div>
+          entries.length === 0 ? (
+            <div style={{ padding: 24 }} data-ledger-empty>
+              <EmptyState
+                title={bank ? 'No bank lines booked yet' : 'The ledger is empty'}
+                body={bank
+                  ? 'Bank debits that were booked without an invoice show here. Upload a statement and answer its lines on For review.'
+                  : 'Every approved invoice, paid or not, lives here. Approve one on Approvals or add one yourself.'}
+                action={bank ? { label: 'Upload statement', to: '/bk/statements' } : { label: 'Add invoice', to: '/bk/add' }}
+                source={bank ? { label: 'For review', to: '/bk/bank-matching' } : { label: 'Approvals', to: '/bk/approvals' }}
+              />
+            </div>
+          ) : (
+            <div style={{ textAlign: 'center', padding: '60px 20px', color: '#777', fontSize: 14 }} data-ledger-nomatch>
+              No entries match the current filters.
+              <div><button type="button" onClick={clearAllFilters} style={{ ...toolbarBtn, marginTop: 10 }}>Clear filters</button></div>
+            </div>
+          )
         ) : (
           <table className="ledger-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
             <thead>
@@ -3778,7 +3830,7 @@ export default function BkLedger({ bank = false }) {
                 {vis('Recoupable?') && <th style={TH}>Recoup?</th>}
                 {vis('UFR?')        && <th style={TH}>UFR?</th>}
                 {vis('Campaign?')   && <th style={TH}>Campaign?</th>}
-                {vis('Tone Labels') && <th style={TH}>Tone Labels</th>}
+                {vis('Tone Labels') && <th style={TH}>Recoup label</th>}
                 {vis('Cobrand?')    && <th style={TH}>CB?</th>}
                 {vis('Bulk Deal?')  && <th style={TH}>Bulk?</th>}
                 {/* Meta */}
@@ -3813,6 +3865,17 @@ export default function BkLedger({ bank = false }) {
             </thead>
             <tbody>
               {shown.map(entry => {
+                if (entry.__group) {
+                  const curs = Object.keys(entry.totals).sort((a, b) => entry.totals[b] - entry.totals[a])
+                  return (
+                    <tr key={entry.id} data-ledger-group={entry.key}>
+                      <td colSpan={99} style={{ padding: '6px 12px', background: C.elevBg, borderTop: `2px solid ${C.border}`, borderBottom: `1px solid ${C.tdBorder}`, fontSize: 12, fontWeight: 800, color: C.text }}>
+                        {entry.label}
+                        <span style={{ color: C.textMuted, fontWeight: 600, marginLeft: 8 }}>{entry.count} row{entry.count === 1 ? '' : 's'} · {curs.map(c => fmt(entry.totals[c], c)).join(' + ')}</span>
+                      </td>
+                    </tr>
+                  )
+                }
                 const children  = childrenOf[entry.id] || []
                 const isParent  = children.length > 0
                 const isChild   = !!entry.parent_id && inSet.has(entry.parent_id)
@@ -3828,6 +3891,9 @@ export default function BkLedger({ bank = false }) {
                     key={entry.id}
                     data-row
                     data-entry-id={entry.id}
+                    onDoubleClick={e => { if (/^(INPUT|SELECT|TEXTAREA|BUTTON|A)$/.test(e.target.tagName)) return; setDrawerId(entry.id) }}
+                    onDragOver={e => { if (e.dataTransfer?.types?.includes?.('Files')) e.preventDefault() }}
+                    onDrop={e => { const f = e.dataTransfer?.files?.[0]; if (f) { e.preventDefault(); setPendingDrop(f); setDrawerId(entry.id) } }}
                     style={{
                       // Focused deep-link row: subtle amber wash + a 4px
                       // inset amber rail on the left. Kept gentle (not
@@ -3938,6 +4004,8 @@ export default function BkLedger({ bank = false }) {
                             it is noted here so the inconsistency is not "fixed"
                             in the wrong direction.) */}
                         <div style={{ ...fCell, width: FW.payee, gap: 4 }}>
+                          <button type="button" data-row-open onClick={e => { e.stopPropagation(); setDrawerId(entry.id) }} title="Open this row (Enter)"
+                            style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: C.textFaint, fontSize: 14, lineHeight: 1, padding: '0 2px', flexShrink: 0 }}>›</button>
                           {isChild ? (
                             <span style={{ color: '#aaa', fontSize: 11, flex: 1, minWidth: 0 }}></span>
                           ) : (

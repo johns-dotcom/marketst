@@ -205,11 +205,12 @@ const PAGE_TOURS = [
   },
   // ─── Money: Invoices family ─────────────────────────────────────────────
   {
-    id: 'ledger', title: 'Ledger', path: '/bk/ledger', version: '2026-09-20',
+    id: 'ledger', title: 'Ledger', path: '/bk/ledger', version: '2026-09-23',
     steps: [
-      { target: '[data-tour="ledger-toolbar"]', title: 'Every approved invoice', body: 'The ledger is the register of everything approved. Search, an amount filter and a sort sit in the toolbar; z undoes the last edit, c opens the column picker, x exports this half as a spreadsheet.' },
-      { target: '[data-tour="ledger-filters"], [data-tour="ledger-toolbar"]', title: 'Cut it by anything', body: 'QuickBooks, recoupable, flags, source, bulk deal, category, artist, payment status, method. The count on the right says how many rows survive.' },
-      { target: '[data-tour="ledger-table"], [data-tour="ledger-toolbar"]', title: 'Two halves', body: 'This half is invoiced spend. Bank-created rows (money that left with no invoice) live under Bank › Categorized; the link in the toolbar crosses over. Select rows for bulk edits.' },
+      { target: '[data-tour="ledger-toolbar"]', title: 'Every approved invoice', body: 'The register of everything approved. Search, a date range and a sort sit in the toolbar; the filters live behind one button and show as chips; a set of filters can be saved as a view. The URL carries them, so a link shares the exact view.' },
+      { target: '[data-ledger-attention], [data-tour="ledger-filters"], [data-tour="ledger-toolbar"]', title: 'Needs attention', body: 'One toggle for rows missing a document or a W-9, paid with no bank line, not in QuickBooks, or flagged. The count says how many.' },
+      { target: '[data-ledger-summary], [data-tour="ledger-toolbar"]', title: 'The numbers for this filter', body: 'Rows, total by currency, paid against unpaid and the attention count for whatever the filter holds. Group by vendor, artist, category or month to get a subtotal row per group.' },
+      { target: '[data-tour="ledger-table"], [data-tour="ledger-toolbar"]', title: 'Open a row', body: 'The › on a row, a double-click, or Enter opens a drawer with every field, the documents, the split family, bank evidence, QuickBooks and the change history. From there: Clone it, save it as a template, or drop a file on it to attach one. Columns keeps the table to a core set; the rest are one click away.' },
     ],
   },
   {

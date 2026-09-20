@@ -36,7 +36,7 @@ export const PAGE_KEYS = {
   '/flags': [...LIST, K('Enter', 'Open where the focused flag is resolved'), K('a', 'Assign the focused flag'), K('d', 'Dismiss it'), K('s', 'Snooze it'), K('[', 'Previous category'), K(']', 'Next category'), K('f', 'Focus the filter'), K('.', 'Check now (admins) or reload')],
   '/bk/approvals': [...LIST, K('a', 'Approve the focused invoice'), K('r', 'Reject it'), K('shift+a', 'Approve everything listed (opens the checklist deck)'), K('f', 'Focus the search'), K('.', 'Reload')],
   '/bk/payments': [...LIST, K('p', 'Mark the focused invoice paid'), K('h', 'Put it on hold'), K('u', 'Request a rush'), K('x', 'Select it'), K('Enter', 'Edit it'), K('f', 'Focus the search'), K('.', 'Reload')],
-  '/bk/ledger': [...LIST, K('x', 'Select the focused row'), K('c', 'Toggle the columns panel'), K('shift+x', 'Export what is on screen to Excel'), K('z', 'Undo the last change'), K('f', 'Focus the search')],
+  '/bk/ledger': [...LIST, K('Enter', 'Open the focused row'), K('x', 'Select the focused row'), K('c', 'Toggle the columns panel'), K('shift+x', 'Export what is on screen to Excel'), K('z', 'Undo the last change'), K('f', 'Focus the search')],
   '/bk/vendors': [...LIST, K('Enter', 'Open the focused vendor'), K('f', 'Focus the search')],
   '/artists': [...LIST, K('Enter', 'Open the focused artist'), K('n', 'Add an artist'), K('f', 'Focus the search')],
   '/contracts': [...LIST, K('Enter', 'Open the focused contract'), K('n', 'New contract'), K('f', 'Focus the search')],

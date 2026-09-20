@@ -14264,4 +14264,63 @@ router.get('/vendor-zip', async (req, res) => {
   }
 });
 
+// ── Ledger row drawer + row utilities (2026-09-20) ────────────────────────────
+// GET /bk/entries/:id/history — the audit rows for one entry, newest first.
+// Bookkeeping roles only: the log names who changed what, and Users see a
+// rep-scoped ledger rather than everyone's edits.
+router.get('/entries/:id/history', async (req, res) => {
+  try {
+    if (!isAdmin(req.user)) return res.status(403).json({ success: false, error: 'Admin required' });
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id)) return res.status(400).json({ success: false, error: 'Bad id' });
+    const { rows } = await pool.query(
+      `SELECT id, ts, user_name, action, field, old_value, new_value, details FROM bk_audit_log
+        WHERE entry_id = $1 ORDER BY ts DESC, id DESC LIMIT 200`, [id]);
+    res.json({ success: true, data: rows });
+  } catch (err) { res.status(500).json({ success: false, error: err.message }); }
+});
+
+// Recurring templates — the fields of an entry, saved under a name, so rent,
+// software and retainers are one click on the Ledger. Shared across the team
+// (a template is the label's, not a person's). Using one posts to
+// POST /bk/entries like any hand-entered invoice.
+async function ensureTemplates() {
+  await pool.query(`CREATE TABLE IF NOT EXISTS ledger_templates (
+    id SERIAL PRIMARY KEY, name TEXT NOT NULL, fields JSONB NOT NULL DEFAULT '{}'::jsonb,
+    created_by INTEGER REFERENCES users(id) ON DELETE SET NULL, created_at TIMESTAMPTZ DEFAULT NOW(), uses INTEGER NOT NULL DEFAULT 0
+  )`).catch(() => {});
+}
+const TEMPLATE_FIELDS = ['payee', 'description', 'category', 'artist', 'song', 'amount', 'currency', 'payment_method', 'boom_rep', 'notes',
+  'cobrand', 'is_reimbursement', 'vendor_email', 'vendor_name', 'vendor_bank', 'vendor_address', 'payment_terms', 'recoupable', 'social_handles'];
+router.get('/templates', async (req, res) => {
+  try {
+    await ensureTemplates();
+    const { rows } = await pool.query(`SELECT t.id, t.name, t.fields, t.uses, t.created_at, u.name AS created_by_name FROM ledger_templates t LEFT JOIN users u ON u.id = t.created_by ORDER BY t.uses DESC, t.name`);
+    res.json({ success: true, data: rows });
+  } catch (err) { res.status(500).json({ success: false, error: err.message }); }
+});
+router.post('/templates', async (req, res) => {
+  try {
+    await ensureTemplates();
+    const name = String(req.body?.name || '').trim().slice(0, 80);
+    if (!name) return res.status(400).json({ success: false, error: 'A template needs a name' });
+    const src = req.body?.fields || {};
+    const fields = Object.fromEntries(TEMPLATE_FIELDS.filter((k) => src[k] !== undefined && src[k] !== null && src[k] !== '').map((k) => [k, src[k]]));
+    if (!fields.payee && !fields.category) return res.status(400).json({ success: false, error: 'A template needs at least a payee or a category' });
+    const { rows: [t] } = await pool.query(`INSERT INTO ledger_templates (name, fields, created_by) VALUES ($1, $2, $3) RETURNING *`, [name, JSON.stringify(fields), req.user.id]);
+    res.json({ success: true, data: t });
+  } catch (err) { res.status(500).json({ success: false, error: err.message }); }
+});
+router.post('/templates/:id/used', async (req, res) => {
+  try { await pool.query(`UPDATE ledger_templates SET uses = uses + 1 WHERE id = $1`, [Number(req.params.id)]).catch(() => {}); res.json({ success: true }); }
+  catch (err) { res.status(500).json({ success: false, error: err.message }); }
+});
+router.delete('/templates/:id', async (req, res) => {
+  try {
+    if (!isAdmin(req.user)) return res.status(403).json({ success: false, error: 'Admin required' });
+    const { rowCount } = await pool.query(`DELETE FROM ledger_templates WHERE id = $1`, [Number(req.params.id)]);
+    res.json({ success: true, removed: rowCount === 1 });
+  } catch (err) { res.status(500).json({ success: false, error: err.message }); }
+});
+
 module.exports = router;

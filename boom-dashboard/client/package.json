@@ -34,7 +34,8 @@
     "anchors-dom": "node scripts/anchors-dom-run.mjs",
     "flags-dom": "node scripts/flags-dom-run.mjs",
     "shortcuts-fixture": "node scripts/shortcuts-fixture.mjs",
-    "reports-dom": "node scripts/reports-dom-run.mjs"
+    "reports-dom": "node scripts/reports-dom-run.mjs",
+    "ledger-dom": "node scripts/ledger-dom-run.mjs"
   },
   "dependencies": {
     "@react-oauth/google": "^0.13.4",

@@ -249,7 +249,7 @@ theme layer using the same hooks, not this one.
 Client (`cd client && npm run …`): `home-dom`, `handoff-dom`, `hub-dom`,
 `calendar-dom`, `budgetsimple-dom`, `onboarding-dom`, `settings-dom`,
 `mywork-dom`, `tour-dom`, `tours-fixture`, `nav-fixture`, `navpresets-fixture`,
-`vendorform-dom`, `flags-dom`, `shortcuts-fixture`, `reports-dom`. Server (`server/scripts/*.cjs`, against a server on :3011):
+`vendorform-dom`, `flags-dom`, `shortcuts-fixture`, `reports-dom`, `ledger-dom`. Server (`server/scripts/*.cjs`, against a server on :3011):
 `home-loop`, `calendar`, `signing`, `artist-budget-simple`,
 `artist-budget-name`, `settings`, `label`, `invite`, `brand`, `mail`,
 `gmail-transport`, `qbo`, `docusign`, `artist-stats`, `flags-register`, `reports-basis`. Two harness lessons
@@ -291,6 +291,14 @@ vocabulary" has the rules.
 `components/reports/*`, `lib/pnlRollup.js`, `pages/Reports.jsx`. Table
 `report_pack_settings`. Nothing label-shaped; Cadence is ledger-mastered so its
 default basis would simply be `ledger`. Root CLAUDE.md "Reports, second pass".
+
+## 20. Ledger: filters behind one button, URL state, saved views, drawer, grouping — PORT
+
+`components/ledger/*` (LedgerFilters, LedgerSummary, LedgerDrawer + TemplatesMenu),
+`pages/BkLedger.jsx` (filterFields model, URL sync, grouping in `flat`, the
+drawer), `routes/bookkeeping.js` (`GET /entries/:id/history`, `/templates`
+CRUD, table `ledger_templates`). Nothing label-shaped. Root CLAUDE.md "Ledger,
+second pass" has the rules; the storage-key bump matters when porting.
 
 ## Suggested order for Cadence
 

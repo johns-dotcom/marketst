@@ -704,6 +704,42 @@ Authoritative project guide: **`boom-dashboard/CLAUDE.md`** — read it before m
   (27: full · empty · bs · vendors · budget). Left open: the 1099 readiness
   sheet in the pack (its builder is embedded in the /bk/1099 route), saved
   named reports, cell notes, closed-month locks.
+- **Ledger, second pass (2026-09-20, John's calls: filters behind one button
+  + chips + URL + saved views · a row drawer with core default columns ·
+  summary strip · group by with subtotals · a Needs-attention filter · row
+  utilities · the desktop empty state · Tone Labels → Recoup label).**
+  `components/ledger/LedgerFilters.jsx`: `FilterPopover` (the nine dropdowns
+  + amount, driven by a `filterFields` model in BkLedger), `ActiveChips`,
+  `DateRange` (invoice date, `QUICK_RANGES`), `AttentionToggle`, `SavedViews`
+  (built-ins + this browser's, `bk_ledger_views_v1`), and `needsAttention(e,
+  ctx)` — flagged · no document · no W-9 · paid with no bank line
+  (`bankUnverified`) · not in QuickBooks when QuickBooks is in use — ONE
+  predicate the toggle and the summary share. **Filters live in the URL**
+  (`q amt qb recoup cat artist paid method flag bulk src from to attn group
+  sort`; read once on mount, written with `replace`; only these keys are
+  touched — `focus` / `xhalf` / `stmt` belong to other code in the file).
+  `LedgerSummary.jsx` sits above the table: root-row count, total by
+  currency, paid vs unpaid, attention count, and the Group by picker;
+  grouping inserts `{ __group: true }` header rows into `flat` with family
+  subtotals (root slice + children), groups in the order the sort first
+  meets them; `renderable` lets them through. `LedgerDrawer.jsx` opens from
+  the › in the payee cell (`data-row-open`), a double-click on a row (not on
+  a control), or Enter on the focused row: details, documents with a
+  drop-to-attach chooser (`POST /bk/entries/:id/file/:type`), the split
+  family, bank evidence, QuickBooks, history (`GET /bk/entries/:id/history`,
+  bookkeeping roles — `bk_audit_log` by entry), Clone (`POST /bk/entries`
+  with `cloneBody`: same fields, dated today, unpaid, no invoice number) and
+  Save as template (`ledger_templates`, GET/POST/DELETE `/bk/templates`,
+  `TemplatesMenu` "From template" in the toolbar). Dropping a file on a ROW
+  opens the drawer with the file staged. **Core columns**: Description,
+  Email, Bank, Socials, Rep, Paid By, Recoup label and Reimb? default OFF;
+  storage keys bumped (`bk_ledger_hidden_cols_v2`, `bk_bank_…_v3`) so an
+  old key cannot pin the old default. The desktop table's "No entries
+  found." is now the same `EmptyState` the mobile list had, and a filter
+  that matches nothing offers Clear filters. Harnesses: `npm run ledger-dom`
+  (30: full · empty · url), `ledgervendor-dom` still green. Not done:
+  column resize/reorder, a density toggle, recurring schedules (a template
+  is one click, not a timer).
 - **Bank-statement heuristics were tuned on Boom's Bank of America statements.** The own-name lists (`statements.js` stop-words, `funding-pairs.js` account-trailer strip) now say Market Street, but the layout parsers have not seen a Market Street statement yet. Expect the AI fallback to do the work until they do.
 
 ## Commands (run from `boom-dashboard/`)
