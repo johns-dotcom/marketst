@@ -1,6 +1,9 @@
 import { useState, useEffect, useMemo, useRef, Fragment } from 'react'
 import { Loader, AlertCircle, Search, Redo2, ChevronsUpDown, Download, ExternalLink, FileText, ChevronDown, ChevronLeft, ChevronRight, Upload, CheckCircle2, Send, CalendarDays, Undo2, Pencil, Save, X, Trash2, Sheet, Mail, Receipt, Plus, Zap, Pause, Scissors } from 'lucide-react'
 import api from '../api'
+import usePageShortcuts from '../hooks/usePageShortcuts'
+import useListKeys, { focusFilter } from '../hooks/useListKeys'
+import { useShortcuts } from '../context/ShortcutsContext'
 import { useToast } from '../context/ToastContext'
 import FilePreview from '../components/FilePreview'
 // The one split dialog, shared with the Ledger so the two pages cannot disagree
@@ -346,6 +349,18 @@ export default function BkPayments() {
   }
 
   const undoStack = useUndoStack({ apply: applyFieldWrite })
+  // Keys (lib/shortcuts): j/k move over the rows, p/h/u/Enter act on the focused
+  // one by its entry id, x selects, f finds the search box, . reloads.
+  const listKeys = useListKeys()
+  const focusedEntry = () => { const id = Number(listKeys.focused()?.getAttribute('data-entry-id')); return entries.find((e) => e.id === id) || null }
+  usePageShortcuts('/bk/payments', {
+    j: listKeys.next, k: listKeys.prev, x: () => listKeys.verb('x'), f: focusFilter,
+    p: () => { const e = focusedEntry(); if (e && e.payment_status !== 'Paid') handleMarkPaid(e.id) },
+    h: () => { if (!listKeys.verb('h')) { const e = focusedEntry(); if (e && e.payment_status !== 'Paid') { setHoldModalEntry(e); setHoldReason('') } } },
+    u: () => { if (!listKeys.verb('u')) { const e = focusedEntry(); if (e && e.payment_status !== 'Paid') { setRushModalEntry(e); setRushReason('') } } },
+    Enter: () => { const e = focusedEntry(); if (e) startEdit(e) },
+    '.': () => fetchEntries(),
+  })
 
   // A panel edit: write it, then record what it was so it can be walked back.
   const editField = async (entry, field, value) => {
@@ -480,7 +495,9 @@ export default function BkPayments() {
     return next
   })
 
+  const { registerUndo } = useShortcuts()
   const showUndo = (message, undoFn) => {
+    registerUndo(undoFn) // ⌘Z, while the toast stands or after
     if (undoTimerRef.current) clearTimeout(undoTimerRef.current)
     setUndoAction({ message, undo: undoFn })
     undoTimerRef.current = setTimeout(() => setUndoAction(null), 6000)
@@ -3418,6 +3435,7 @@ export default function BkPayments() {
             <input
               value={search}
               onChange={e => setSearch(e.target.value)}
+              data-filter
               placeholder="Search payee, artist, invoice #"
               className="w-full pl-8 pr-3 py-2.5 rounded-xl border border-rule bg-card text-[13px] text-ink outline-none"
             />
@@ -3889,7 +3907,7 @@ export default function BkPayments() {
               <span style={{ background: C.elevBg, color: C.text, fontSize: 12, fontWeight: 700, padding: '1px 8px', borderRadius: 10 }}>{filtered.length}</span>
             </div>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-              <input type="text" placeholder="Search payee, artist, inv #..." value={search} onChange={e => setSearch(e.target.value)} style={inputSty} />
+              <input type="text" data-filter placeholder="Search payee, artist, inv #..." value={search} onChange={e => setSearch(e.target.value)} style={inputSty} />
               {/* Amount filter — accepts "500", "500-1000", ">500",
                   "<=250". parseAmountQuery returns null for empty /
                   invalid input so a typo doesn't wipe the list. Amber
@@ -4076,6 +4094,7 @@ export default function BkPayments() {
                         return (
                           <Fragment key={entry.id}>
                           <tr
+                            data-row data-entry-id={entry.id}
                             style={{ background: baseBg }}
                             onMouseEnter={e => e.currentTarget.style.background = C.rowHover}
                             onMouseLeave={e => e.currentTarget.style.background = baseBg}
@@ -4094,7 +4113,7 @@ export default function BkPayments() {
                                     entry.payment_status !== 'Paid' ||
                                     (entry.has_proof && entry.vendor_email && !entry.confirmation_sent)
                                   ) && (
-                                    <input type="checkbox" checked={selectedIds.has(entry.id)} onChange={() => toggleSelect(entry.id)} style={{ cursor: 'pointer', accentColor: RED }} />
+                                    <input type="checkbox" data-key="x" checked={selectedIds.has(entry.id)} onChange={() => toggleSelect(entry.id)} style={{ cursor: 'pointer', accentColor: RED }} />
                                   )}
                                 </div>
                                 {/* Date */}
@@ -4486,6 +4505,7 @@ export default function BkPayments() {
                                     the conditionals below never overlap. */}
                                 {entry.payment_status !== 'Paid' && !entry.rush_requested && !entry.on_hold && (
                                   <button
+                                    data-key="u"
                                     onClick={() => { setRushModalEntry(entry); setRushReason('') }}
                                     title="Request this payment be paid ASAP — alerts John"
                                     style={{
@@ -4505,6 +4525,7 @@ export default function BkPayments() {
                                 )}
                                 {entry.payment_status !== 'Paid' && !entry.rush_requested && !entry.on_hold && (
                                   <button
+                                    data-key="h"
                                     onClick={() => { setHoldModalEntry(entry); setHoldReason('') }}
                                     title="Place this payment on hold — pauses it without changing anything else"
                                     style={{

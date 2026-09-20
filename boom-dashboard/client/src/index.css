@@ -538,3 +538,7 @@
 .dark ::-webkit-scrollbar-track { background: #0f1117; }
 .dark ::-webkit-scrollbar-thumb { background: #2e3340; border-radius: 4px; }
 .dark ::-webkit-scrollbar-thumb:hover { background: #3a3f50; }
+
+/* ── Keyboard row focus (hooks/useListKeys): j / k land here ── */
+[data-row-focused="1"] { box-shadow: inset 3px 0 0 rgb(var(--color-brand, 51 65 85)), inset 0 0 0 9999px rgba(51, 65, 85, 0.06); }
+.dark [data-row-focused="1"] { box-shadow: inset 3px 0 0 rgb(var(--color-brand, 148 163 184)), inset 0 0 0 9999px rgba(148, 163, 184, 0.10); }

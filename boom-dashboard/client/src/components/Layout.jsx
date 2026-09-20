@@ -32,6 +32,8 @@ import GlobalSearch from './GlobalSearch'
 import EmailPreviewModal from './EmailPreviewModal'
 import KeyboardShortcutsHelp from './KeyboardShortcutsHelp'
 import { TourProvider, useTour, useMedia, SMALL } from './Tour'
+import { ShortcutsProvider } from '../context/ShortcutsContext'
+import GoToChords, { useShortcutChrome } from './GoToChords'
 import BottomNav from './BottomNav'
 import FAB from './FAB'
 import NotificationBell from './NotificationBell'
@@ -363,7 +365,7 @@ function ViewAsDropdown() {
 
 // The tour engine wraps the whole shell so any page's anchors are in reach.
 export default function Layout() {
-  return <TourProvider><LayoutInner /></TourProvider>
+  return <TourProvider><ShortcutsProvider><LayoutInner /></ShortcutsProvider></TourProvider>
 }
 
 // The Walkthrough button: one click starts this page's tour; the chevron
@@ -450,6 +452,8 @@ function LayoutInner() {
   const [copiedLink, setCopiedLink] = useState(false)
   const [copiedBilling, setCopiedBilling] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  // ⌘Z → the page's registered undo; the one-time "press ?" toast; hover hints on [data-key] controls.
+  useShortcutChrome(user)
   const [isMobile, setIsMobile] = useState(false)
 
   // Responsive sidebar: detect screen size
@@ -1036,8 +1040,9 @@ function LayoutInner() {
         </main>
       </div>
 
-      {/* Shortcuts modal */}
+      {/* Shortcuts modal, and g-then-letter navigation */}
       <KeyboardShortcutsHelp open={showShortcuts} onClose={() => setShowShortcuts(false)} />
+      <GoToChords />
 
       {/* Mobile bottom nav + FAB */}
       <BottomNav onOpenSidebar={() => setSidebarOpen(true)} />

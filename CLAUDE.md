@@ -616,6 +616,44 @@ Authoritative project guide: **`boom-dashboard/CLAUDE.md`** — read it before m
   (45), `npm run flags-dom` (35, admin · section · empty · user); home-dom (51)
   and mywork-dom (24) grew the tile and the rail row. Tours `flags` and `home`
   bumped to 2026-09-21.
+- **Keyboard: ONE vocabulary, one file (2026-09-20, John: "what other
+  keyboard shortcuts would be useful?" — his calls: g-then-letter navigation,
+  standardise even where it renames an old key, keys on every list page and
+  the forms, discovery by context-aware ? help + hover hints + a one-time toast
+  + a step in every page tour).** `client/src/lib/shortcuts.js` is THE list:
+  `PAGE_KEYS[path]` (key spec + label per page), `GOTO` (g then h/m/f/c/i/t/r/
+  d/k/a/p/l/b/v/e/o/s), `GLOBAL_KEYS`. Three readers, so nothing drifts: pages
+  bind through `hooks/usePageShortcuts(path, { spec: handler })` (a handler for
+  a key not in PAGE_KEYS is refused; `null` = advertised, handled elsewhere —
+  Messages' ⌘Enter, My Work's n); `components/KeyboardShortcutsHelp` lists
+  THIS page's bound keys first (from `context/ShortcutsContext`), then the
+  global keys and the go-to letters the viewer can open; `tours/index.js`
+  appends a "Keys on this page" step to every page tour with keys, BEFORE the
+  welcome walk is built (versions bumped to 2026-09-22). The vocabulary: j/k
+  move, Enter open, e edit, x select, f filter, n new, . refresh, s sort, y
+  sync, [ ] section, z/⌘Z undo. Renamed: Home r→., Catalog s→y, Ledger export
+  x→Shift+X (x is select). **Row navigation is DOM-driven**
+  (`hooks/useListKeys`): rows carry `data-row` (+ `data-entry-id` where a verb
+  needs the record), verbs click `[data-key="p"]` inside the focused row, Enter
+  prefers `[data-row-open]`; the focused row is `data-row-focused="1"`
+  (index.css draws the rail); rows under `[hidden]` are skipped, geometry is
+  never consulted (jsdom). `f` focuses the first visible `[data-filter]` —
+  `ListSearch` carries it, so every page using it got f for free.
+  `components/GoToChords.jsx`: the chord listener is CAPTURE-phase (page
+  hotkeys register before Layout's, so a bubble listener would let `g f` both
+  jump AND hit the page's f) with a 1.5s hint panel; `useShortcutChrome` does
+  ⌘Z → the page's `registerUndo` (Payments' showUndo and Ledger's handleUndo
+  register), the one-time toast (`shortcuts_hint_v1`), and a MutationObserver
+  that appends " · P" to the title of every `[data-key]` control. Wired:
+  Flags, Payments (p/h/u/x/Enter act on the focused row's entry), Approvals,
+  Ledger, Vendors, Roster, Contracts, Releases, Catalog, Calendar, Deals, Team,
+  Activity, Home (1-6 open the tiles), Create invoice, Messages, My Work.
+  Fixtures: `npm run shortcuts-fixture` (paths in nav, no duplicate keys, no
+  global key rebound, every keyed tour ends on its keys, no bare `useHotkeys`
+  left on a page), flags-dom grew j/d assertions, tour-dom grew the keys step.
+  Not done: Esc as a universal modal close (each modal owns its own), ⌘S on the
+  NDA/waiver/Settings forms (they have no single save), Enter/e on Ledger rows
+  (inline editing has no single "open").
 - **Bank-statement heuristics were tuned on Boom's Bank of America statements.** The own-name lists (`statements.js` stop-words, `funding-pairs.js` account-trailer strip) now say Market Street, but the layout parsers have not seen a Market Street statement yet. Expect the AI fallback to do the work until they do.
 
 ## Commands (run from `boom-dashboard/`)

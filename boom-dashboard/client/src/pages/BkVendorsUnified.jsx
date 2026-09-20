@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import { Building2, Search, Zap, Link2, X, ExternalLink, GitMerge, Flag, ChevronDown, ChevronRight } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import api from '../api'
+import usePageShortcuts from '../hooks/usePageShortcuts'
+import useListKeys, { focusFilter } from '../hooks/useListKeys'
 import BkVendorFlags from './BkVendorFlags'
 import EmptyState from '../components/EmptyState'
 
@@ -290,7 +292,7 @@ export default function BkVendorsUnified() {
       <div className="flex flex-wrap items-center gap-2 mb-4">
         <div className="relative flex-1 min-w-[240px] max-w-md">
           <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-          <input data-tour="vendors-search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search vendor, alias, email, bank payee…"
+          <input data-tour="vendors-search" data-filter value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search vendor, alias, email, bank payee…"
             className="w-full border border-rule rounded-xl pl-9 pr-3 py-2 text-sm bg-card text-ink" />
         </div>
       </div>
@@ -369,7 +371,7 @@ export default function BkVendorsUnified() {
                   </td></tr>
                 )}
                 {filtered.map((v) => (
-                  <tr key={v.name} className="border-b border-divider cursor-pointer hover:bg-gray-50 group"
+                  <tr key={v.name} data-row className="border-b border-divider cursor-pointer hover:bg-gray-50 group"
                     onClick={() => navigate(`/bk/vendors/${encodeURIComponent(v.name)}`)}>
                     <td className="px-3 py-2">
                       <div className="text-[13px] font-bold text-ink truncate max-w-[240px]">{v.name}</div>

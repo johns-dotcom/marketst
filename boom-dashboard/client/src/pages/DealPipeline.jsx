@@ -6,7 +6,7 @@ import { formatDate } from '../utils'
 import Skeleton from '../components/Skeleton'
 import PageHeader from '../components/PageHeader'
 import FilesPanel from '../components/FilesPanel'
-import useHotkeys from '../hooks/useHotkeys'
+import usePageShortcuts from '../hooks/usePageShortcuts'
 import { Button, Input, Select } from '../components/ui'
 import EmptyState from '../components/EmptyState'
 import NextStepPrompt, { useNextStep } from '../components/NextStepPrompt'
@@ -118,9 +118,7 @@ export default function DealPipeline() {
   const [savingEdit, setSavingEdit] = useState(false)
   const [editStatus, setEditStatus] = useState('') // '', 'saved', 'error'
 
-  useHotkeys([
-    { key: 'n', handler: () => setShowForm(true) },
-  ])
+  usePageShortcuts('/deals', { n: () => setShowForm(true) })
   const [dealFileCounts, setDealFileCounts] = useState({})
 
   // Re-hydrate the editable fields whenever a different deal is opened.

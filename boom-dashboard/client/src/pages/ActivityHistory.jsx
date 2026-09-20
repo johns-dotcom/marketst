@@ -8,7 +8,8 @@ import {
 import api from '../api'
 import { humanizeAction } from '../lib/activityText'
 import PageHeader from '../components/PageHeader'
-import useHotkeys from '../hooks/useHotkeys'
+import usePageShortcuts from '../hooks/usePageShortcuts'
+import { focusFilter } from '../hooks/useListKeys'
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -175,9 +176,7 @@ export default function ActivityHistory() {
   const [sort, setSort]               = useState('desc')     // 'desc' | 'asc'
   const [showViews, setShowViews]     = useState(false)     // page views are hidden by default
 
-  useHotkeys([
-    { key: 's', handler: () => setSort(s => s === 'desc' ? 'asc' : 'desc') },
-  ])
+  usePageShortcuts('/activity', { s: () => setSort(s => s === 'desc' ? 'asc' : 'desc'), f: focusFilter })
   const [datePreset, setDatePreset]   = useState('Last 7d')
   const [fromDate, setFromDate]       = useState('')
   const [toDate, setToDate]           = useState('')
@@ -372,6 +371,7 @@ export default function ActivityHistory() {
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
           <input
             type="text"
+            data-filter
             placeholder="Search user or action…"
             value={search}
             onChange={e => setSearch(e.target.value)}

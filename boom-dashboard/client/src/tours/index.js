@@ -14,6 +14,7 @@
 // `path` gates the tour with the same canView the sidebar uses: a bookkeeper
 // never sees the Deals tour.
 import { NAV_GROUPS } from '../navConfig'
+import { PAGE_KEYS, keysSentence } from '../lib/shortcuts'
 const PAGE_TOURS = [
   {
     id: 'home', title: 'Home', path: '/', version: '2026-09-21',
@@ -412,6 +413,17 @@ const PAGE_TOURS = [
   },
 ]
 
+// Every page tour with keys (lib/shortcuts.PAGE_KEYS) ends on them, anchored
+// on the tour's own first target so the step always has somewhere to point.
+// Bumped to 2026-09-22 so everyone sees those tours as updated (John's call).
+const KEYS_VERSION = '2026-09-22'
+for (const t of PAGE_TOURS) {
+  if (!PAGE_KEYS[t.path] || t.match) continue
+  t.steps.push({ target: t.steps[0].target, title: 'Keys on this page', body: `${keysSentence(t.path)}. Press ? any time for the list; g then a letter jumps to another page.` })
+  if (t.version < KEYS_VERSION) t.version = KEYS_VERSION
+}
+// (Appended BEFORE the welcome walk is built from PAGE_TOURS, so the walk runs it too.)
+
 // The welcome tour WALKS THE NAV: every group, every family, every visible
 // tab, in sidebar order — EVERY step of each page's tour, in full, plus a
 // step on each family's tab strip (John, 2026-09-20: the walk must finish a
@@ -440,11 +452,12 @@ function walkSteps() {
   return out
 }
 const WELCOME = {
-  id: 'welcome', title: 'Welcome to the dashboard', path: '/', version: '2026-09-20', auto: 'first-signin', multipage: true,
+  id: 'welcome', title: 'Welcome to the dashboard', path: '/', version: '2026-09-22', auto: 'first-signin', multipage: true,
   steps: [
     { path: '/', target: null, title: 'Welcome to Market Street', body: 'A walk through every page you can open, each one in full — fifteen minutes or so. Skip a page, a family, or the whole tour at any time; replay any page\'s part later from Walkthrough in the top bar.' },
     { path: '/', target: '[data-tour="sidebar"]', prepare: 'sidebar', title: 'Everything is in the sidebar', body: 'Five groups: General, Artists & releases, Money, Reports, Admin. A row with a chevron holds several pages; open it and they appear as tabs across the top. On a phone the ☰ button opens this menu.' },
     { path: '/', target: '[data-tour="search"]', title: 'Search jumps anywhere', body: 'Press / or ⌘K. Type a page, an artist, a vendor or an invoice number.' },
+    { path: '/', target: null, title: 'The keyboard', body: 'Press g then a letter to jump to a page (g f is Flags, g a Approvals, g p Payments). On any list j and k move, Enter opens, e edits, x selects, f finds the filter box, n makes a new one. Press ? for the list on the page you are on.' },
     ...walkSteps(),
     { path: '/', target: '[data-tour="walkthrough"], [data-tour="help"]', title: 'That is the dashboard', body: 'Each page also has its own short tour the first time you open it. Replay any of them from Walkthrough in the top bar (the footprints on a phone), or press ? for shortcuts and tours.' },
   ],

@@ -7,6 +7,8 @@ import FilesPanel from '../components/FilesPanel'
 import PageHeader from '../components/PageHeader'
 import EmptyState from '../components/EmptyState'
 import { useAuth } from '../context/AuthContext'
+import usePageShortcuts from '../hooks/usePageShortcuts'
+import useListKeys, { focusFilter } from '../hooks/useListKeys'
 
 const GENRE_COLORS = {
   'Hip-Hop':        'bg-violet-100 text-violet-700',
@@ -275,6 +277,7 @@ function AddArtistModal({ onClose, onCreated }) {
 }
 
 export default function Artists() {
+  const rosterKeys = useListKeys()
   const navigate = useNavigate()
   const { user } = useAuth()
   const isSuperadmin = user?.role?.toLowerCase() === 'superadmin'
@@ -284,6 +287,7 @@ export default function Artists() {
   // release cannot exist without an artist. A new label needs a first artist
   // before it can do anything else, so this is the one create form the page has.
   const [showAddArtist, setShowAddArtist] = useState(false)
+  usePageShortcuts('/artists', { j: rosterKeys.next, k: rosterKeys.prev, Enter: rosterKeys.open, n: () => setShowAddArtist(true), f: focusFilter })
   const [searchTerm, setSearchTerm] = useState('')
   // Onboarding — which artists are signed and not yet complete, by id, from
   // GET /artists/onboarding (the checklist's own answers). ?onboarding=1
@@ -946,6 +950,7 @@ export default function Artists() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={14} />
             <input
               type="text"
+              data-filter
               placeholder="Search artists…"
               value={searchTerm}
               onChange={handleSearch}
@@ -1177,6 +1182,7 @@ function renderArtistCard(artist, { isArchived, onArchive, onView, genreColor, a
     <div key={artist.id} className="relative group" data-tour="artist-card">
       <button
         type="button"
+        data-row
         onClick={() => onView(artist.id)}
         className={`w-full bg-white border border-gray-100 rounded-xl px-4 py-3.5 pr-12 text-left hover:border-gray-300 hover:shadow-md hover:-translate-y-0.5 transition-all duration-150 flex items-center gap-3.5 ${
           isArchived ? 'opacity-60' : ''

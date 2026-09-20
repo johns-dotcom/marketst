@@ -14,7 +14,9 @@ import FlagButton from '../components/FlagButton'
 import BankEvidenceDot from '../components/BankEvidenceDot'
 import { useAuth } from '../context/AuthContext'
 import { useTheme } from '../context/ThemeContext'
-import useHotkeys from '../hooks/useHotkeys'
+import usePageShortcuts from '../hooks/usePageShortcuts'
+import useListKeys, { focusFilter } from '../hooks/useListKeys'
+import { useShortcuts } from '../context/ShortcutsContext'
 import SearchableSelect from '../components/SearchableSelect'
 import getDarkColors from '../utils/darkColors'
 import { useFxRates } from '../context/FxRatesContext'
@@ -1505,17 +1507,22 @@ export default function BkLedger({ bank = false }) {
   const exportMenuRef = useRef(null)
   const [exportMenuOpen, setExportMenuOpen] = useState(false)
 
-  useHotkeys([
-    { key: 'z', handler: () => handleUndo() },
-    { key: 'c', handler: () => setColPanelOpen(v => !v) },
-    { key: 'x', handler: () => {
+  const listKeys = useListKeys()
+  const { registerUndo } = useShortcuts()
+  useEffect(() => { registerUndo(() => handleUndo()); return () => registerUndo(null) }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  // Export moved from x to Shift+X: x is SELECT on every list page now.
+  usePageShortcuts('/bk/ledger', {
+    j: listKeys.next, k: listKeys.prev, x: () => listKeys.verb('x'), f: focusFilter,
+    z: () => handleUndo(),
+    c: () => setColPanelOpen(v => !v),
+    'shift+x': () => {
       const token = localStorage.getItem('token')
       // The export contains the page. A workbook that silently included the
       // other 2,326 rows would disagree with the screen it came from — and this
       // one goes to the accountant.
       window.open(`${apiBase}/bk/export?token=${token}&source=${bank ? 'bank' : 'invoices'}`, '_blank')
-    }},
-  ])
+    },
+  })
 
   // ── Lifecycle ────────────────────────────────────────────────────────────
   const lastFetchRef = useRef(0)
@@ -2933,6 +2940,7 @@ export default function BkLedger({ bank = false }) {
           <input
             value={search}
             onChange={e => setSearch(e.target.value)}
+            data-filter
             placeholder="Search payee, artist, song, invoice #…"
             className="flex-1 min-w-0 px-3 py-2.5 rounded-xl border border-rule bg-card text-[13px] text-ink outline-none"
           />
@@ -3157,6 +3165,7 @@ export default function BkLedger({ bank = false }) {
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
           <input
             style={{ ...selectSty, width: 230 }}
+            data-filter
             placeholder="Search payee, artist, song, invoice #…"
             value={search}
             onChange={e => setSearch(e.target.value)}
@@ -3817,6 +3826,7 @@ export default function BkLedger({ bank = false }) {
                 return (
                   <tr
                     key={entry.id}
+                    data-row
                     data-entry-id={entry.id}
                     style={{
                       // Focused deep-link row: subtle amber wash + a 4px
@@ -3875,6 +3885,7 @@ export default function BkLedger({ bank = false }) {
                           onClick={e => e.stopPropagation()}>
                           <input
                             type="checkbox"
+                            data-key="x"
                             checked={selected.has(entry.id)}
                             onChange={e => { e.stopPropagation(); toggleRow(entry.id) }}
                             title="Select for a bulk edit"

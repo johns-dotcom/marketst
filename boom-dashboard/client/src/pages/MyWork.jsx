@@ -7,6 +7,7 @@
 // releases, and the money dates I can open); a "Waiting on you" rail that
 // holds only what this person can unblock and hides when empty.
 import { useEffect, useMemo, useRef, useState } from 'react'
+import usePageShortcuts from '../hooks/usePageShortcuts'
 import { Link } from 'react-router-dom'
 import { Plus, Check, Circle, Trash2, AtSign, ChevronDown, ChevronRight, Calendar as CalendarIcon, Inbox, MessageSquare, Hourglass, Mail, Footprints, Loader, Flag } from 'lucide-react'
 import api from '../api'
@@ -44,6 +45,8 @@ const bucketOf = (t) => {
 const BUCKETS = [['overdue', 'Overdue'], ['today', 'Today'], ['week', 'This week'], ['later', 'Later'], ['nodate', 'No date']]
 
 export default function MyWork() {
+  // n focuses the composer — bound by this page's own listener below; advertised for the ? help.
+  usePageShortcuts('/my-work', { n: null })
   const { user, canView } = useAuth()
   const { tours, isDone, doneVersion } = useTour()
   const [data, setData] = useState(null)

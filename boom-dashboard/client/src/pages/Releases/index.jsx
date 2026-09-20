@@ -8,7 +8,7 @@ import PageHeader from '../../components/PageHeader'
 import Skeleton from '../../components/Skeleton'
 import { Button } from '../../components/ui'
 import { useAuth } from '../../context/AuthContext'
-import useHotkeys from '../../hooks/useHotkeys'
+import usePageShortcuts from '../../hooks/usePageShortcuts'
 import {
   CHECKLIST_ITEMS, CHECKLIST_GROUPS,
   GENRE_OPTIONS, PRIORITY_OPTIONS, TYPE_OPTIONS, MONTHS,
@@ -173,22 +173,19 @@ export default function Releases() {
     setExpandedId(release.id)
   }
 
-  useHotkeys([
-    { key: 'n', handler: () => setShowAddModal(true) },
-    { key: 'v', handler: () => setViewMode(v => v === 'list' ? 'calendar' : 'list') },
-    { key: 'j', handler: () => setFocusedIdx(i => Math.min(i + 1, filteredReleases.length - 1)) },
-    { key: 'k', handler: () => setFocusedIdx(i => Math.max(i - 1, 0)) },
-    { key: 'Enter', handler: () => {
+  usePageShortcuts('/releases', {
+    n: () => setShowAddModal(true),
+    v: () => setViewMode(v => v === 'list' ? 'calendar' : 'list'),
+    j: () => setFocusedIdx(i => Math.min(i + 1, filteredReleases.length - 1)),
+    k: () => setFocusedIdx(i => Math.max(i - 1, 0)),
+    Enter: () => {
       if (focusedIdx >= 0 && focusedIdx < filteredReleases.length) {
         const r = filteredReleases[focusedIdx]
         setExpandedId(prev => prev === r.id ? null : r.id)
       }
-    }},
-    ...TAB_IDS.map((tab, i) => ({
-      key: String(i + 1),
-      handler: () => { if (expandedId) setTab(expandedId, tab) },
-    })),
-  ])
+    },
+    ...Object.fromEntries(TAB_IDS.map((tab, i) => [String(i + 1), () => { if (expandedId) setTab(expandedId, tab) }])),
+  })
 
   // Ref map: release id → DOM row element, for scroll-to on expand
   const rowRefs = useRef({})

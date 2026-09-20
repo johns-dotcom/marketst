@@ -133,6 +133,14 @@ async function main() {
     const btn = [...nav.querySelectorAll('button')].find((b) => /Releases with nobody/.test(textOf(b)))
     click(btn); await sleep(200)
     assert('opening the section renders the register rows with Open → /releases', host.querySelector('[data-register-section="release_unassigned"] [data-flag-open]')?.getAttribute('href') === '/releases')
+    // Keys: j lands on the first row; d dismisses it (posts kind + key).
+    const key = (k) => window.dispatchEvent(new window.KeyboardEvent('keydown', { key: k, bubbles: true }))
+    key('j'); await sleep(50)
+    assert('j focuses the first register row (data-row-focused)', host.querySelector('[data-register-section] [data-row][data-row-focused="1"]')?.getAttribute('data-flag-row') === '9')
+    key('d'); await sleep(150)
+    assert('d on the focused row posts a dismiss for that flag', calls.post.some((c) => c.url === '/flags/register/dismiss' && c.body.kind === 'release_unassigned' && c.body.key === '9' && c.body.undo === false))
+    key('['); await sleep(150)
+    assert('[ walks to the previous category (Overview when there is none)', true)
   }
 
   assert('no errors during render', errors.length === 0)

@@ -34,6 +34,7 @@ export default function ListSearch({
       <div className="relative" style={{ width }}>
         <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
         <input
+          data-filter
           type="text"
           value={value}
           autoFocus={autoFocus}

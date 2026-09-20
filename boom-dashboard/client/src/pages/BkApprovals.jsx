@@ -10,7 +10,8 @@ import W9ReviewDeck from '../components/W9ReviewDeck'
 import api from '../api'
 import { useFxRates } from '../context/FxRatesContext'
 import { usdSuffixForEntry, familyArtists } from '../utils'
-import useHotkeys from '../hooks/useHotkeys'
+import usePageShortcuts from '../hooks/usePageShortcuts'
+import { focusFilter } from '../hooks/useListKeys'
 import useIsMobile from '../hooks/useIsMobile'
 import getDarkColors from '../utils/darkColors'
 import { useTheme } from '../context/ThemeContext'
@@ -231,19 +232,21 @@ export default function BkApprovals() {
     } catch { setAuditTrail([]) }
   }
 
-  useHotkeys([
-    { key: 'j', handler: () => setFocusedIdx(i => Math.min(i + 1, filtered.length - 1)) },
-    { key: 'k', handler: () => setFocusedIdx(i => Math.max(i - 1, 0)) },
-    { key: 'a', handler: () => { if (focusedIdx >= 0 && focusedIdx < filtered.length) handleApprove(filtered[focusedIdx].id) } },
-    { key: 'r', handler: () => { if (focusedIdx >= 0 && focusedIdx < filtered.length) setRejectingId(filtered[focusedIdx].id) } },
-    { key: 'a', shift: true, handler: () => {
+  usePageShortcuts('/bk/approvals', {
+    j: () => setFocusedIdx(i => Math.min(i + 1, filtered.length - 1)),
+    k: () => setFocusedIdx(i => Math.max(i - 1, 0)),
+    a: () => { if (focusedIdx >= 0 && focusedIdx < filtered.length) handleApprove(filtered[focusedIdx].id) },
+    r: () => { if (focusedIdx >= 0 && focusedIdx < filtered.length) setRejectingId(filtered[focusedIdx].id) },
+    f: focusFilter,
+    '.': () => fetchApprovals(),
+    'shift+a': () => {
       // No confirm dialog any more: this opens the checklist deck, which is a
       // far better prompt than "are you sure?" — nothing is approved until each
       // card is answered, so a stray Shift+A now costs a keystroke, not money.
       if (filtered.length === 0) return
       handleBulkApprove(new Set(filtered.map(e => e.id)))
-    } },
-  ])
+    },
+  })
 
   // Filters
   const [search, setSearch] = useState('')
@@ -819,7 +822,7 @@ export default function BkApprovals() {
           <div style={{ position: 'relative', ...(isMobileView ? { flex: '1 1 100%' } : null) }}>
             <Search style={{ position: 'absolute', left: 11, top: '50%', transform: 'translateY(-50%)', width: 15, height: 15, color: '#aaa' }} />
             <input
-              type="text" placeholder="Search vendor, artist, invoice #..."
+              type="text" data-filter placeholder="Search vendor, artist, invoice #..."
               value={search} onChange={e => setSearch(e.target.value)}
               style={{ ...inputSty, ...(isMobileView ? { width: '100%' } : null) }}
             />

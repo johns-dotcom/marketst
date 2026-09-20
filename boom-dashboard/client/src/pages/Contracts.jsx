@@ -6,7 +6,8 @@ import { formatDate, getFileUrl } from '../utils'
 import FilesPanel from '../components/FilesPanel'
 import FilePreview from '../components/FilePreview'
 import Skeleton from '../components/Skeleton'
-import useHotkeys from '../hooks/useHotkeys'
+import usePageShortcuts from '../hooks/usePageShortcuts'
+import useListKeys, { focusFilter } from '../hooks/useListKeys'
 import PageHeader from '../components/PageHeader'
 import SearchableSelect from '../components/SearchableSelect'
 import NextStepPrompt, { useNextStep } from '../components/NextStepPrompt'
@@ -193,9 +194,8 @@ export default function Contracts() {
     }
   }
 
-  useHotkeys([
-    { key: 'n', handler: () => setShowNewContract(true) },
-  ])
+  const list = useListKeys()
+  usePageShortcuts('/contracts', { j: list.next, k: list.prev, Enter: list.open, n: () => setShowNewContract(true), f: focusFilter })
   const [newContractForm, setNewContractForm] = useState(BLANK_CONTRACT)
   const [savingContract, setSavingContract] = useState(false)
   const [scanning, setScanning] = useState(false)
@@ -1251,6 +1251,7 @@ export default function Contracts() {
                   return (
                     <button
                       key={c.id}
+                      data-row
                       onClick={() => setSelectedContract(c)}
                       className={`flex items-center justify-between px-3 py-2.5 rounded-lg border text-left hover:opacity-80 transition-opacity ${bucket.cls}`}
                     >
@@ -1275,7 +1276,7 @@ export default function Contracts() {
       <div data-tour="contracts-filters" className="card p-4 flex flex-col md:flex-row gap-3">
         <div className="flex-1 relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
-          <input type="text" placeholder="Search by artist name..." value={searchTerm} onChange={handleSearch} className="input-base pl-9" />
+          <input type="text" data-filter placeholder="Search by artist name..." value={searchTerm} onChange={handleSearch} className="input-base pl-9" />
         </div>
         <select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} className="select-base">
           <option value="">All Types</option>

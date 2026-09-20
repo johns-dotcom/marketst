@@ -20,7 +20,7 @@ import Skeleton from '../components/Skeleton'
 import PageHeader from '../components/PageHeader'
 import ReconciledBadge from '../components/ReconciledBadge'
 import { useAuth } from '../context/AuthContext'
-import useHotkeys from '../hooks/useHotkeys'
+import usePageShortcuts from '../hooks/usePageShortcuts'
 import { humanizeAction } from '../lib/activityText'
 import { groupOf } from './Calendar'
 
@@ -307,9 +307,9 @@ export default function Dashboard() {
     }
   }
 
-  useHotkeys([
-    { key: 'r', handler: () => fetchData() },
-  ])
+  // Keys: `.` reloads (was r — r is reject on Approvals, so one vocabulary); 1-6 open the loop tiles in order.
+  const tile = (n) => () => { const t = document.querySelectorAll('[data-tile]')[n - 1]; if (t) t.click() }
+  usePageShortcuts('/', { '.': () => fetchData(), 1: tile(1), 2: tile(2), 3: tile(3), 4: tile(4), 5: tile(5), 6: tile(6) })
 
   const hasActiveFilters = filterGenre || filterFormat
   const clearFilters = () => {

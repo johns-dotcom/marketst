@@ -13,6 +13,8 @@ import { DOC_TYPES, pickDoc, fileUrl } from '../utils/entryFiles'
 import { PAYMENT_METHODS } from '../constants'
 import { useAuth } from '../context/AuthContext'
 import RegisterSection, { AssignControl, ageLabel } from '../components/flags/RegisterSection'
+import usePageShortcuts from '../hooks/usePageShortcuts'
+import useListKeys, { focusFilter } from '../hooks/useListKeys'
 
 // The global Flags hub — served at /flags. (/duplicates redirects here; the
 // filename is unchanged from when this page only did duplicate detection,
@@ -452,6 +454,18 @@ export default function Duplicates() {
     catch (e) { alert('Could not unassign: ' + (e.response?.data?.error || e.message)) }
   }
   const focusKey = searchParams.get('focus')
+  // Keys: j/k over the rows of the open category, Enter/a/d/s act on the
+  // focused one (RegisterSection rows carry data-row and data-key), [ and ]
+  // walk the categories in rail order, f finds the filter, . is Check now.
+  const listKeys = useListKeys()
+  // navGroups is declared further down; read it at KEY time, never at render
+  // time — a render-time read here is a temporal-dead-zone throw (smoke caught it).
+  const stepTab = (d) => { const railKinds = navGroups.flatMap((g) => g.cats.map((c) => c.kind)); const i = railKinds.indexOf(activeTab); const next = railKinds[(i === -1 ? (d > 0 ? -1 : 0) : i) + d]; if (next) setTab(next) }
+  usePageShortcuts('/flags', {
+    j: listKeys.next, k: listKeys.prev, Enter: listKeys.open,
+    a: () => listKeys.verb('a'), d: () => listKeys.verb('d'), s: () => listKeys.verb('s'),
+    '[': () => stepTab(-1), ']': () => stepTab(1), f: focusFilter, '.': refresh,
+  })
   // Re-fetch when the show-dismissed toggle changes so the server can
   // include / exclude the dismissed groups from the main list.
   useEffect(() => { fetch(false) }, [showDismissed])

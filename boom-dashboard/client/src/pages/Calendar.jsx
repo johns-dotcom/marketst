@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { ChevronLeft, ChevronRight, Plus, X, Music, FileText, CheckSquare, Calendar as CalendarIcon, Disc3, Trash2, CreditCard, RefreshCw, ArrowUpRight, Lock, PenLine } from 'lucide-react'
 import api from '../api'
-import useHotkeys from '../hooks/useHotkeys'
+import usePageShortcuts from '../hooks/usePageShortcuts'
 import Skeleton from '../components/Skeleton'
 import EmptyState from '../components/EmptyState'
 
@@ -138,12 +138,7 @@ export default function Calendar() {
   const prevMonth = () => { if (month === 0) { setMonth(11); setYear(y => y - 1) } else setMonth(m => m - 1) }
   const nextMonth = () => { if (month === 11) { setMonth(0); setYear(y => y + 1) } else setMonth(m => m + 1) }
 
-  useHotkeys([
-    { key: 'ArrowLeft', handler: prevMonth },
-    { key: 'ArrowRight', handler: nextMonth },
-    { key: 't', handler: goToday },
-    { key: 'n', handler: () => setShowAddForm(true) },
-  ])
+  usePageShortcuts('/calendar', { ArrowLeft: prevMonth, ArrowRight: nextMonth, t: goToday, n: () => setShowAddForm(true) })
 
   const selectedEvents = selectedDate ? filteredEvents.filter(e => e.date === selectedDate) : []
 

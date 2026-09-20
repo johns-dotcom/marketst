@@ -3,7 +3,7 @@ import { Plus, Trash2, Check, ChevronDown, Send, LayoutList, Columns, AtSign, X,
 import { Link } from 'react-router-dom'
 import api from '../api'
 import { useAuth } from '../context/AuthContext'
-import useHotkeys from '../hooks/useHotkeys'
+import usePageShortcuts from '../hooks/usePageShortcuts'
 import { formatDate, isPastLocal, daysUntilLocal } from '../utils'
 import PageHeader from '../components/PageHeader'
 import EmailPreviewModal from '../components/EmailPreviewModal'
@@ -72,10 +72,8 @@ export default function Team() {
   const [showNewTask, setShowNewTask] = useState(false)
 
   const VIEW_MODES = [...(isAdminUser ? ['directory'] : []), 'people', 'workload', 'velocity']
-  useHotkeys([
-    { key: 'n', handler: () => setShowNewTask(true) },
-    ...VIEW_MODES.map((m, i) => ({ key: String(i + 1), handler: () => setViewMode(m) })),
-  ])
+  // 1-4 pick a view; a User has three views, so 4 is advertised but does nothing for them.
+  usePageShortcuts('/team', { n: () => setShowNewTask(true), ...Object.fromEntries(['1', '2', '3', '4'].map((k, i) => [k, () => { if (VIEW_MODES[i]) setViewMode(VIEW_MODES[i]) }])) })
   const [newTaskForm, setNewTaskForm] = useState({ description: '', priority: 'Medium', due_date: '', category: '' })
   const [newTaskAssignee, setNewTaskAssignee] = useState(null)
   const [showMention, setShowMention] = useState(false)

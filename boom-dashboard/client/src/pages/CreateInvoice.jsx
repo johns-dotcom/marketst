@@ -3,7 +3,7 @@ import { Trash2, Download, Plus, Loader, FileText, Eye, Table2, LayoutGrid, X, P
 import { jsPDF } from 'jspdf'
 import api from '../api'
 import { Link } from 'react-router-dom'
-import useHotkeys from '../hooks/useHotkeys'
+import usePageShortcuts from '../hooks/usePageShortcuts'
 import Skeleton from '../components/Skeleton'
 import { CURRENCIES } from '../constants'
 
@@ -270,14 +270,14 @@ export default function CreateInvoice() {
   const previewRef = useRef(null)
   const formRef = useRef(null)
 
-  useHotkeys([
-    { key: 'Enter', meta: true, handler: () => formRef.current?.requestSubmit() },
-    { key: 'l', meta: true, shift: true, handler: () => setLineItems(prev => [...prev, { description: '', amount: '' }]) },
-    { key: 'p', meta: true, handler: () => {
+  usePageShortcuts('/create-invoice', {
+    'meta+Enter': () => formRef.current?.requestSubmit(),
+    'meta+shift+l': () => setLineItems(prev => [...prev, { description: '', amount: '' }]),
+    'meta+p': () => {
       if (previewInv) handleDownload(previewInv)
       else if (invoices.length) handleDownload(invoices[0])
-    }},
-  ])
+    },
+  })
 
   const fetchInvoices = async () => {
     try {

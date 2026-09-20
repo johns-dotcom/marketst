@@ -26,7 +26,9 @@ const shimNav = rawNav.replace(/import\s*\{[\s\S]*?\}\s*from\s*'lucide-react'/, 
 const navUrl = 'data:text/javascript;base64,' + Buffer.from(shimNav).toString('base64')
 const { NAV_PAGES, NAV_GROUPS } = await import(navUrl)
 // tours/index.js imports the nav (for the welcome walk); point it at the shim
-const rawTours = fs.readFileSync(SRC + '/tours/index.js', 'utf8').replace("from '../navConfig'", `from '${navUrl}'`)
+// …and lib/shortcuts (the keys step), which has no imports of its own
+const keysUrl = 'data:text/javascript;base64,' + Buffer.from(fs.readFileSync(SRC + '/lib/shortcuts.js', 'utf8')).toString('base64')
+const rawTours = fs.readFileSync(SRC + '/tours/index.js', 'utf8').replace("from '../navConfig'", `from '${navUrl}'`).replace("from '../lib/shortcuts'", `from '${keysUrl}'`)
 const { TOURS, tourForPath, WALK_PATHS } = await import('data:text/javascript;base64,' + Buffer.from(rawTours).toString('base64'))
 
 // every data attribute rendered anywhere in the client source

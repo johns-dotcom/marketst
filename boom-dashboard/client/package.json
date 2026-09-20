@@ -32,7 +32,8 @@
     "tours-fixture": "node scripts/tours-fixture.mjs",
     "mywork-dom": "node scripts/mywork-dom-run.mjs",
     "anchors-dom": "node scripts/anchors-dom-run.mjs",
-    "flags-dom": "node scripts/flags-dom-run.mjs"
+    "flags-dom": "node scripts/flags-dom-run.mjs",
+    "shortcuts-fixture": "node scripts/shortcuts-fixture.mjs"
   },
   "dependencies": {
     "@react-oauth/google": "^0.13.4",

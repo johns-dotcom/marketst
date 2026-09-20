@@ -60,7 +60,7 @@ export function AssignControl({ kind, flagKey = '*', current, team = [], onAssig
   }
   return (
     <span className="relative inline-block" ref={ref}>
-      <button onClick={() => setOpen((v) => !v)} className={`inline-flex items-center gap-1 rounded-md border border-rule text-gray-500 hover:text-ink hover:border-gray-400 font-semibold ${pad}`} data-flag-assign>
+      <button onClick={() => setOpen((v) => !v)} className={`inline-flex items-center gap-1 rounded-md border border-rule text-gray-500 hover:text-ink hover:border-gray-400 font-semibold ${pad}`} data-flag-assign data-key={flagKey === '*' ? undefined : 'a'}>
         <UserPlus size={11} /> Assign
       </button>
       {open && (
@@ -90,7 +90,7 @@ function SnoozeMenu({ onPick }) {
   }, [open])
   return (
     <span className="relative inline-block" ref={ref}>
-      <button onClick={() => setOpen((v) => !v)} className="inline-flex items-center gap-1 rounded-md border border-rule px-2 py-1 text-[11px] font-semibold text-gray-500 hover:text-ink hover:border-gray-400" data-flag-snooze title="Hide until a date; it returns then, or sooner if the row changes">
+      <button onClick={() => setOpen((v) => !v)} className="inline-flex items-center gap-1 rounded-md border border-rule px-2 py-1 text-[11px] font-semibold text-gray-500 hover:text-ink hover:border-gray-400" data-flag-snooze data-key="s" title="Hide until a date; it returns then, or sooner if the row changes">
         <Clock size={11} /> Snooze
       </button>
       {open && (
@@ -117,7 +117,7 @@ export default function RegisterSection({ cat, team, focusKey, isNew, onDismiss,
         const fresh = !off && isNew?.(it.first_seen)
         const focused = focusKey != null && String(focusKey) === String(it.key)
         return (
-          <div key={it.key} ref={focused ? focusRef : null} data-flag-row={it.key} data-flag-new={fresh ? '1' : undefined}
+          <div key={it.key} ref={focused ? focusRef : null} data-row data-flag-row={it.key} data-flag-new={fresh ? '1' : undefined}
             className={`flex items-start gap-3 px-4 py-3 ${off ? 'opacity-50' : ''} ${focused ? 'ring-2 ring-boom-300 ring-inset' : ''}`}>
             <span className={`mt-1.5 w-2 h-2 rounded-full shrink-0 ${SEV_DOT[it.severity] || SEV_DOT.medium}`} title={it.severity} />
             <div className="flex-1 min-w-0">
@@ -138,11 +138,11 @@ export default function RegisterSection({ cat, team, focusKey, isNew, onDismiss,
               ) : (
                 <>
                   <SnoozeMenu onPick={(until) => onDismiss(cat.kind, it.key, until, false)} />
-                  <button onClick={() => onDismiss(cat.kind, it.key, null, false)} className="inline-flex items-center gap-1 rounded-md border border-rule px-2 py-1 text-[11px] font-semibold text-gray-500 hover:text-ink" data-flag-dismiss title="Hide for good — unless the row changes, then it comes back"><EyeOff size={11} /> Dismiss</button>
+                  <button onClick={() => onDismiss(cat.kind, it.key, null, false)} className="inline-flex items-center gap-1 rounded-md border border-rule px-2 py-1 text-[11px] font-semibold text-gray-500 hover:text-ink" data-flag-dismiss data-key="d" title="Hide for good — unless the row changes, then it comes back"><EyeOff size={11} /> Dismiss</button>
                 </>
               )}
               {it.to && (
-                <Link to={it.to} className="inline-flex items-center gap-1 rounded-md bg-boom-600 text-white px-2 py-1 text-[11px] font-bold hover:bg-boom-700" data-flag-open>
+                <Link to={it.to} className="inline-flex items-center gap-1 rounded-md bg-boom-600 text-white px-2 py-1 text-[11px] font-bold hover:bg-boom-700" data-flag-open data-row-open>
                   Open <ExternalLink size={11} />
                 </Link>
               )}

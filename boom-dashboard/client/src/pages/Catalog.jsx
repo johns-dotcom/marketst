@@ -5,7 +5,8 @@ import api from '../api'
 import { formatDate } from '../utils'
 import PageHeader from '../components/PageHeader'
 import Skeleton from '../components/Skeleton'
-import useHotkeys from '../hooks/useHotkeys'
+import usePageShortcuts from '../hooks/usePageShortcuts'
+import { focusFilter } from '../hooks/useListKeys'
 import EmptyState from '../components/EmptyState'
 
 // Convert a Spotify URI or raw ID to a full https:// URL
@@ -73,10 +74,8 @@ export default function Catalog() {
   const [showArchived, setShowArchived] = useState(false)
 
   const TIME_PRESETS = ['all', 'this_year', '6mo', '12mo', '24mo', 'custom']
-  useHotkeys([
-    { key: 's', handler: () => handleSyncArtwork() },
-    ...TIME_PRESETS.map((p, i) => ({ key: String(i + 1), handler: () => setTimePreset(p) })),
-  ])
+  // y syncs (was s — s is sort elsewhere); 1-6 are the time windows; f finds the search box.
+  usePageShortcuts('/catalog', { y: () => handleSyncArtwork(), f: focusFilter, ...Object.fromEntries(TIME_PRESETS.map((p, i) => [String(i + 1), () => setTimePreset(p)])) })
 
   useEffect(() => {
     fetchCatalog()
@@ -304,6 +303,7 @@ export default function Catalog() {
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
             <input
               type="text"
+              data-filter
               placeholder="Search artist, title, UPC, ISRC…"
               value={search}
               onChange={e => setSearch(e.target.value)}

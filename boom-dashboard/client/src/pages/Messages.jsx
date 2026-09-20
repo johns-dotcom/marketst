@@ -9,6 +9,7 @@ import api from '../api'
 import { useAuth } from '../context/AuthContext'
 import { useSocket } from '../context/SocketContext'
 import { useToast } from '../context/ToastContext'
+import usePageShortcuts from '../hooks/usePageShortcuts'
 import Skeleton from '../components/Skeleton'
 
 /**
@@ -44,6 +45,8 @@ function fmtBytes(n) {
 }
 
 export default function Messages() {
+  // ⌘Enter sends — handled in the composer's own onKeyDown (a window binding would send twice); advertised here for the ? help.
+  usePageShortcuts('/messages', { 'meta+Enter': null })
   const { channelId: channelIdParam } = useParams()
   const navigate = useNavigate()
   const { user } = useAuth()
@@ -1153,7 +1156,7 @@ function Composer({ placeholder, roster, me, busy, typingLine, onTyping, onSend 
             if (e.key === 'Enter' && !e.shiftKey && mentionQuery != null && matches.length > 0) {
               e.preventDefault(); insertMention(matches[0]); return
             }
-            if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submit(); return }
+            if (e.key === 'Enter' && (!e.shiftKey || e.metaKey || e.ctrlKey)) { e.preventDefault(); submit(); return }
             if (e.key === 'Escape') setMentionQuery(null)
           }}
           placeholder={`${placeholder}  (@ to mention · paste or drop a file to attach)`}

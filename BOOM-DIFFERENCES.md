@@ -249,7 +249,7 @@ theme layer using the same hooks, not this one.
 Client (`cd client && npm run …`): `home-dom`, `handoff-dom`, `hub-dom`,
 `calendar-dom`, `budgetsimple-dom`, `onboarding-dom`, `settings-dom`,
 `mywork-dom`, `tour-dom`, `tours-fixture`, `nav-fixture`, `navpresets-fixture`,
-`vendorform-dom`, `flags-dom`. Server (`server/scripts/*.cjs`, against a server on :3011):
+`vendorform-dom`, `flags-dom`, `shortcuts-fixture`. Server (`server/scripts/*.cjs`, against a server on :3011):
 `home-loop`, `calendar`, `signing`, `artist-budget-simple`,
 `artist-budget-name`, `settings`, `label`, `invite`, `brand`, `mail`,
 `gmail-transport`, `qbo`, `docusign`, `artist-stats`, `flags-register`. Two harness lessons
@@ -273,6 +273,16 @@ Setup detectors read `label_settings`, `mailboxes`, `qbo_connection`,
 `docusign_account` which Cadence would map to its own tables. The LABEL-shaped
 part is the seed for `artist_required` (Boom's ten category names) and the
 `DAYS` thresholds.
+
+## 18. Keyboard vocabulary — PORT
+
+`client/src/lib/shortcuts.js` (PAGE_KEYS / GOTO / GLOBAL_KEYS), `hooks/usePageShortcuts.js`,
+`hooks/useListKeys.js`, `context/ShortcutsContext.jsx`, `components/GoToChords.jsx`,
+`components/KeyboardShortcutsHelp.jsx` (context-aware), `data-row` / `data-key` /
+`data-filter` attributes on the list pages, the keys step in `tours/index.js`,
+`scripts/shortcuts-fixture.mjs`. Nothing label-shaped in it; GOTO's letters
+follow the nav paths, which Cadence shares. Root CLAUDE.md "Keyboard: ONE
+vocabulary" has the rules.
 
 ## Suggested order for Cadence
 
