@@ -511,6 +511,19 @@ Authoritative project guide: **`boom-dashboard/CLAUDE.md`** — read it before m
   `…/api/quickbooks/oauth/callback`), the DocuSign app (`…/api/docusign/oauth/callback`),
   set the env vars, connect both under Settings › Integrations, fill
   Settings › Label › Signatory email, map QuickBooks accounts.
+- **Roles (2026-09-20, John: "whats the difference between superadmin and
+  admin? add role descriptions"):** `client/src/lib/roles.js` is THE
+  description of the four roles — Superadmin · Admin · Approver · User (there
+  is no Bookkeeper role; that is a nav preset) — written from the code that
+  enforces them, rendered as Label settings › **Roles** (`?tab=roles`,
+  `RolesTab` in Settings.jsx: cards with Can / Cannot / Pages, plus the four
+  axes role · pages · department · hierarchy level) and as the one-line help
+  under the role picker in PersonModal (which links there). Only a Superadmin:
+  manages Admin/Superadmin accounts and their page rows, writes the label's
+  EIN and bank account, View-as, Restricted admin docs, permanent artist
+  delete, the full archive. Page rows never bind a Superadmin, bind an Admin
+  once curated, and bind an Approver/User always. When a gate changes, change
+  roles.js in the same commit.
 - **Bank-statement heuristics were tuned on Boom's Bank of America statements.** The own-name lists (`statements.js` stop-words, `funding-pairs.js` account-trailer strip) now say Market Street, but the layout parsers have not seen a Market Street statement yet. Expect the AI fallback to do the work until they do.
 
 ## Commands (run from `boom-dashboard/`)
