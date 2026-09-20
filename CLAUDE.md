@@ -486,6 +486,29 @@ Authoritative project guide: **`boom-dashboard/CLAUDE.md`** — read it before m
   on purpose: drag-reorder, pins, per-task calendar view, group-by
   switcher, the My Releases tab (the agenda carries my releases). Harness:
   `npm run mywork-dom` (21, full · empty). The my-work tour has four steps.
+  **Notes are a small document, and the whole row opens (2026-09-20, John:
+  "a task should expand when clicked upon. I also want to improve the notes
+  section … to work more like a document (think bullet points)").**
+  `components/NotesEditor.jsx`: `tasks.notes` stays TEXT holding
+  markdown-ish lines — `- ` bullets (two-space nesting), `1. ` numbers,
+  `- [ ]` / `- [x]` checkboxes, `#`/`##` headings, `**bold**`, `_italic_`,
+  `` `code` ``, bare links — RENDERED when idle (`NotesView`, React nodes,
+  never HTML injection; links `noopener noreferrer`) and a textarea while
+  focused. Enter continues the list (numbers increment, a ticked box
+  continues unticked), Enter on an empty item ends it, Tab / Shift+Tab
+  indent, ⌘B ⌘I wrap, ⌘⇧8 / ⌘⇧7 / ⌘⇧9 toggle bullet / number / checklist,
+  Esc or ⌘Enter close. Saves on blur, 1.2s after the last keystroke, and at
+  once when a checkbox is ticked in the rendered view; unmounting flushes a
+  pending save. The line edits (`toggleMarker`, `wrapSelection`,
+  `continueList`, `indentLines`, `toggleCheckAt`, `toggleHeading`) are pure
+  exports shared by the keyboard and the toolbar. `compact` = the strip
+  beside the task (no toolbar, clamped); the expanded row shows the FULL
+  editor with a toolbar and hides the strip, both bound to one `notes`
+  state. The row header (`data-task-row`) expands on click anywhere that is
+  not a control, and the chevron is a button (`data-task-chevron`) — before,
+  only the title text toggled. mywork-dom is 34 now (bullets, end-of-list,
+  Esc save, rendered blocks, checkbox save, chevron, row background, the
+  toolbar). Tour `my-work` bumped to 2026-09-21.
 - **Three integrations (2026-09-20, John: "add quickbooks online, docusign,
   spotify for artists").** Shared plumbing: `server/lib/integrations-schema.js`
   (all tables, called from runMigrations after the mail tables),

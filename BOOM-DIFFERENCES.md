@@ -319,6 +319,13 @@ vendor form no longer showing the account holder. Fixture
 every one of these holes; port the whole commit. Root CLAUDE.md "Security pass"
 lists what was recommended but not done.
 
+## 22. My Work notes as a document, whole-row expand — PORT
+
+`components/NotesEditor.jsx` (new; markdown-ish TEXT, rendered idle, smart
+keys, toolbar), `pages/MyWork.jsx` TaskRow. No server change — `tasks.notes`
+is already TEXT. Boom's My Work is the old two-pane page, so port the
+component and wire it wherever Boom edits task notes.
+
 ## Suggested order for Cadence
 
 1. Sections 3, 4, 7 (sidebar, presets, Settings) — they define the shape

@@ -10,6 +10,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import usePageShortcuts from '../hooks/usePageShortcuts'
 import { Link } from 'react-router-dom'
 import { Plus, Check, Circle, Trash2, AtSign, ChevronDown, ChevronRight, Calendar as CalendarIcon, Inbox, MessageSquare, Hourglass, Mail, Footprints, Loader, Flag } from 'lucide-react'
+import NotesEditor from '../components/NotesEditor'
 import api from '../api'
 import { isPastLocal, daysUntilLocal } from '../utils'
 import { useAuth } from '../context/AuthContext'
@@ -286,14 +287,19 @@ function TaskRow({ task: t, expanded, onToggleExpand, onToggleDone, onPatch, onD
   const done = t.status === 'Done'
   const isOverdue = !done && isPastLocal(t.due_date)
   const fromOther = t.assigned_by && String(t.assigned_by) !== String(user?.id)
+  const saveNotes = (next) => { if (next !== (t.notes || '')) onPatch({ notes: next }) }
+  // The WHOLE row header expands the task (John: "a task should expand when
+  // clicked upon") — the title, the chevron, the empty space. Controls inside
+  // it (the done circle, the notes, links) keep their own click.
+  const onRowClick = (e) => { if (e.target.closest('button,a,input,select,textarea,[data-notes-editor]')) return; onToggleExpand() }
   return (
     <li className={`px-4 ${expanded ? 'bg-gray-50/60' : ''}`} data-task={t.id} data-expanded={expanded ? '1' : '0'}>
-      <div className="flex items-center gap-3 py-2.5">
+      <div className="flex items-center gap-3 py-2.5 cursor-pointer" onClick={onRowClick} data-task-row>
         <button onClick={onToggleDone} aria-label={done ? 'Mark not done' : 'Mark done'} data-task-toggle
           className={`w-5 h-5 rounded-full border-2 flex-shrink-0 inline-flex items-center justify-center transition-colors ${done ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-gray-300 hover:border-gray-500 text-transparent'}`}>
           <Check size={12} strokeWidth={3} />
         </button>
-        <button onClick={onToggleExpand} className="flex-1 min-w-0 text-left" data-task-open>
+        <button onClick={onToggleExpand} className="flex-1 min-w-0 text-left" data-task-open aria-expanded={expanded}>
           <p className={`text-sm truncate ${done ? 'line-through text-gray-400' : 'text-gray-900 font-medium'}`}>{t.description}</p>
           <p className="text-[11px] text-gray-400 truncate flex items-center gap-1.5 mt-0.5">
             <span className={`inline-block w-1.5 h-1.5 rounded-full ${PRIORITY_DOT[t.priority] || 'bg-gray-300'}`} />{t.priority || 'Medium'}
@@ -306,14 +312,19 @@ function TaskRow({ task: t, expanded, onToggleExpand, onToggleDone, onPatch, onD
           </p>
         </button>
         {/* Notes live NEXT TO the task, always visible (John: "I liked the notes
-            section being always visible next to the task"). Saves on blur. */}
-        <textarea value={notes} onChange={(e) => setNotes(e.target.value)} onBlur={() => { if (notes !== (t.notes || '')) onPatch({ notes }) }}
-          rows={Math.min(3, Math.max(1, (notes || '').split('\n').length))} placeholder="Notes…" aria-label="Notes" data-task-notes
-          className="hidden sm:block w-[260px] lg:w-[320px] flex-shrink-0 text-xs leading-snug text-gray-700 placeholder:text-gray-300 bg-transparent border border-transparent hover:border-rule focus:border-rule focus:bg-card rounded-md px-2 py-1 resize-none outline-none" />
-        <ChevronDown size={14} className={`text-gray-300 flex-shrink-0 transition-transform ${expanded ? 'rotate-180' : ''}`} />
+            section being always visible next to the task"). A small document:
+            bullets, checkboxes, headings; saves on blur and as you type. When
+            the row is expanded the full editor below takes over. */}
+        {!expanded && (
+          <NotesEditor compact value={notes} onChange={setNotes} onSave={saveNotes} data-task-notes
+            className="hidden sm:block w-[260px] lg:w-[320px] flex-shrink-0" />
+        )}
+        <button type="button" onClick={onToggleExpand} aria-label={expanded ? 'Collapse' : 'Expand'} data-task-chevron
+          className="p-1 -m-1 rounded text-gray-300 hover:text-gray-600 flex-shrink-0">
+          <ChevronDown size={14} className={`transition-transform ${expanded ? 'rotate-180' : ''}`} />
+        </button>
       </div>
-      <textarea value={notes} onChange={(e) => setNotes(e.target.value)} onBlur={() => { if (notes !== (t.notes || '')) onPatch({ notes }) }} rows={1} placeholder="Notes…" aria-label="Notes"
-        className="sm:hidden w-full mb-2 ml-8 text-xs text-gray-700 placeholder:text-gray-300 bg-transparent border border-transparent focus:border-rule rounded-md px-2 py-1 resize-none outline-none" />
+      {!expanded && <NotesEditor compact value={notes} onChange={setNotes} onSave={saveNotes} className="sm:hidden w-full mb-2 ml-8" />}
       {expanded && (
         <div className="pb-4 pl-8 space-y-3" data-task-detail>
           <input value={desc} onChange={(e) => setDesc(e.target.value)} onBlur={() => { if (desc.trim() && desc !== t.description) onPatch({ description: desc.trim() }) }} className="input-base w-full text-sm font-medium" aria-label="Task" />
@@ -326,6 +337,10 @@ function TaskRow({ task: t, expanded, onToggleExpand, onToggleDone, onPatch, onD
               {team.map((m) => <option key={m.id} value={m.id}>{String(m.id) === String(user?.id) ? 'Me' : m.name}</option>)}
             </select>
             <button onClick={onDelete} className="ml-auto inline-flex items-center gap-1 text-xs text-gray-400 hover:text-rose-600" data-task-delete><Trash2 size={12} /> Delete</button>
+          </div>
+          <div data-task-notes-full>
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400 mb-1">Notes</p>
+            <NotesEditor value={notes} onChange={setNotes} onSave={saveNotes} placeholder="Notes — bullets, checklists, headings. Enter continues a list." data-task-notes />
           </div>
         </div>
       )}
