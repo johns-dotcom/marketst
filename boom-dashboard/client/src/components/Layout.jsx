@@ -423,7 +423,11 @@ function WalkthroughButton() {
               This page · {label(pageTour)}
             </button>
           )}
-          {tours.filter((t) => t.id !== pageTour?.id).map((t) => (
+          {/* A tour that MATCHES a pattern (an artist's profile) needs a real
+              instance under it: offered only as "This page" when you are on
+              one. Listed here it navigated to the roster and ran on the wrong
+              page, where every anchor read as "appears once there is data". */}
+          {tours.filter((t) => t.id !== pageTour?.id && !t.match).map((t) => (
             <button key={t.id} onClick={() => go(t)} role="menuitem" className={`w-full text-left px-3 text-xs text-gray-700 hover:bg-gray-50 ${small ? 'py-3 text-sm' : 'py-1.5'}`}>
               {label(t)}
             </button>
