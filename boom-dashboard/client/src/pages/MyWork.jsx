@@ -298,12 +298,18 @@ function TaskRow({ task: t, expanded, onToggleExpand, onToggleDone, onPatch, onD
             {t.release_name && <span>· {t.release_name}</span>}
           </p>
         </button>
+        {/* Notes live NEXT TO the task, always visible (John: "I liked the notes
+            section being always visible next to the task"). Saves on blur. */}
+        <textarea value={notes} onChange={(e) => setNotes(e.target.value)} onBlur={() => { if (notes !== (t.notes || '')) onPatch({ notes }) }}
+          rows={Math.min(3, Math.max(1, (notes || '').split('\n').length))} placeholder="Notes…" aria-label="Notes" data-task-notes
+          className="hidden sm:block w-[260px] lg:w-[320px] flex-shrink-0 text-xs leading-snug text-gray-700 placeholder:text-gray-300 bg-transparent border border-transparent hover:border-rule focus:border-rule focus:bg-card rounded-md px-2 py-1 resize-none outline-none" />
         <ChevronDown size={14} className={`text-gray-300 flex-shrink-0 transition-transform ${expanded ? 'rotate-180' : ''}`} />
       </div>
+      <textarea value={notes} onChange={(e) => setNotes(e.target.value)} onBlur={() => { if (notes !== (t.notes || '')) onPatch({ notes }) }} rows={1} placeholder="Notes…" aria-label="Notes"
+        className="sm:hidden w-full mb-2 ml-8 text-xs text-gray-700 placeholder:text-gray-300 bg-transparent border border-transparent focus:border-rule rounded-md px-2 py-1 resize-none outline-none" />
       {expanded && (
         <div className="pb-4 pl-8 space-y-3" data-task-detail>
           <input value={desc} onChange={(e) => setDesc(e.target.value)} onBlur={() => { if (desc.trim() && desc !== t.description) onPatch({ description: desc.trim() }) }} className="input-base w-full text-sm font-medium" aria-label="Task" />
-          <textarea value={notes} onChange={(e) => setNotes(e.target.value)} onBlur={() => { if (notes !== (t.notes || '')) onPatch({ notes }) }} rows={2} placeholder="Notes…" className="input-base w-full text-sm" />
           <div className="flex items-center gap-2 flex-wrap">
             <select value={t.status} onChange={(e) => onPatch({ status: e.target.value })} className="select-base text-xs py-1">{STATUSES.map((s) => <option key={s}>{s}</option>)}</select>
             <select value={t.priority || 'Medium'} onChange={(e) => onPatch({ priority: e.target.value })} className="select-base text-xs py-1">{PRIORITIES.map((p) => <option key={p}>{p}</option>)}</select>

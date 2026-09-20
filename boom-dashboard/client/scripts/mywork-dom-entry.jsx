@@ -48,6 +48,9 @@ async function main() {
   assert('open tasks are grouped Overdue · Today · This week · No date', buckets.join(',') === 'overdue,today,week,nodate')
   assert('a task assigned by someone else says who', /from Sam/.test(textOf(host.querySelector('[data-task="1"]'))))
   assert('done tasks are folded behind a count', /1 done/.test(textOf(host.querySelector('[data-toggle-done]'))) && !host.querySelector('[data-task="5"]'))
+  assert('notes sit beside every task, visible without expanding, and save on blur', !!host.querySelector('[data-task="3"] [data-task-notes]') && host.querySelector('[data-task="3"]')?.getAttribute('data-expanded') === '0')
+  { const ta = host.querySelector('[data-task="3"] [data-task-notes]'); const setter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value').set; setter.call(ta, 'call the studio'); ta.dispatchEvent(new window.Event('input', { bubbles: true })); ta.dispatchEvent(new window.FocusEvent('focusout', { bubbles: true })); await sleep(150)
+    assert('…a note typed beside the task is saved', calls.put.some((c) => /\/team\/tasks\/3$/.test(c.url) && c.body?.notes === 'call the studio')) }
   click(host.querySelector('[data-task="3"] [data-task-open]')); await sleep(100)
   assert('clicking a row expands it in place', host.querySelector('[data-task="3"]')?.getAttribute('data-expanded') === '1' && !!host.querySelector('[data-task="3"] [data-task-detail]'))
   const sel = host.querySelector('[data-task="3"] [data-task-detail] select'); sel.value = 'In Progress'; sel.dispatchEvent(new window.Event('change', { bubbles: true })); await sleep(100)
