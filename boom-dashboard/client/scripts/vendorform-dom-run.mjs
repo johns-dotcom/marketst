@@ -28,7 +28,8 @@ if (!jsdom) {
 }
 
 const BUNDLE = '.domsmoke/out/vendorform-dom-entry.js'
-const SCENARIOS = ['ach', 'wire', 'wiredom', 'paypal', 'files', 'multi']
+const SCENARIOS = ['ach', 'wire', 'wiredom', 'paypal', 'files', 'multi', 'backnext', 'enter', 'remove']
+const SCENARIO_ENV = { backnext: { PARSE: '1' }, remove: { SLOWSCAN: '1' } }
 const PAGES = ['live', 'lab']
 
 let failed = 0
@@ -36,7 +37,7 @@ for (const page of PAGES) {
   for (const scenario of SCENARIOS) {
     const r = spawnSync(process.execPath, ['scripts/mywork-dom-check.mjs', BUNDLE], {
       encoding: 'utf8',
-      env: { ...process.env, SCENARIO: scenario, PAGE: page === 'lab' ? 'lab' : '', JSDOM_PATH: jsdom },
+      env: { ...process.env, ...(SCENARIO_ENV[scenario] || {}), SCENARIO: scenario, PAGE: page === 'lab' ? 'lab' : '', JSDOM_PATH: jsdom },
     })
     const out = (r.stdout || '') + (r.stderr || '')
     // An assertion line is `label -> true`. Anything false, anything thrown, and

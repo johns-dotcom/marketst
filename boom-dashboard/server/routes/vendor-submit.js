@@ -15,10 +15,13 @@ const { applyArtistNormalization } = require('../lib/artist-normalization');
 
 const router = express.Router();
 
-// Rate limit AI validation endpoints — 5 per minute per IP
+// Rate limit AI validation endpoints — per minute per IP. Was 5: a ten-invoice
+// batch spends one validation per document plus one parse per invoice, so the
+// sixth call 429'd and the client's pre-flight invoice-number gate fell open
+// SILENTLY for the rest (2026-09-20). Still bounded — this is public AI spend.
 const aiValidationLimiter = rateLimit({
   windowMs: 60 * 1000,
-  max: 5,
+  max: 30,
   standardHeaders: true,
   legacyHeaders: false,
   message: { valid: true, issues: [], rate_limited: true },
@@ -350,7 +353,7 @@ router.post('/validate-invoice', aiValidationLimiter, singleUpload, async (req, 
 
 REQUIREMENTS — the document MUST:
 1. Be an actual invoice or receipt (not bank instructions, a screenshot of a conversation, a random document, etc.)
-2. Be billed/addressed to "Market Street", "Market Street", "Market Street", or similar
+2. Be billed/addressed to "Market Street", "Market.st", "Market St", "Market Street Records", or similar
 3. Include an invoice number or receipt reference
 4. Include a date
 5. Include a total amount
@@ -620,7 +623,7 @@ IMPORTANT: A document IS attached and you CAN read it. Read every visible field 
 router.get('/roster', async (_req, res) => {
   try {
     const { rows } = await pool.query(
-      `SELECT name FROM artists WHERE name IS NOT NULL AND TRIM(name) <> '' ORDER BY LOWER(name)`
+      `SELECT name FROM artists WHERE name IS NOT NULL AND TRIM(name) <> '' AND (archived = false OR archived IS NULL) ORDER BY LOWER(name)`
     );
     res.set('Cache-Control', 'public, max-age=300');
     res.json({ artists: rows.map(r => r.name) });
@@ -1304,7 +1307,12 @@ router.post('/submit', sandboxAuth, fileFieldsSafe, async (req, res) => {
   // where one fails: "nothing is written until all pass." Checking as we insert
   // would leave three rows on Approvals and two invoices the vendor still has to
   // send, with no way to tell from the form which is which.
-  {
+  // A reimbursement's document is a RECEIPT — a coffee shop's till slip has no
+  // invoice number to match, and the client never runs this gate for one (it
+  // skips the parse in reimbursement mode). The server used to run it anyway,
+  // so a receipt the AI read confidently was refused at Submit with no way
+  // through (2026-09-20).
+  if (!isReimb) {
     const gate = await mapWithConcurrency(invoices, 4, (inv) =>
       extractInvoiceNumberFromDocument(inv.file.buffer, inv.file.originalname));
     const failures = [];
@@ -1850,7 +1858,8 @@ router.post('/submit', sandboxAuth, fileFieldsSafe, async (req, res) => {
     console.error(`Vendor submit failed at stage=${stage}:`, err.code || err.name || '', err.message);
     if (err.stack) console.error(err.stack);
     if (!res.headersSent) {
-      res.status(500).json({ error: 'Submission failed. Please try again.', stage, detail: err.message });
+      // The raw pg / R2 message is for the log, not for an anonymous caller.
+      res.status(500).json({ error: 'Submission failed. Please try again.', stage, ...(process.env.NODE_ENV === 'production' ? {} : { detail: err.message }) });
     }
   }
 });

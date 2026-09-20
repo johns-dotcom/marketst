@@ -295,6 +295,10 @@ app.use('/api/vendor/lookup', vendorReadLimiter);
 app.use('/api/vendor/check-dup', vendorReadLimiter);
 app.use('/api/vendor/check-similar', vendorReadLimiter);
 app.use('/api/vendor/check-w9', vendorReadLimiter);
+// payment-on-file answers method · last four · name on the account for ANY email — non-secret
+// one at a time, harvestable unthrottled. roster lists the artists. Both public, both limited.
+app.use('/api/vendor/payment-on-file', vendorReadLimiter);
+app.use('/api/vendor/roster', vendorReadLimiter);
 app.use('/api/vendor', vendorSubmitRoutes);
 app.use('/api/invoices', invoicesRoutes);
 app.use('/api/ndas', ndasRoutes);

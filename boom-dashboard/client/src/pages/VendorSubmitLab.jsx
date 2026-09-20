@@ -52,6 +52,7 @@ import { CATEGORIES, CURRENCY_OPTIONS as CURRENCIES } from '../constants'
 import { useCategories } from '../context/CategoriesContext'
 import { useBoomReps } from '../context/BoomRepsContext'
 import '../styles/marketst-form.css'
+import useUnsavedWarning from '../hooks/useUnsavedWarning'
 
 // Always render a safe, human-readable string — Claude may sometimes return
 // each issue as an object instead of a string, which crashes React.
@@ -80,6 +81,10 @@ const INVOICE_MAX = 10
 // is required on an INTERNATIONAL wire: an IBAN already contains it, a SWIFT/BIC
 // does not. The server decides for real; this just avoids asking for a box the
 // vendor has no answer for.
+// ABA routing checksum (mod 10 with weights 3-7-1), as lib/payment-fields.js
+// checks it. Mirrored so a mistyped routing number is caught on step 1, not as
+// a 400 after the whole wizard.
+const abaValid = (v) => { const d = String(v || '').replace(/\D/g, ''); if (d.length !== 9) return false; const w = [3, 7, 1, 3, 7, 1, 3, 7, 1]; return d.split('').reduce((t, c, i) => t + Number(c) * w[i], 0) % 10 === 0 }
 const alnumUp = (v) => String(v || '').replace(/[^A-Za-z0-9]/g, '').toUpperCase()
 const looksLikeIban = (v) => /^[A-Z]{2}[0-9]{2}[A-Z0-9]{10,30}$/.test(alnumUp(v))
 const looksLikeSwift = (v) => /^[A-Z]{4}[A-Z]{2}[A-Z0-9]{2}([A-Z0-9]{3})?$/.test(alnumUp(v))
@@ -126,6 +131,9 @@ function DropZone({ id, label, required, hint, file, onFile }) {
         </label>
       )}
       <div
+        role="button" tabIndex={0}
+        aria-label={file ? `${label || 'File'}: ${file.name}. Press Enter to replace it` : `${label || 'File'}: click or press Enter to choose a file`}
+        onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); inputRef.current?.click() } }}
         onClick={() => inputRef.current?.click()}
         onDragOver={e => { e.preventDefault(); setDragOver(true) }}
         onDragLeave={() => setDragOver(false)}
@@ -151,7 +159,8 @@ function DropZone({ id, label, required, hint, file, onFile }) {
         ref={inputRef}
         type="file"
         accept=".pdf,.jpg,.jpeg,.png,.webp"
-        className="hidden"
+        className="sr-only"
+        tabIndex={-1}
         onChange={e => e.target.files[0] && onFile(e.target.files[0])}
       />
     </div>
@@ -491,7 +500,7 @@ function InvoiceRow({ index, inv, total, isReimb, errors, onNumber, onFile, onRe
                 type="file"
                 multiple
                 accept=".pdf,.jpg,.jpeg,.png,.webp"
-                className="hidden"
+                className="sr-only"
                 onChange={e => {
                   // Truncate to the cap HERE rather than letting the server
                   // silently drop the overflow: multer's maxCount rejects the
@@ -583,6 +592,8 @@ export default function VendorSubmitLab() {
   const [mode, setMode] = useState('invoice') // 'invoice' | 'reimbursement'
   const [step, setStep] = useState(1) // 1: Your Info, 2: Documents, 3: Project Info
   const [submitted, setSubmitted] = useState(false)
+  // Closing the tab mid-form loses the attached files (the draft keeps only text).
+  useUnsavedWarning(!submitted && step > 1)
   const [submittedName, setSubmittedName] = useState('')
   const [submittedCount, setSubmittedCount] = useState(1)
   const [submitting, setSubmitting] = useState(false)
@@ -715,6 +726,10 @@ export default function VendorSubmitLab() {
   // working copy of whichever invoice step 3 is showing, loaded and saved as
   // you page between them.
   const blankInvoice = () => ({
+    // Stable identity. Async work (the scan, the dup check) used to write back by
+    // INDEX, so removing a row while a scan ran landed the verdict on the wrong
+    // row — or on none, leaving `validating: true` forever and Submit refused.
+    key: `inv-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`,
     file: null,
     invoiceNum: '',
     // Anything else the vendor wants to send WITH THIS invoice: extra pages, a
@@ -738,6 +753,10 @@ export default function VendorSubmitLab() {
 
   const updateInvoice = (i, patch) => setInvoices(list =>
     list.map((inv, k) => (k === i ? { ...inv, ...patch } : inv)))
+  // By key, for anything that completes after the list may have changed. `when`
+  // lets a scan apply only if the row still holds the file it read.
+  const updateInvoiceByKey = (key, patch, when = () => true) => setInvoices(list =>
+    list.map((inv) => (inv.key === key && when(inv) ? { ...inv, ...patch } : inv)))
 
   // The numbers as one string, so effects can depend on "did any invoice number
   // change" without re-running whenever an unrelated part of a row does.
@@ -776,20 +795,24 @@ export default function VendorSubmitLab() {
 
   /** Attach a document to invoice `i` and read it. */
   const validateInvoiceFile = async (i, file) => {
-    updateInvoice(i, { file, validation: null, validating: !!file && !isReimb })
+    const key = invoices[i]?.key
+    updateInvoiceByKey(key, { file, validation: null, validating: !!file && !isReimb })
     if (!file || isReimb) return
+    // Apply the verdict only if THIS file is still the row's document — a
+    // replacement mid-scan must not inherit the old file's read.
+    const still = (inv) => inv.file === file
     try {
       const fd = new FormData()
       fd.append('file', file)
       const r = await fetch('/api/vendor/validate-invoice', { method: 'POST', body: fd })
-      if (!r.ok) { updateInvoice(i, { validation: null, validating: false }); return }
+      if (!r.ok) { updateInvoiceByKey(key, { validation: null, validating: false }, still); return }
       const data = await r.json()
-      updateInvoice(i, {
+      updateInvoiceByKey(key, {
         validation: (data && typeof data === 'object') ? data : null,
         validating: false,
-      })
+      }, still)
     } catch {
-      updateInvoice(i, { validation: null, validating: false })   // fail open
+      updateInvoiceByKey(key, { validation: null, validating: false }, still)   // fail open
     }
   }
 
@@ -984,11 +1007,12 @@ export default function VendorSubmitLab() {
       invoices.forEach((inv, i) => {
         const num = inv.invoiceNum.trim()
         if (!num) {
-          if (inv.dup.duplicate || inv.dup.for) updateInvoice(i, { dup: { checking: false, duplicate: false } })
+          if (inv.dup.duplicate || inv.dup.for) updateInvoiceByKey(inv.key, { dup: { checking: false, duplicate: false } })
           return
         }
         if (inv.dup.for === num || inv.dup.checking) return
-        updateInvoice(i, { dup: { ...inv.dup, checking: true } })
+        const key = inv.key
+        updateInvoiceByKey(key, { dup: { ...inv.dup, checking: true } })
         ;(async () => {
           try {
             const params = new URLSearchParams({ invoice_number: num })
@@ -996,9 +1020,9 @@ export default function VendorSubmitLab() {
             if (name)  params.set('vendor_name', name)
             const r = await fetch(`/api/vendor/check-dup?${params.toString()}`)
             const d = r.ok ? await r.json() : null
-            updateInvoice(i, { dup: { checking: false, duplicate: !!d?.duplicate, for: num } })
+            updateInvoiceByKey(key, { dup: { checking: false, duplicate: !!d?.duplicate, for: num } })
           } catch {
-            updateInvoice(i, { checking: false, dup: { checking: false, duplicate: false, for: num } })
+            updateInvoiceByKey(key, { dup: { checking: false, duplicate: false, for: num } })
           }
         })()
       })
@@ -1011,8 +1035,12 @@ export default function VendorSubmitLab() {
   // (server/lib/payment-fields.js) — this mirror exists so the vendor is told
   // before they press a button rather than by a 400 afterwards. When the two
   // disagree the server wins, which is the only safe direction.
+  // "Use the details on file" only covers the METHOD on file: the server resolves
+  // the fallback only when the methods agree, so a vendor who switched to Wire
+  // with ACH on file must type the wire block or be refused after step 3.
+  useEffect(() => { if (payOnFile?.on_file && payReuse && payOnFile.method && payOnFile.method !== paymentPref) setPayReuse(false) }, [paymentPref]) // eslint-disable-line react-hooks/exhaustive-deps
   const payMissing = (() => {
-    if (payOnFile?.on_file && payReuse) return []
+    if (payOnFile?.on_file && payReuse && (!payOnFile.method || payOnFile.method === paymentPref)) return []
     const m = []
     if (paymentPref === 'ACH') {
       if (!payAccount.trim()) m.push('account number')
@@ -1042,7 +1070,14 @@ export default function VendorSubmitLab() {
       }
     } else if (paymentPref === 'PayPal') {
       if (!payPaypal.trim()) m.push('PayPal email or handle')
+      else if (!(/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(payPaypal.trim()) || /^@?[A-Za-z0-9._-]{3,}$/.test(payPaypal.trim()))) m.push('a PayPal email or handle we can recognise')
     }
+    // Shape, mirrored from the server's validators so a typo is caught here and
+    // not as a 400 after the whole wizard.
+    const usAccount = paymentPref === 'ACH' || (paymentPref === 'Wire' && payWireScope === 'Domestic')
+    if (usAccount && payRouting.trim() && !abaValid(payRouting)) m.push('a valid 9-digit routing number (this one does not check out)')
+    if (usAccount && payAccount.trim() && !/^\d{4,17}$/.test(payAccount.trim())) m.push('an account number of 4 to 17 digits')
+    if (paymentPref === 'Wire' && payWireScope === 'International' && payIbanSwift.trim() && !looksLikeIban(payIbanSwift) && !looksLikeSwift(payIbanSwift)) m.push('an IBAN or SWIFT/BIC in the usual shape')
     return m
   })()
 
@@ -1099,7 +1134,9 @@ export default function VendorSubmitLab() {
         setPayOnFile(d?.on_file ? d : null)
         // Pre-selected, but the vendor still has to look at it — the panel says
         // "still correct?" rather than quietly reusing an account.
-        if (d?.on_file) { setPayReuse(true); if (d.method) setPaymentPref(d.method) }
+        // Never clobber a method the vendor already chose (the /lookup effect above
+        // has the same rule); a Wire half-typed must not flip to ACH when the email lands.
+        if (d?.on_file) { setPayReuse(true); if (d.method) setPaymentPref(prev => prev || d.method) }
       } catch { /* offline or blocked — they type their details, which is fine */ }
     }, 500)
     return () => { cancelled = true; clearTimeout(t) }
@@ -1149,13 +1186,18 @@ export default function VendorSubmitLab() {
   }
 
   /** Fill the step-3 fields from one invoice's parse, never clobbering typing. */
-  const applyParsed = (res) => {
+  const applyParsed = (res, pr = null) => {
     if (!res) { setAiPrefilled(null); setAiWarnings([]); return }
     const d = res
     const data = res.data
     const safe = (v) => (typeof v === 'string' ? v : v == null ? '' : String(v))
     const parsedOk = true
-          const firstRowEmpty = !artistRows[0]?.artist && !artistRows[0]?.song && !artistRows[0]?.amount
+          // Read the project being LOADED, not the render closure: this runs right
+          // after setArtistRows(...) for the new invoice, before React re-renders, so
+          // `artistRows` here still belongs to the invoice being left.
+          const base = pr || { artistRows, category, description }
+          const row0 = base.artistRows?.[0] || {}
+          const firstRowEmpty = !row0.artist && !row0.song && !row0.amount
           // Collect what the parse is about to fill so step 3 can show a
           // "pre-filled — please verify" banner. Mirrors the don't-clobber
           // conditions of the individual setters below.
@@ -1167,7 +1209,7 @@ export default function VendorSubmitLab() {
               if (parsedSong.trim()) summary.song = parsedSong.trim()
               if (data.amount != null) summary.amount = String(data.amount)
             }
-            if (!category && typeof data.category === 'string' && CATEGORIES.includes(data.category)) summary.category = data.category
+            if (!base.category && typeof data.category === 'string' && CATEGORIES.includes(data.category)) summary.category = data.category
             if (typeof data.currency === 'string' && data.currency !== 'USD' && CURRENCIES.some(c => c.value === data.currency)) summary.currency = data.currency
             setAiPrefilled(Object.keys(summary).length ? summary : null)
           }
@@ -1189,7 +1231,7 @@ export default function VendorSubmitLab() {
               return [filled, ...prev.slice(1)]
             })
           }
-          if (!category && typeof data.category === 'string' && CATEGORIES.includes(data.category)) {
+          if (!base.category && typeof data.category === 'string' && CATEGORIES.includes(data.category)) {
             setCategory(data.category)
           }
           if (typeof data.currency === 'string' && CURRENCIES.some(c => c.value === data.currency)) {
@@ -1197,7 +1239,7 @@ export default function VendorSubmitLab() {
           }
           // Pre-fill description from the AI parse if the vendor hasn't
           // already typed one. Same don't-clobber rule the other fields use.
-          if (!description && typeof data.description === 'string' && data.description.trim()) {
+          if (!base.description && typeof data.description === 'string' && data.description.trim()) {
             setDescription(data.description.trim())
           }
 
@@ -1247,6 +1289,14 @@ export default function VendorSubmitLab() {
       if (isReimb && !inv.receiptFile) errs.push('Please attach your supporting receipt.')
       if (errs.length) missing.push({ index: i, errors: errs })
     })
+    // Two cards cannot share a number ("001" and "1" are two numbers, as on the server).
+    const seenNum = new Map()
+    invoices.forEach((inv, i) => {
+      const n = normalizeInvoiceNum(inv.invoiceNum)
+      if (!n) return
+      if (seenNum.has(n)) missing.push({ index: i, errors: [`This invoice has the same number as invoice ${seenNum.get(n) + 1}. Two invoices in one submission cannot share a number.`] })
+      else seenNum.set(n, i)
+    })
     if (!isReimb && !w9OnFile && !w9File) {
       setError('Please upload your W9 or W8 form.')
       if (missing.length) setInvoiceErrors(missing)
@@ -1263,8 +1313,12 @@ export default function VendorSubmitLab() {
     // The documents are read CONCURRENTLY. Ten invoices read one after another
     // is ten AI round trips in series with a spinner on top of them.
     setParsing(true)
+    // A document already read is not read again (Back → Next used to re-spend a
+    // parse per invoice and reset every answer).
     const results = await Promise.all(
-      invoices.map(inv => (inv.file && !isReimb ? parseInvoiceDoc(inv.file) : Promise.resolve(null)))
+      invoices.map(inv => (inv.parsed !== undefined && inv.parsedFor === inv.file
+        ? Promise.resolve(inv.parsed)
+        : (inv.file && !isReimb ? parseInvoiceDoc(inv.file) : Promise.resolve(null))))
     )
 
     // The invoice-number gate, per row. Same rule as the server's, run early so
@@ -1290,9 +1344,10 @@ export default function VendorSubmitLab() {
 
     // Keep each read WITH ITS INVOICE, so paging to invoice 3 pre-fills from
     // invoice 3's document and not from whichever was read last.
-    setInvoices(list => list.map((inv, i) => ({ ...inv, parsed: results[i] })))
-    setActive(0)
-    loadProject(0, results[0])
+    setInvoices(list => list.map((inv, i) => ({ ...inv, parsed: results[i], parsedFor: inv.file })))
+    const start = Math.min(Math.max(active, 0), invoices.length - 1)
+    setActive(start)
+    loadProject(start, results[start])
     setStep(3)
   }
 
@@ -1330,6 +1385,7 @@ export default function VendorSubmitLab() {
 
   const handleSubmit = async e => {
     e.preventDefault()
+    if (step !== 3) return   // only the review step submits
     setError('')
 
     // ── Every invoice in the submission ──────────────────────────────────────
@@ -1563,9 +1619,16 @@ export default function VendorSubmitLab() {
     setInvoices(list => list.map((inv, k) => (k === i ? { ...inv, project: currentProject() } : inv)))
   }
 
+  // A FRESH invoice starts with the previous one's category, currency and rep —
+  // five invoices are almost always five of the same kind of work for the same
+  // rep (the rule CLAUDE.md states; it was never implemented).
+  const freshProject = (i, fromScreen) => {
+    const prev = fromScreen || invoices.slice(0, i).reverse().find(x => x.project)?.project || null
+    return { ...blankProject(), ...(prev ? { category: prev.category || '', currency: prev.currency || 'USD', boomRep: prev.boomRep || '' } : {}) }
+  }
   /** Put invoice `i`'s answers in the fields. `parsed` pre-fills a fresh one. */
   const loadProject = (i, parsed) => {
-    const pr = invoices[i]?.project || blankProject()
+    const pr = invoices[i]?.project || freshProject(i, i > 0 && active !== i ? currentProject() : null)
     setArtistRows(pr.artistRows.map(r => ({ ...r })))
     setCategory(pr.category)
     setCurrency(pr.currency)
@@ -1576,7 +1639,7 @@ export default function VendorSubmitLab() {
     setSimilarSub(null)
     // Only a never-answered invoice gets the AI's suggestions. Re-applying them
     // to one the vendor has already filled in would argue with their own edits.
-    if (!invoices[i]?.project) applyParsed(parsed ?? invoices[i]?.parsed ?? null)
+    if (!invoices[i]?.project) applyParsed(parsed ?? invoices[i]?.parsed ?? null, pr)
     else { setAiPrefilled(null); setAiWarnings([]) }
   }
 
@@ -1590,13 +1653,13 @@ export default function VendorSubmitLab() {
     // async, so `loadProject` would otherwise see the pre-save copy when moving
     // away from and back to the same invoice.
     const saved = { ...invoices[i] }
-    const pr = saved.project || blankProject()
+    const pr = saved.project || freshProject(i, currentProject())
     setArtistRows(pr.artistRows.map(r => ({ ...r })))
     setCategory(pr.category); setCurrency(pr.currency); setBoomRep(pr.boomRep)
     setDescription(pr.description); setNotes(pr.notes || '')
     setShowNotes(!!(pr.notes || '').trim())
     setSimilarSub(null)
-    if (!saved.project) applyParsed(saved.parsed || null)
+    if (!saved.project) applyParsed(saved.parsed || null, pr)
     else { setAiPrefilled(null); setAiWarnings([]) }
     if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'smooth' })
   }
@@ -1642,6 +1705,8 @@ export default function VendorSubmitLab() {
     setArtistRows([{ artist: '', song: '', amount: '', off_roster: false }])
     setSocialRows([{ platform: 'Instagram', handle: '', amount: '' }])
     setCategory(''); setCurrency('USD'); setBoomRep('')
+    // The W-9 just submitted is now on file — do not demand it again for the next invoice.
+    if (w9File) setW9OnFile(true)
     setInvoices([blankInvoice()]); setActive(0); setW9File(null)
     setW9Validation(null)
     setNotes(''); setShowNotes(false); setDescription(''); setError('')
@@ -1779,7 +1844,17 @@ export default function VendorSubmitLab() {
           </div>
         )}
 
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit} onKeyDown={e => {
+          // Enter advances the step it is on; it never submits from steps 1–2.
+          // (Step 2 has one text field with no submit button, so the browser's
+          // implicit submission used to POST the whole form from there.)
+          if (e.key !== 'Enter' || step === 3) return
+          const t = e.target
+          if (!t || /^(TEXTAREA|BUTTON|A)$/.test(t.tagName) || (t.tagName === 'INPUT' && /^(button|submit|file)$/.test(t.type))) return
+          e.preventDefault()
+          if (step === 1) goToStep2()
+          else if (canAdvanceStep2 && !parsing) goToStep3()
+        }}>
 
           {/* ── Step 1: Your Info ─────────────────────────────────────────── */}
           {step === 1 && (<>
@@ -2559,7 +2634,7 @@ export default function VendorSubmitLab() {
           )}
 
           <div className="flex gap-3 mt-3">
-            <button type="button" onClick={() => { setStep(2); setError('') }}
+            <button type="button" onClick={() => { saveProject(active); setStep(2); setError('') }}
               className="ms-back flex-1 border-2 border-rule text-gray-600 font-bold text-sm rounded-xl py-3 hover:bg-gray-50 transition-colors">
               ← Back
             </button>

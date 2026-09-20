@@ -740,6 +740,43 @@ Authoritative project guide: **`boom-dashboard/CLAUDE.md`** — read it before m
   (30: full · empty · url), `ledgervendor-dom` still green. Not done:
   column resize/reorder, a density toggle, recurring schedules (a template
   is one click, not a timer).
+- **Vendor form bug pass (2026-09-20, John: "check the vendor submit form for
+  any bugs").** A code review found 21 defects; the harnesses were green
+  through all of them because none pressed Back, pressed Enter, removed an
+  invoice, or drove a real parse result (the stub returned `{ parsed: {} }`,
+  a shape the page never reads). Fixed on `VendorSubmit.jsx` and mirrored to
+  the lab with `sync-vendor-lab.mjs --force`: **Back from step 3 saves the
+  invoice's answers** (`saveProject(active)`) and Next reuses a parse for an
+  unchanged file (`parsedFor`) instead of wiping every field and re-spending
+  the AI; **Enter never submits from steps 1–2** (a form-level onKeyDown
+  advances the step; `handleSubmit` refuses off step 3); **invoices carry a
+  stable `key`** and the scan / dup check write back by key with a
+  same-file guard (`updateInvoiceByKey`), so removing a row mid-scan cannot
+  strand `validating` or land a verdict on the wrong card;
+  `payment-on-file` no longer overrides a chosen method and "use details on
+  file" applies only while the METHOD matches; the client mirrors the
+  server's shape checks (ABA checksum, 4–17 digit US account, IBAN/SWIFT,
+  PayPal) so a typo fails on step 1 not after the wizard; `applyParsed`
+  reads the project being LOADED, not the stale render closure; category /
+  currency / rep carry to a fresh invoice (`freshProject` — CLAUDE.md said so,
+  the code never did); two cards sharing a number are refused on the client;
+  file inputs are keyboard-reachable (`sr-only` + a keyboard-operable drop
+  zone); Submit Another keeps the just-uploaded W-9 as on file; a
+  `beforeunload` warning past step 1. Server (`routes/vendor-submit.js`,
+  `index.js`): **the invoice-number gate skips reimbursements** (a receipt
+  has no invoice number; the client already skipped the parse for them, so
+  reimbursements were unfinishable whenever the AI read the receipt
+  confidently); the AI limiter is 30/min (a ten-invoice batch 429'd at the
+  sixth call and the pre-flight gate fell open silently); `/roster` hides
+  archived artists; `/payment-on-file` and `/roster` sit behind
+  `vendorReadLimiter`; the 500 body carries `detail` only outside production;
+  the validation prompt's alias list is real again ("Market.st", "Market St"
+  — it read "Market Street" three times). `vendorform-dom` gained `backnext`
+  · `enter` · `remove` (PARSE=1 makes the parse stub answer in the page's
+  shape; SLOWSCAN=1 delays the second scan). Not fixed: the localStorage
+  draft saves one invoice's answers for a multi-invoice batch (restore lands
+  them on invoice 1); a 429 on the pre-flight parse is still silent (the
+  server gate still runs at Submit).
 - **Bank-statement heuristics were tuned on Boom's Bank of America statements.** The own-name lists (`statements.js` stop-words, `funding-pairs.js` account-trailer strip) now say Market Street, but the layout parsers have not seen a Market Street statement yet. Expect the AI fallback to do the work until they do.
 
 ## Commands (run from `boom-dashboard/`)

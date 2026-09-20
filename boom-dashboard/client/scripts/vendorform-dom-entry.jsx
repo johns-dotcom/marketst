@@ -46,6 +46,8 @@ const FETCHES = []
 // than what the page appears to hold. A multi-invoice submission is only really
 // tested at the payload: the list can render four cards and still post one.
 const POSTED = []
+let VALIDATE_CALLS = 0
+let PARSE_CALLS = 0
 window.fetch = globalThis.fetch = async (url, opts) => {
   const u = String(url)
   FETCHES.push(u)
@@ -66,9 +68,23 @@ window.fetch = globalThis.fetch = async (url, opts) => {
       ? { on_file: true, method: 'ACH', last4: '6789', holder_name: 'Returning Vendor' }
       : { on_file: false })
   }
-  if (u.includes('/api/vendor/validate-invoice')) return json({ valid: true, issues: [] })
+  if (u.includes('/api/vendor/validate-invoice')) {
+    // SLOWSCAN=1: the SECOND document's scan takes 800ms, so a scenario can remove
+    // a row while it is in flight — the index-drift bug that stranded `validating`.
+    VALIDATE_CALLS += 1
+    if (process.env.SLOWSCAN === '1' && VALIDATE_CALLS === 2) await new Promise((r) => setTimeout(r, 800))
+    return json({ valid: true, issues: [] })
+  }
   if (u.includes('/api/vendor/validate-w9')) return json({ valid: true, issues: [] })
-  if (u.includes('/api/vendor/parse-invoice')) return json({ parsed: {}, ai_warnings: [] })
+  // PARSE=1 answers in the shape the page READS (`data`), so applyParsed and the
+  // invoice-number gate actually run; the old `{ parsed: {} }` stub made
+  // parseInvoiceDoc return null and the harness never exercised either.
+  if (u.includes('/api/vendor/parse-invoice')) {
+    PARSE_CALLS += 1
+    return json(process.env.PARSE === '1'
+      ? { data: { invoice_number: 'INV-1', artist: 'Fixture Artist', song: 'Parsed Song', amount: 42, category: 'Marketing' }, ai_warnings: [] }
+      : { parsed: {}, ai_warnings: [] })
+  }
   if (u.includes('/api/vendor/check-dup')) return json({ duplicate: false })
   if (u.includes('/api/vendor/check-similar')) return json({ similar: null })
   return json({ ok: true })
@@ -478,6 +494,104 @@ if ((process.env.SCENARIO || 'ach') === 'multi') {
   }, 2000)
 }
 
+// ── Regressions fixed 2026-09-20 ─────────────────────────────────────────────
+//   backnext  step 3 → ← Back → Next kept NOTHING (loadProject reloaded a blank
+//             project) and re-parsed every document
+//   enter     Enter in step 2's only text field submitted the whole form
+//   remove    removing invoice 1 while invoice 2's scan ran wrote the verdict
+//             by index onto nothing, leaving `validating` true forever
+if (['backnext', 'enter', 'remove'].includes(process.env.SCENARIO || '')) {
+  const SC = process.env.SCENARIO
+  const FileCtor = globalThis.File || window.File
+  const mkFile = (n) => new FileCtor(['%PDF-1.4'], n, { type: 'application/pdf' })
+  const attach = (input, file) => { Object.defineProperty(input, 'files', { value: [file], configurable: true }); input.dispatchEvent(new window.Event('change', { bubbles: true })) }
+  const labelled = (re) => [...document.querySelectorAll('label')].filter((l) => re.test(l.textContent || ''))
+  const fileInputUnder = (lab) => lab && lab.parentElement && lab.parentElement.querySelector('input[type=file]')
+  const numberInputs = () => [...document.querySelectorAll('input')].filter((i) => /INV-2024-001/.test(i.placeholder || ''))
+  const selectWith = (value) => [...document.querySelectorAll('select')].find((s2) => [...s2.options].some((o) => o.value === value))
+  const onStep3 = () => /Review & Submit|Submit/.test(document.body.textContent) && !!byPlaceholder(/\$ Amount/i)
+  const keyOn = (el, k) => el.dispatchEvent(new window.KeyboardEvent('keydown', { key: k, bubbles: true, cancelable: true }))
+
+  const fillStep1 = () => {
+    for (const [v, re] of Object.entries({ '000123456789': /000123456789/, '021000021': /9 digits/ })) { const el = byPlaceholder(re); if (el) setValue(el, v) }
+    const typeSel = selectWith('Checking'); if (typeSel) setValue(typeSel, 'Checking')
+    for (const l of document.querySelectorAll('label')) {
+      const t = (l.textContent || '').toLowerCase(); const input = l.parentElement && l.parentElement.querySelector('input')
+      if (!input || input.value) continue
+      if (t.includes('name on the account')) setValue(input, 'Fixture Vendor')
+      else if (t.includes('bank name')) setValue(input, 'Test Bank')
+      else if (t.includes('bank address')) setValue(input, '1 Bank St')
+    }
+  }
+  setTimeout(() => {
+    console.log(`\n--- ${SC} ---`)
+    fillStep1()
+    setTimeout(() => {
+      clickText(/Next — Upload Documents/i)
+      setTimeout(() => {
+        setValue(numberInputs()[0], 'INV-1')
+        attach(fileInputUnder(labelled(/Invoice File/i)[0]), mkFile('first.pdf'))
+        attach(fileInputUnder(labelled(/W9 or W8/i)[0]), mkFile('w9.pdf'))
+        if (SC === 'enter') {
+          setTimeout(() => {
+            const postsBefore = POSTED.length
+            keyOn(numberInputs()[0], 'Enter')
+            setTimeout(() => {
+              console.log('Enter in the invoice-number field ADVANCES to step 3 ->', onStep3())
+              console.log('…and does not submit the form ->', POSTED.length === postsBefore && !FETCHES.some((u) => u.includes('/api/vendor/submit')))
+            }, 800)
+          }, 400)
+          return
+        }
+        if (SC === 'remove') {
+          setTimeout(() => {
+            clickText(/Add another invoice/i)
+            setTimeout(() => {
+              setValue(numberInputs()[1], 'INV-2')
+              attach(fileInputUnder(labelled(/Invoice File/i)[1]), mkFile('second.pdf'))   // the slow scan
+              setTimeout(() => {
+                const removeBtns = [...document.querySelectorAll('button[aria-label^="Remove invoice"]')]
+                console.log('two rows, each removable ->', removeBtns.length === 2)
+                removeBtns[0].dispatchEvent(new window.MouseEvent('click', { bubbles: true }))   // remove invoice 1 mid-scan
+                setTimeout(() => {
+                  const nums = numberInputs()
+                  console.log('invoice 2 survives as the only row, keeping its number ->', nums.length === 1 && nums[0].value === 'INV-2')
+                  console.log('the late verdict landed on IT (by key), so nothing is left scanning ->', !/Scanning|Checking the document|validating/i.test(document.body.textContent))
+                  clickText(/Next — Review & Submit/i)
+                  setTimeout(() => console.log('…and the form advances to step 3 instead of "Please wait for the invoice scan" ->', onStep3() && !/wait for the invoice scan/i.test(document.body.textContent)), 900)
+                }, 1200)
+              }, 100)
+            }, 300)
+          }, 300)
+          return
+        }
+        // backnext
+        setTimeout(() => {
+          clickText(/Next — Review & Submit/i)
+          setTimeout(() => {
+            console.log('step 3 reached ->', onStep3())
+            console.log('the parse ran once and PRE-FILLED the song from the document ->', PARSE_CALLS === 1 && byPlaceholder(/song|track/i)?.value === 'Parsed Song')
+            const amt = byPlaceholder(/\$ Amount/i); if (amt) setValue(amt, '777')
+            const cat = selectWith('Marketing'); if (cat) setValue(cat, 'Marketing')
+            const notes = [...document.querySelectorAll('textarea')][0]; if (notes) setValue(notes, 'keep me')
+            setTimeout(() => {
+              clickText(/← Back/)
+              setTimeout(() => {
+                console.log('Back lands on step 2 ->', numberInputs().length === 1 && !onStep3())
+                clickText(/Next — Review & Submit/i)
+                setTimeout(() => {
+                  console.log('Next returns to step 3 WITH the answers kept (amount 777, Marketing, song) ->', onStep3() && byPlaceholder(/\$ Amount/i)?.value === '777' && selectWith('Marketing')?.value === 'Marketing' && byPlaceholder(/song|track/i)?.value === 'Parsed Song')
+                  console.log('…without re-parsing the document ->', PARSE_CALLS === 1)
+                }, 900)
+              }, 400)
+            }, 400)
+          }, 900)
+        }, 400)
+      }, 500)
+    }, 400)
+  }, 800)
+}
+
 function finish() {
   console.error = origError
   console.log('\nrendered bytes:', document.getElementById('root').innerHTML.length)
@@ -489,4 +603,4 @@ function finish() {
   }
   globalThis.__DONE__ = true
 }
-setTimeout(finish, (process.env.SCENARIO || 'ach') === 'multi' ? 12000 : 4200)
+setTimeout(finish, ({ multi: 12000, backnext: 9000, enter: 6000, remove: 8000 })[process.env.SCENARIO || 'ach'] || 4200)
