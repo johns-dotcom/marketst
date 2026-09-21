@@ -370,8 +370,15 @@ Authoritative project guide: **`boom-dashboard/CLAUDE.md`** — read it before m
   already has — and a step whose target is not on screen is skipped, never
   shown empty. Tours are gated by `canView(tour.path)`, the sidebar's gate.
   Completion is per user, per VERSION: `users.tours_done` JSONB via `PUT/DELETE
-  /settings/me/tours`; a person who finished an older version sees the tour
-  offered again as "updated". **THE RULE: a change to a page changes its tour
+  /settings/me/tours`. **A tour AUTO-STARTS ONCE PER PERSON, EVER** (2026-09-21,
+  John: "make sure the walkthrough only happens once for users. not everytime
+  i log in") — `everSeen` in Tour.jsx gates the auto-start on ANY recorded
+  version, finished or skipped; before this, every version bump (and there
+  were a dozen that week) replayed the welcome walk and each page tour for
+  everyone at the next sign-in. A newer version still reads as "updated" in
+  the ? menu and in My Work's Waiting on you (`isDone` = version match), where
+  it can be replayed by hand. A failed read of `/settings/me` leaves `done`
+  null and starts nothing. **THE RULE: a change to a page changes its tour
   in the same commit and bumps that tour's `version` (a date).**
   **Every visible page has a tour, and the welcome walk covers the whole nav
   (2026-09-20, John: "releases only shows the pipeline, not the catalog. make

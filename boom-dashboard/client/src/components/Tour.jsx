@@ -52,7 +52,9 @@ export function TourProvider({ children }) {
 
   useEffect(() => {
     if (!user) return
-    api.get('/settings/me').then((r) => setDone(r.data?.data?.tours_done || {})).catch(() => setDone({}))
+    // If the record cannot be read, `done` stays null and NOTHING auto-starts —
+    // a failed read must not replay the welcome walk for everyone.
+    api.get('/settings/me').then((r) => setDone(r.data?.data?.tours_done || {})).catch(() => setDone(null))
   }, [user?.id])
 
   const role = user?.role
@@ -60,6 +62,11 @@ export function TourProvider({ children }) {
   const tours = useMemo(() => TOURS.filter(allowed), [allowed])
   const doneVersion = useCallback((id) => done?.[id]?.version || null, [done])
   const isDone = useCallback((t) => doneVersion(t.id) === t.version, [doneVersion])
+  // Seen at ANY version — finished or skipped. Auto-start is gated on this, so a
+  // tour runs itself ONCE per person (John, 2026-09-21: "only once … not every
+  // time I log in"). A newer version shows as "updated" in the ? menu and in My
+  // Work's Waiting on you, where it can be replayed; it never pounces again.
+  const everSeen = useCallback((t) => !!done?.[t.id], [done])
 
   const startTour = useCallback((id) => {
     const t = tourById(id); if (!t) return false
@@ -88,17 +95,17 @@ export function TourProvider({ children }) {
   useEffect(() => {
     if (!user || done === null || active) return undefined
     const welcome = tourById('welcome')
-    if (welcome && !isDone(welcome) && !startedOnPath.current.has('welcome')) {
+    if (welcome && !everSeen(welcome) && !startedOnPath.current.has('welcome')) {
       const t = setTimeout(() => { startedOnPath.current.add('welcome'); setActive({ tour: welcome, index: 0 }) }, 600); return () => clearTimeout(t)
     }
-    if (welcome && !isDone(welcome)) return undefined
+    if (welcome && !everSeen(welcome)) return undefined
     const pt = tourForPath(location.pathname)
-    if (pt && allowed(pt) && !isDone(pt) && !startedOnPath.current.has(pt.id)) {
+    if (pt && allowed(pt) && !everSeen(pt) && !startedOnPath.current.has(pt.id)) {
       const t = setTimeout(() => { startedOnPath.current.add(pt.id); setActive({ tour: pt, index: 0 }) }, 900)
       return () => clearTimeout(t)
     }
     return undefined
-  }, [user?.id, done, location.pathname, active, isDone, allowed])
+  }, [user?.id, done, location.pathname, active, everSeen, allowed])
 
   const value = useMemo(() => ({ startTour, tours, done: done || {}, active, doneVersion, isDone, pageTour: (() => { const pt = tourForPath(location.pathname); return allowed(pt) ? pt : null })() }), [startTour, tours, done, active, doneVersion, isDone, location.pathname, allowed])
   return (

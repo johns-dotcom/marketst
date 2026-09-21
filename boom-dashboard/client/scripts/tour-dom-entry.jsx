@@ -2,7 +2,7 @@
 // Home tours point at, the provider around it. fresh: welcome auto-starts,
 // Next walks the steps that are on screen, Done PUTs completion. done:
 // welcome is done and Home was finished at an OLD version → the Home tour
-// offers itself as updated and auto-starts on '/'.
+// reads as updated but does NOT auto-start (a tour runs itself once, ever).
 import React from 'react'
 import { createRoot } from 'react-dom/client'
 import { MemoryRouter, Routes, Route, useLocation, Link } from 'react-router-dom'
@@ -157,13 +157,15 @@ async function main() {
     assert(`the welcome walk for a User drops the ${adminOnly} admin-only steps (${total - adminOnly} of ${total})`, adminOnly >= 1 && ov()?.getAttribute('data-tour-id') === 'welcome' && new RegExp(`1 of ${total - adminOnly}`).test(textOf(ov().querySelector('[data-tour-card]'))))
     window.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Escape' })); await sleep(300)
   } else {
-    assert('with welcome done and Home at an OLD version, Home auto-starts as updated', ov()?.getAttribute('data-tour-id') === 'home')
+    assert('with welcome done and Home at an OLD version, NOTHING auto-starts — a tour runs itself once, ever', !ov())
     assert('the page knows its tour and the list of tours the user can open', /home · \d+ tours/.test(textOf(host.querySelector('[data-page-tour]'))))
+    window.__START__('home'); await sleep(500)
+    assert('the updated Home tour can still be started by hand', ov()?.getAttribute('data-tour-id') === 'home')
     // Leave the page mid-tour (a sidebar click, a g-chord): the single-page tour closes and records nothing.
     const putsBefore = calls.put.length
     click(host.querySelector('[data-away]')); await sleep(400)
     assert('leaving the page closes a single-page tour instead of leaving it floating over the wrong page', !ov() && textOf(host.querySelector('[data-where]')) === '/releases')
-    assert('…and records nothing, so Home offers its tour again next time', calls.put.length === putsBefore)
+    assert('…and records nothing', calls.put.length === putsBefore)
     window.__START__('releases'); await sleep(400)
     assert('a tour started on its own page stays up', ov()?.getAttribute('data-tour-id') === 'releases')
     window.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Escape' })); await sleep(300)
