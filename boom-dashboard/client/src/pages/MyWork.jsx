@@ -9,7 +9,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import usePageShortcuts from '../hooks/usePageShortcuts'
 import { Link } from 'react-router-dom'
-import { Plus, Check, Circle, Trash2, AtSign, ChevronDown, ChevronRight, Calendar as CalendarIcon, Inbox, MessageSquare, Hourglass, Mail, Footprints, Loader, Flag } from 'lucide-react'
+import { Plus, Check, Circle, Trash2, AtSign, ChevronDown, ChevronRight, Calendar as CalendarIcon, Inbox, MessageSquare, Hourglass, Mail, Footprints, Loader, Flag, Briefcase } from 'lucide-react'
 import NotesEditor from '../components/NotesEditor'
 import api from '../api'
 import { isPastLocal, daysUntilLocal } from '../utils'
@@ -109,10 +109,12 @@ export default function MyWork() {
         if (e.type === 'deadline') return e.to === '/my-work'
         if (e.type === 'release' || e.type.startsWith('dsp')) return myReleaseIds.has(Number(e.sourceId))
         if (e.type === 'payment_due' || e.type === 'contract_expiry') return canView(pageFor(e.type))
+        // my deals' follow-ups and revisits — the feed stamps the owner
+        if (e.type === 'deal_followup' || e.type === 'deal_revisit') return Number(e.ownerId) === Number(user?.id)
         return e.type === 'signed'
       })
       .sort((a, b) => a.date.localeCompare(b.date))
-  }, [week, myReleaseIds, canView])
+  }, [week, myReleaseIds, canView, user?.id])
 
   // ── Waiting on you: only what this person can unblock ──
   const cutoffDays = (() => { const now = new Date(); const cut = new Date(now.getFullYear(), now.getMonth(), 20); if (now.getDate() > 20) cut.setMonth(cut.getMonth() + 1); return Math.ceil((cut - new Date(now.getFullYear(), now.getMonth(), now.getDate())) / 86400000) })()
@@ -123,6 +125,7 @@ export default function MyWork() {
     // Flags new since this person last opened the page — the register's push
     // (lib/flags-register summaryFor, via the Home loop). Only kinds they can act on.
     loop?.flags && canView('/flags') && loop.flags.new > 0 && { icon: Flag, text: `${loop.flags.new} flag${loop.flags.new === 1 ? '' : 's'} new since you looked`, sub: loop.flags.count > loop.flags.new ? `${loop.flags.count} open in all` : null, to: '/flags' },
+    (data?.deals_due || []).length > 0 && canView('/deals') && { icon: Briefcase, text: `${data.deals_due.length} deal${data.deals_due.length === 1 ? '' : 's'} you own need${data.deals_due.length === 1 ? 's' : ''} a touch`, sub: data.deals_due.slice(0, 3).map((d) => d.artist_name).join(', ') + (data.deals_due.length > 3 ? '…' : ''), to: '/deals?owner=me&attn=1' },
     (data?.invites_pending || []).length > 0 && { icon: Mail, text: `${data.invites_pending.length} invite${data.invites_pending.length === 1 ? '' : 's'} you sent, not yet used`, sub: data.invites_pending.map((i) => i.name).join(', '), to: '/team' },
     canView('/bk/statements') && cutoffDays <= 7 && { icon: Hourglass, text: `Statement cutoff ${cutoffDays === 0 ? 'today' : `in ${cutoffDays} day${cutoffDays === 1 ? '' : 's'}`}`, sub: 'the 20th', to: '/bk/statements' },
     updatedTours.length > 0 && { icon: Footprints, text: `${updatedTours.length} walkthrough${updatedTours.length === 1 ? '' : 's'} updated since you took ${updatedTours.length === 1 ? 'it' : 'them'}`, sub: updatedTours.map((t) => t.title).join(', '), to: null },

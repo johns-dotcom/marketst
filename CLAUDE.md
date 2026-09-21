@@ -848,6 +848,57 @@ Authoritative project guide: **`boom-dashboard/CLAUDE.md`** — read it before m
   grow, raw `err.message` in many 500 bodies, LIKE wildcard escaping in
   search, scoped short-lived file tokens instead of the session JWT in
   `?token=` URLs, cookie sessions instead of localStorage.
+- **Deal pipeline, second pass (2026-09-20, John: "how can the deal pipeline
+  page be improved?" — his calls: owner is a team member and reaches My Work ·
+  stale/overdue markers · money on the board · fold Signed and Passed · a list
+  with filters · a timeline of dated notes + stage history · Passed needs a
+  reason and a revisit date · a pre-sign checklist · a funnel report; NOT
+  Spotify stats on prospects).** `client/src/lib/deals.js` is the vocabulary
+  and the pure rules (`followupState`, `staleTone` amber 14 / red 21 days,
+  `needsAttention`, `preSignChecklist`, `filterDeals`, `sortDeals`,
+  `eventLine`); `pages/DealPipeline.jsx` + `components/deals/*` (DealCard,
+  DealDrawer, DealList, DealFunnel, PassedModal). **Schema:** `deals.owner_id`
+  (→ users), `stage_changed_at` (reset only when the stage actually moves;
+  backfilled from updated_at), `passed_reason` (fixed list `PASSED_REASONS`),
+  `passed_note`, `revisit_date`; table `deal_events (kind created · stage ·
+  note · passed, body, from_stage, to_stage, user_id, user_name)`. **Server**
+  (`routes/deals.js`): `LIST_SQL` returns every deal with `owner_name`,
+  `days_in_stage`, `last_event_*` and `file_count` — GET `/`, GET `/:id`, and
+  every POST/PUT response read it (`readDeal`); `?owner=me|<id>`; POST defaults
+  the owner to the caller and logs `created` (+ a `note` for the first notes);
+  PUT accepts `owner_id`, `passed_reason`, `passed_note`, `revisit_date`, logs
+  a `stage`/`passed` event on a real move, clears `revisit_date` on leaving
+  Passed; `GET/POST /:id/events` (a note stamps `last_contact_date`),
+  `DELETE /:id/events/:eid` (own note or admin; stage history never);
+  `GET /report/funnel?from&to` builds reached-per-stage + conversion, avg days
+  per COMPLETED stint + how many sit there, win rate by source and by owner,
+  passed reasons and totals — from `deal_events`, so a deal that went
+  Scouting → Offer → Passed still counts as having reached Offer. **Client:**
+  four live stages are the columns (count + $ advances in each header);
+  Signed and Passed are folded rows below (`deals_closed_open_v1`, still drop
+  targets — "Drop to mark signed"); an empty label shows the EmptyState with
+  NO blank columns (the container keeps `data-tour="deal-board"`); filters
+  live in the URL (`q owner type priority stage attn sort view deal`), and
+  `?deal=ID` opens the drawer — Flags, the calendar and My Work link that way;
+  cards show owner initials, advance, days-in-stage badge, follow-up state,
+  the last touch and file count; the drawer has the Owner picker, the
+  Timeline (Enter posts a note), the Before Signed checklist (8 items, never
+  blocking), the details/terms/contact form, Move Stage and Documents; moving
+  to Passed by any route opens `PassedModal` (reason required; Cancel puts the
+  card back); List view sorts by header (`sort=` in the URL) and rows are
+  `data-row` (j/k/Enter, m = next stage — `PAGE_KEYS['/deals']`); Report view
+  is CSS bars, one axis. **Reach:** the calendar feed gained source `deals`
+  (`deal_followup` on live deals, `deal_revisit` on passed ones, each with
+  `ownerId`, `to: /deals?deal=ID`; Calendar legend group "Deals"); My Work's
+  agenda keeps deal events whose `ownerId` is me and "Waiting on you" reads
+  `deals_due` from `/team/my-work` (my live deals with an overdue/today
+  follow-up or stuck 21+ days → `/deals?owner=me&attn=1`); Flags gained
+  `deal_stale` (DAYS.deal_stale 21; high past 42), `deal_followup_overdue`,
+  `deal_revisit_due` (all page `/deals`, Workflow). `ar_rep` stays as text
+  history and shows only when a deal has no owner. Harnesses: `npm run
+  deals-dom` (36, full · empty · url), `server/scripts/deals-pipeline-fixture.cjs`
+  (32); calendar-fixture's `sources` gained `deals`. Tour `deals` bumped to
+  2026-09-21 (six steps + keys).
 - **Bank-statement heuristics were tuned on Boom's Bank of America statements.** The own-name lists (`statements.js` stop-words, `funding-pairs.js` account-trailer strip) now say Market Street, but the layout parsers have not seen a Market Street statement yet. Expect the AI fallback to do the work until they do.
 
 ## Commands (run from `boom-dashboard/`)

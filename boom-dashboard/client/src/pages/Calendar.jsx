@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { Link } from 'react-router-dom'
-import { ChevronLeft, ChevronRight, Plus, X, Music, FileText, CheckSquare, Calendar as CalendarIcon, Disc3, Trash2, CreditCard, RefreshCw, ArrowUpRight, Lock, PenLine } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Plus, X, Music, FileText, CheckSquare, Calendar as CalendarIcon, Disc3, Trash2, CreditCard, RefreshCw, ArrowUpRight, Lock, PenLine, Briefcase } from 'lucide-react'
 import api from '../api'
 import usePageShortcuts from '../hooks/usePageShortcuts'
 import Skeleton from '../components/Skeleton'
@@ -16,6 +16,8 @@ const EVENT_STYLES = {
   dsp_submitted:    { bg: 'bg-indigo-50',  border: 'border-indigo-200', dot: 'bg-indigo-400',  text: 'text-indigo-600',  label: 'DSP Submitted' },
   manual:           { bg: 'bg-gray-50',    border: 'border-rule',   dot: 'bg-gray-500',    text: 'text-gray-700',    label: 'Event' },
   signed:           { bg: 'bg-emerald-50', border: 'border-emerald-200', dot: 'bg-emerald-600', text: 'text-emerald-800', label: 'Signed' },
+  deal_followup:    { bg: 'bg-violet-50',  border: 'border-violet-200', dot: 'bg-violet-500',  text: 'text-violet-700',  label: 'Deal follow-up' },
+  deal_revisit:     { bg: 'bg-violet-50',  border: 'border-violet-200', dot: 'bg-violet-300',  text: 'text-violet-600',  label: 'Deal revisit' },
 }
 
 const EVENT_ICONS = {
@@ -28,6 +30,8 @@ const EVENT_ICONS = {
   dsp_live: Disc3,
   dsp_submitted: Disc3,
   manual: CalendarIcon,
+  deal_followup: Briefcase,
+  deal_revisit: Briefcase,
 }
 
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December']
@@ -45,6 +49,7 @@ const FILTER_GROUPS = [
   { key: 'renewal',  label: 'Renewals',       dot: 'bg-red-500',    source: 'renewals',  what: 'contract expiry dates' },
   { key: 'contract', label: 'Contracts signed', dot: 'bg-emerald-500', source: 'contracts', what: 'signing dates' },
   { key: 'dsp',      label: 'DSP',            dot: 'bg-purple-500', source: 'releases',  what: 'DSP submissions and go-lives' },
+  { key: 'deal',     label: 'Deals',          dot: 'bg-violet-500', source: 'deals',     what: 'deal follow-ups and revisit dates' },
   { key: 'signed',   label: 'Signings',       dot: 'bg-emerald-600', source: null,       what: 'the day an artist was signed' },
   { key: 'manual',   label: 'Events',         dot: 'bg-gray-500',   source: null,        what: 'events added here' },
 ]
@@ -53,6 +58,7 @@ export const groupOf = (type) => (
   : type === 'contract_signed' ? 'contract'
   : type === 'payment_due' ? 'payment'
   : type.startsWith('dsp') ? 'dsp'
+  : type.startsWith('deal_') ? 'deal'
   : FILTER_GROUPS.some((g) => g.key === type) ? type : 'manual'
 )
 

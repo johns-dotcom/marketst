@@ -1,666 +1,282 @@
-import { useState, useEffect, useRef } from 'react'
+// The deal pipeline, second pass (2026-09-20). The BOARD is the four live
+// stages; Signed and Passed fold away below it. Every filter lives in the URL
+// (q owner type priority stage attn sort view deal), the same deals feed a
+// LIST and a funnel REPORT, and ?deal=ID opens a card — Flags, the calendar
+// and My Work link in that way.
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Plus, X, ChevronRight, Paperclip, GripVertical, Save, Check } from 'lucide-react'
+import { Plus, X, LayoutGrid, List as ListIcon, BarChart3, Search, ChevronDown, ChevronRight, AlertTriangle } from 'lucide-react'
 import api from '../api'
-import { formatDate } from '../utils'
 import Skeleton from '../components/Skeleton'
 import PageHeader from '../components/PageHeader'
-import FilesPanel from '../components/FilesPanel'
 import usePageShortcuts from '../hooks/usePageShortcuts'
-import { Button, Input, Select } from '../components/ui'
+import useListKeys, { focusFilter } from '../hooks/useListKeys'
 import EmptyState from '../components/EmptyState'
 import NextStepPrompt, { useNextStep } from '../components/NextStepPrompt'
+import { useAuth } from '../context/AuthContext'
+import DealCard from '../components/deals/DealCard'
+import DealDrawer from '../components/deals/DealDrawer'
+import DealList from '../components/deals/DealList'
+import DealFunnel from '../components/deals/DealFunnel'
+import PassedModal from '../components/deals/PassedModal'
+import { STAGES, LIVE_STAGES, CLOSED_STAGES, PRIORITIES, DEAL_TYPES, STAGE_DOT, STAGE_HEADER, FILTER_KEYS, filterDeals, sortDeals, sumAdvance, fmtMoney, needsAttention } from '../lib/deals'
 
-const STAGES = ['Scouting', 'Meeting', 'Offer', 'Negotiation', 'Signed', 'Passed']
-const PRIORITIES = ['High', 'Medium', 'Low']
-const DEAL_TYPES = ['360 Deal', 'Master License', 'Single License', 'Distribution', 'Publishing', 'Other']
-
-// Mirrors the bg/text/border colors used in the kanban-card priority pill, so
-// the priority <select> in the drawer reads as the same shape of UI element.
-const PRIORITY_SELECT_TONE = {
-  High:   'bg-red-50 text-red-700 border-red-200 focus:border-red-300',
-  Medium: 'bg-amber-50 text-amber-700 border-amber-200 focus:border-amber-300',
-  Low:    'bg-gray-100 text-gray-700 border-gray-200 focus:border-gray-300',
-}
-
-const PRIORITY_PILL_TONE = {
-  High:   'bg-red-100 text-red-700',
-  Medium: 'bg-amber-100 text-amber-700',
-  Low:    'bg-gray-100 text-gray-600',
-}
-
-// Short "Jun 12" form for kanban-card follow-up dates. Built off the local
-// date parts so we don't get bitten by the same UTC drift formatDate guards
-// against.
-function formatShortDate(dateStr) {
-  if (!dateStr) return ''
-  const m = String(dateStr).match(/^(\d{4})-(\d{2})-(\d{2})/)
-  if (!m) return ''
-  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
-  return `${months[parseInt(m[2], 10) - 1]} ${parseInt(m[3], 10)}`
-}
-
-function isOverdue(dateStr) {
-  if (!dateStr) return false
-  // Pure string comparison on 'YYYY-MM-DD' — but "today" must be the LOCAL
-  // date; toISOString() is UTC, which is tomorrow after ~5pm PT and made
-  // today's follow-ups read overdue every evening.
-  const now = new Date()
-  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
-  const target = String(dateStr).slice(0, 10)
-  return target < today
-}
-
-const STAGE_DOT = {
-  Scouting:    'bg-gray-400',
-  Meeting:     'bg-blue-500',
-  Offer:       'bg-amber-500',
-  Negotiation: 'bg-violet-500',
-  Signed:      'bg-emerald-500',
-  Passed:      'bg-gray-300',
-}
-
-const STAGE_HEADER = {
-  Scouting:    'text-gray-600',
-  Meeting:     'text-blue-600',
-  Offer:       'text-amber-600',
-  Negotiation: 'text-violet-600',
-  Signed:      'text-emerald-600',
-  Passed:      'text-gray-400',
-}
+const CLOSED_OPEN_KEY = 'deals_closed_open_v1'
 
 export default function DealPipeline() {
+  const { user } = useAuth()
   const [deals, setDeals] = useState([])
-  // The hand-off. A deal marked Signed is the moment a contract starts; the
-  // prompt opens the contract form with the artist filled in (and offers to
-  // put them on the roster if the deal named someone not yet on it).
+  const [team, setTeam] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
   const [nextStep, showNextStep, clearNextStep] = useNextStep()
-  // The server has already run the signing (roster row, advance invoice,
-  // calendar marker) inside the stage change; this prompt SAYS what happened
-  // and hands over to the contract, prefilled from the deal's terms.
+  const [searchParams, setSearchParams] = useSearchParams()
+  const filters = useMemo(() => Object.fromEntries(FILTER_KEYS.map((k) => [k, searchParams.get(k) || ''])), [searchParams])
+  const setFilter = useCallback((patch) => {
+    const next = new URLSearchParams(searchParams)
+    for (const [k, v] of Object.entries(patch)) { if (v === '' || v === null || v === undefined) next.delete(k); else next.set(k, String(v)) }
+    setSearchParams(next, { replace: true })
+  }, [searchParams, setSearchParams])
+  const view = filters.view === 'list' || filters.view === 'report' ? filters.view : 'board'
+
+  // ?new=1 (Home's quick action) opens the new-deal form on arrival
+  const [showForm, setShowForm] = useState(() => searchParams.get('new') === '1')
+  useEffect(() => { if (searchParams.get('new') === '1') { const n = new URLSearchParams(searchParams); n.delete('new'); setSearchParams(n, { replace: true }) } }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  const blankForm = () => ({ artist_name: '', genre: '', stage: 'Scouting', owner_id: user?.id || '', source: '', notes: '', priority: 'Medium', deal_type: '', next_followup_date: '' })
+  const [formData, setFormData] = useState(blankForm)
+  const [passing, setPassing] = useState(null) // { deal, revert }
+  const [closedOpen, setClosedOpen] = useState(() => { try { return JSON.parse(localStorage.getItem(CLOSED_OPEN_KEY) || '{}') } catch { return {} } })
+  const toggleClosed = (stage) => setClosedOpen((o) => { const n = { ...o, [stage]: !o[stage] }; try { localStorage.setItem(CLOSED_OPEN_KEY, JSON.stringify(n)) } catch { /* private mode */ } return n })
+
+  const load = async () => {
+    try { setLoading(true); const r = await api.get('/deals'); setDeals(r.data.data || []) } catch { setError('Failed to load deals') } finally { setLoading(false) }
+  }
+  useEffect(() => { load(); api.get('/team').then((r) => setTeam(r.data?.data || [])).catch(() => {}) }, [])
+
+  // The selected deal is the URL's ?deal= — a link from Flags or the calendar opens it.
+  const selectedDeal = useMemo(() => deals.find((d) => String(d.id) === filters.deal) || null, [deals, filters.deal])
+  const openDeal = (d) => setFilter({ deal: d ? d.id : '' })
+
+  // ── keys: n new · f filter · j/k/Enter through cards and rows · m move to the next stage
+  const keys = useListKeys({ enabled: !selectedDeal && !passing && !showForm })
+  usePageShortcuts('/deals', {
+    n: () => setShowForm(true),
+    f: () => focusFilter(),
+    j: () => keys.next(), k: () => keys.prev(), Enter: () => keys.open(), m: () => keys.verb('m'),
+  })
+
+  // ── Signing hand-off (unchanged): the server already ran it; say what it did.
   const promptSigned = (deal, signing) => {
     if (!deal?.artist_name) return
     const did = []
-    if (signing?.created?.artist) did.push('added to the roster')
-    else if (signing?.artist) did.push('matched to the roster')
-    if (signing?.created?.advance) did.push('advance invoice created (Net 30)')
-    else if (signing?.advance_expense_id) did.push('advance invoice already on Payments')
-    else if (!(Number(deal.advance) > 0)) did.push('no advance on this deal')
+    if (signing?.created?.artist) did.push('added to the roster'); else if (signing?.artist) did.push('matched to the roster')
+    if (signing?.created?.advance) did.push('advance invoice created (Net 30)'); else if (signing?.advance_expense_id) did.push('advance invoice already on Payments'); else if (!(Number(deal.advance) > 0)) did.push('no advance on this deal')
     const body = signing?.error
       ? `${signing.error} Then the contract: the form opens with the artist and the terms filled in.`
       : `${did.length ? did.map((d, i) => (i === 0 ? d.charAt(0).toUpperCase() + d.slice(1) : d)).join(', ') + '. ' : ''}Next is the contract — the form opens with the artist and the deal's terms filled in.`
-    showNextStep({
-      title: `${deal.artist_name} is signed`,
-      body,
-      to: `/contracts?new=1&artist=${encodeURIComponent(deal.artist_name)}&deal=${deal.id}`,
-      label: 'Create the contract',
-    })
-  }
-  const TERM_KEYS = ['advance', 'royalty_split', 'term_months', 'territory', 'num_releases', 'option_periods']
-  const CONTACT_KEYS = ['artist_email', 'artist_phone', 'manager_name', 'manager_email', 'spotify_url']
-  // socials travel as [{platform, handle}]; edited here as one "platform handle" per line
-  const socialsToText = (v) => (Array.isArray(v) ? v.map((x) => `${x.platform} ${x.handle}`).join('\n') : '')
-  const textToSocials = (t) => String(t || '').split('\n').map((l) => l.trim()).filter(Boolean).map((l) => {
-    const [platform, ...rest] = l.split(/\s+/); return { platform, handle: rest.join(' ') }
-  }).filter((x) => x.platform && x.handle)
-  // ?new=1 (Home's quick action) opens the new-deal form on arrival
-  const [searchParams, setSearchParams] = useSearchParams()
-  const [showForm, setShowForm] = useState(() => searchParams.get('new') === '1')
-  useEffect(() => { if (searchParams.get('new') === '1') setSearchParams({}, { replace: true }) }, []) // eslint-disable-line react-hooks/exhaustive-deps
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
-  const [formData, setFormData] = useState({
-    artist_name: '', genre: '', stage: 'Scouting', ar_rep: '', source: '', notes: '',
-    priority: 'Medium', deal_type: '',
-  })
-  const [selectedDeal, setSelectedDeal] = useState(null)
-  const [editForm, setEditForm] = useState({})
-  const [savingEdit, setSavingEdit] = useState(false)
-  const [editStatus, setEditStatus] = useState('') // '', 'saved', 'error'
-
-  usePageShortcuts('/deals', { n: () => setShowForm(true) })
-  const [dealFileCounts, setDealFileCounts] = useState({})
-
-  // Re-hydrate the editable fields whenever a different deal is opened.
-  // Tracked by id so opening the same deal twice doesn't blow away in-flight
-  // edits, and so a fresh PUT response (which also lands in selectedDeal)
-  // doesn't reset the form mid-typing.
-  useEffect(() => {
-    if (!selectedDeal) return
-    setEditForm({
-      last_contact_date:         (selectedDeal.last_contact_date || '').slice(0, 10),
-      next_followup_date:        (selectedDeal.next_followup_date || '').slice(0, 10),
-      priority:                  selectedDeal.priority || 'Medium',
-      spotify_monthly_listeners: selectedDeal.spotify_monthly_listeners ?? '',
-      deal_type:                 selectedDeal.deal_type || '',
-      offer_amount:              selectedDeal.offer_amount ?? '',
-      ...Object.fromEntries([...TERM_KEYS, ...CONTACT_KEYS].map((k) => [k, selectedDeal[k] ?? ''])),
-      socials_text:              socialsToText(selectedDeal.socials),
-    })
-    setEditStatus('')
-  }, [selectedDeal?.id])
-
-  const handleSaveEdit = async () => {
-    if (!selectedDeal) return
-    setSavingEdit(true)
-    try {
-      const listeners = editForm.spotify_monthly_listeners
-      const offer = editForm.offer_amount
-      const payload = {
-        last_contact_date:         editForm.last_contact_date || null,
-        next_followup_date:        editForm.next_followup_date || null,
-        priority:                  editForm.priority || null,
-        spotify_monthly_listeners: listeners === '' || listeners == null ? null : Number(listeners),
-        deal_type:                 editForm.deal_type || null,
-        offer_amount:              offer === '' || offer == null ? null : Number(offer),
-        // terms + contact: '' clears (the server writes what is present)
-        ...Object.fromEntries(TERM_KEYS.map((k) => [k, editForm[k] === '' || editForm[k] == null ? '' : (k === 'territory' ? editForm[k] : Number(editForm[k]))])),
-        ...Object.fromEntries(CONTACT_KEYS.map((k) => [k, editForm[k] ?? ''])),
-        socials:                   textToSocials(editForm.socials_text),
-      }
-      const response = await api.put(`/deals/${selectedDeal.id}`, payload)
-      if (response.data.signing) promptSigned(response.data.data, response.data.signing)
-      const updated = response.data.data
-      setDeals(prev => prev.map(d => d.id === updated.id ? updated : d))
-      setSelectedDeal(updated)
-      setEditStatus('saved')
-      setTimeout(() => setEditStatus(prev => prev === 'saved' ? '' : prev), 2000)
-    } catch (err) {
-      console.error('Failed to save deal edits:', err)
-      setEditStatus('error')
-    } finally {
-      setSavingEdit(false)
-    }
+    showNextStep({ title: `${deal.artist_name} is signed`, body, to: `/contracts?new=1&artist=${encodeURIComponent(deal.artist_name)}&deal=${deal.id}`, label: 'Create the contract' })
   }
 
-  // Drag state
-  const [draggedDealId, setDraggedDealId] = useState(null)
-  const [dragOverStage, setDragOverStage] = useState(null)
-  const dragCounters = useRef({})
-
-  useEffect(() => { fetchDeals() }, [])
-
-  const fetchDeals = async () => {
-    try {
-      setLoading(true)
-      const response = await api.get('/deals')
-      setDeals(response.data.data || [])
-    } catch (err) {
-      setError('Failed to load deals')
-    } finally {
-      setLoading(false)
-    }
+  const upsert = (updated, signing) => {
+    if (!updated) return
+    setDeals((prev) => prev.map((d) => (d.id === updated.id ? updated : d)))
+    if (signing) promptSigned(updated, signing)
   }
 
   const handleAddDeal = async (e) => {
     e.preventDefault()
     try {
-      // Server destructures priority/deal_type; empty deal_type sent as null
-      // so we don't bypass the allowlist with a '' value.
-      const payload = {
-        ...formData,
-        deal_type: formData.deal_type || null,
-        priority: formData.priority || 'Medium',
-      }
-      const response = await api.post('/deals', payload)
-      setDeals([...deals, response.data.data])
-      setFormData({
-        artist_name: '', genre: '', stage: 'Scouting', ar_rep: '', source: '', notes: '',
-        priority: 'Medium', deal_type: '',
-      })
-      setShowForm(false)
-    } catch (err) {
-      alert('Failed to add deal')
-    }
+      const r = await api.post('/deals', { ...formData, deal_type: formData.deal_type || null, priority: formData.priority || 'Medium', owner_id: formData.owner_id || null, next_followup_date: formData.next_followup_date || null })
+      setDeals((prev) => [r.data.data, ...prev]); setFormData(blankForm()); setShowForm(false)
+      if (r.data.signing) promptSigned(r.data.data, r.data.signing)
+    } catch (err) { setError(err?.response?.data?.error || 'Failed to add deal') }
   }
-
   const handleDeleteDeal = async (dealId) => {
-    if (!window.confirm('Delete this deal?')) return
-    try {
-      await api.delete(`/deals/${dealId}`)
-      setDeals(deals.filter(d => d.id !== dealId))
-    } catch (err) {
-      alert('Failed to delete deal')
-    }
+    if (!window.confirm('Delete this deal? Its timeline goes with it.')) return
+    try { await api.delete(`/deals/${dealId}`); setDeals((prev) => prev.filter((d) => d.id !== dealId)); if (filters.deal === String(dealId)) openDeal(null) } catch { setError('Failed to delete deal') }
   }
 
-  const handleChangeStage = async (dealId, newStage) => {
-    try {
-      const response = await api.put(`/deals/${dealId}`, { stage: newStage })
-      // Functional update — the closure's `deals` predates the optimistic
-      // drop update, so rapid drags could visually snap a card back.
-      setDeals(prev => prev.map(d => d.id === dealId ? response.data.data : d))
-      if (newStage === 'Signed') promptSigned(response.data.data, response.data.signing)
-    } catch (err) {
-      console.error('Failed to update deal:', err)
+  // A move to Passed asks why first; the card is moved optimistically and put back on Cancel.
+  const moveStage = (deal, stage, extra) => {
+    if (stage === deal.stage && stage !== 'Passed') return
+    if (stage === 'Passed' && !extra) {
+      const revert = deal.stage
+      if (revert !== 'Passed') setDeals((prev) => prev.map((d) => (d.id === deal.id ? { ...d, stage: 'Passed' } : d)))
+      setPassing({ deal, revert })
+      return
     }
+    setDeals((prev) => prev.map((d) => (d.id === deal.id ? { ...d, stage } : d)))
+    api.put(`/deals/${deal.id}`, { stage, ...(extra || {}) })
+      .then((r) => upsert(r.data.data, stage === 'Signed' ? (r.data.signing || {}) : null))
+      .catch((err) => { setError(err?.response?.data?.error || 'Could not move the deal'); load() })
   }
+  const confirmPassed = (fields) => { const { deal } = passing; setPassing(null); moveStage(deal, 'Passed', fields) }
+  const cancelPassed = () => { const { deal, revert } = passing; setPassing(null); if (revert !== 'Passed') setDeals((prev) => prev.map((d) => (d.id === deal.id ? { ...d, stage: revert } : d))) }
 
-  // ── Drag handlers ──
-  const onDragStart = (e, dealId) => {
-    setDraggedDealId(dealId)
-    e.dataTransfer.effectAllowed = 'move'
-    requestAnimationFrame(() => { e.target.style.opacity = '0.4' })
-  }
-  const onDragEnd = (e) => {
-    e.target.style.opacity = '1'
-    setDraggedDealId(null)
-    setDragOverStage(null)
-    dragCounters.current = {}
-  }
-  const onDragEnter = (e, stage) => {
-    e.preventDefault()
-    dragCounters.current[stage] = (dragCounters.current[stage] || 0) + 1
-    setDragOverStage(stage)
-  }
-  const onDragLeave = (e, stage) => {
-    dragCounters.current[stage] = (dragCounters.current[stage] || 0) - 1
-    if (dragCounters.current[stage] <= 0) {
-      dragCounters.current[stage] = 0
-      if (dragOverStage === stage) setDragOverStage(null)
-    }
-  }
+  // ── Drag ──
+  const [draggedDealId, setDraggedDealId] = useState(null)
+  const [dragOverStage, setDragOverStage] = useState(null)
+  const dragCounters = useRef({})
+  const onDragStart = (e, dealId) => { setDraggedDealId(dealId); e.dataTransfer.effectAllowed = 'move'; requestAnimationFrame(() => { e.target.style.opacity = '0.4' }) }
+  const onDragEnd = (e) => { e.target.style.opacity = '1'; setDraggedDealId(null); setDragOverStage(null); dragCounters.current = {} }
+  const onDragEnter = (e, stage) => { e.preventDefault(); dragCounters.current[stage] = (dragCounters.current[stage] || 0) + 1; setDragOverStage(stage) }
+  const onDragLeave = (e, stage) => { dragCounters.current[stage] = (dragCounters.current[stage] || 0) - 1; if (dragCounters.current[stage] <= 0) { dragCounters.current[stage] = 0; if (dragOverStage === stage) setDragOverStage(null) } }
   const onDragOver = (e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move' }
   const onDrop = (e, stage) => {
-    e.preventDefault()
-    dragCounters.current = {}
-    setDragOverStage(null)
+    e.preventDefault(); dragCounters.current = {}; setDragOverStage(null)
     if (draggedDealId == null) return
-    const deal = deals.find(d => d.id === draggedDealId)
-    if (deal && deal.stage !== stage) {
-      setDeals(prev => prev.map(d => d.id === draggedDealId ? { ...d, stage } : d))
-      handleChangeStage(draggedDealId, stage)
-    }
+    const deal = deals.find((d) => d.id === draggedDealId)
+    if (deal && deal.stage !== stage) moveStage(deal, stage)
     setDraggedDealId(null)
   }
+  const dropProps = (stage) => ({ onDragEnter: (e) => onDragEnter(e, stage), onDragLeave: (e) => onDragLeave(e, stage), onDragOver, onDrop: (e) => onDrop(e, stage) })
+  const isDropTarget = (stage) => { const dd = deals.find((d) => d.id === draggedDealId); return dragOverStage === stage && dd && dd.stage !== stage }
 
-  if (loading) {
-    return (
-      <div className="space-y-6">
-        <Skeleton.PageHeader />
-        <Skeleton.KanbanBoard cols={6} cards={2} />
-      </div>
-    )
-  }
+  // ── The set on screen ──
+  const visible = useMemo(() => sortDeals(filterDeals(deals, filters, user?.id), filters.sort), [deals, filters, user?.id])
+  const grouped = useMemo(() => { const g = {}; for (const s of STAGES) g[s] = visible.filter((d) => d.stage === s); return g }, [visible])
+  const live = deals.filter((d) => LIVE_STAGES.includes(d.stage))
+  const attnCount = deals.filter(needsAttention).length
+  const activeFilters = ['q', 'owner', 'type', 'priority', 'stage', 'attn'].filter((k) => filters[k]).length
+  const cardProps = (deal) => ({ deal, dragging: draggedDealId === deal.id, onOpen: openDeal, onDelete: handleDeleteDeal, onNext: (d, s) => moveStage(d, s), onDragStart, onDragEnd })
 
-  const grouped = {}
-  STAGES.forEach(s => { grouped[s] = deals.filter(d => d.stage === s) })
+  if (loading) return <div className="space-y-6"><Skeleton.PageHeader /><Skeleton.KanbanBoard cols={4} cards={2} /></div>
 
   return (
-    <div className="space-y-5">
-      {/* Header */}
-      <PageHeader
-        tour="deals-header"
-        title="Deal Pipeline"
-        subtitle={`${deals.length} deal${deals.length !== 1 ? 's' : ''} across ${STAGES.length} stages`}
-        actions={<button data-tour="deals-new" onClick={() => setShowForm(!showForm)} className="btn-primary"><Plus size={16} /> New Deal</button>}
-      />
+    <div className="space-y-4">
+      <PageHeader tour="deals-header" title="Deal Pipeline"
+        subtitle={deals.length ? `${live.length} live · ${fmtMoney(sumAdvance(live))} in advances · ${grouped.Signed.length + deals.filter((d) => d.stage === 'Signed').length - grouped.Signed.length} signed · ${deals.filter((d) => d.stage === 'Passed').length} passed${attnCount ? ` · ${attnCount} need attention` : ''}` : 'Track a prospect from first meeting to signed'}
+        actions={(
+          <div className="flex items-center gap-2">
+            <div className="inline-flex rounded-lg border border-rule bg-card p-0.5" role="tablist" data-tour="deals-views" data-deals-views>
+              {[['board', LayoutGrid, 'Board'], ['list', ListIcon, 'List'], ['report', BarChart3, 'Report']].map(([id, Icon, label]) => (
+                <button key={id} type="button" role="tab" aria-selected={view === id} onClick={() => setFilter({ view: id === 'board' ? '' : id })} data-deals-view={id}
+                  className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium ${view === id ? 'bg-gray-900 text-white' : 'text-gray-600 hover:bg-gray-100'}`}><Icon size={13} /> <span className="hidden sm:inline">{label}</span></button>
+              ))}
+            </div>
+            <button data-tour="deals-new" onClick={() => setShowForm((v) => !v)} className="btn-primary"><Plus size={16} /> New Deal</button>
+          </div>
+        )} />
 
-      {/* Add Deal Form */}
+      {/* Filters — the URL is the state */}
+      {view !== 'report' && (
+        <div className="flex items-center gap-2 flex-wrap" data-tour="deals-filters" data-deals-filters>
+          <label className="relative">
+            <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
+            <input value={filters.q} onChange={(e) => setFilter({ q: e.target.value })} placeholder="Search artist, genre, source, notes…" data-filter className="input-base pl-7 py-1.5 text-sm w-60" aria-label="Search deals" />
+          </label>
+          <select value={filters.owner} onChange={(e) => setFilter({ owner: e.target.value })} className="select-base text-xs py-1.5" aria-label="Owner" data-deals-owner-filter>
+            <option value="">Everyone</option><option value="me">Mine</option>
+            {team.filter((m) => String(m.id) !== String(user?.id)).map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
+          </select>
+          <select value={filters.type} onChange={(e) => setFilter({ type: e.target.value })} className="select-base text-xs py-1.5" aria-label="Deal type"><option value="">Any type</option>{DEAL_TYPES.map((t) => <option key={t}>{t}</option>)}</select>
+          <select value={filters.priority} onChange={(e) => setFilter({ priority: e.target.value })} className="select-base text-xs py-1.5" aria-label="Priority"><option value="">Any priority</option>{PRIORITIES.map((p) => <option key={p}>{p}</option>)}</select>
+          {view === 'list' && <select value={filters.stage} onChange={(e) => setFilter({ stage: e.target.value })} className="select-base text-xs py-1.5" aria-label="Stage"><option value="">Any stage</option>{STAGES.map((s) => <option key={s}>{s}</option>)}</select>}
+          <button type="button" onClick={() => setFilter({ attn: filters.attn === '1' ? '' : '1' })} aria-pressed={filters.attn === '1'} data-deals-attn
+            className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium border ${filters.attn === '1' ? 'bg-rose-600 text-white border-rose-600' : 'bg-card text-gray-600 border-rule hover:bg-gray-50'}`}>
+            <AlertTriangle size={12} /> Needs attention{attnCount ? ` · ${attnCount}` : ''}
+          </button>
+          {activeFilters > 0 && <button type="button" onClick={() => setFilter({ q: '', owner: '', type: '', priority: '', stage: '', attn: '' })} className="text-xs text-gray-500 hover:text-gray-900 inline-flex items-center gap-1" data-deals-clear><X size={11} /> Clear</button>}
+        </div>
+      )}
+
+      {/* New deal */}
       {showForm && (
-        <div className="bg-card border border-rule rounded-xl p-5 shadow-sm">
+        <div className="bg-card border border-rule rounded-xl p-5 shadow-sm" data-deal-form>
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-sm font-semibold text-gray-900">Add New Deal</h2>
-            <button onClick={() => setShowForm(false)} className="p-1 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100">
-              <X size={18} />
-            </button>
+            <button onClick={() => setShowForm(false)} aria-label="Close" className="p-1 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100"><X size={18} /></button>
           </div>
           <form onSubmit={handleAddDeal} className="space-y-4">
-            <div className="grid grid-cols-2 gap-3">
-              <input type="text" placeholder="Artist Name" value={formData.artist_name} onChange={e => setFormData({ ...formData, artist_name: e.target.value })} required className="input-base" />
-              <input type="text" placeholder="Genre" value={formData.genre} onChange={e => setFormData({ ...formData, genre: e.target.value })} className="input-base" />
-              <select value={formData.stage} onChange={e => setFormData({ ...formData, stage: e.target.value })} className="select-base w-full">
-                {STAGES.map(s => <option key={s} value={s}>{s}</option>)}
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+              <input type="text" placeholder="Artist Name" value={formData.artist_name} onChange={(e) => setFormData({ ...formData, artist_name: e.target.value })} required className="input-base" aria-label="Artist name" />
+              <input type="text" placeholder="Genre" value={formData.genre} onChange={(e) => setFormData({ ...formData, genre: e.target.value })} className="input-base" aria-label="Genre" />
+              <select value={formData.stage} onChange={(e) => setFormData({ ...formData, stage: e.target.value })} className="select-base w-full" aria-label="Stage">{STAGES.map((s) => <option key={s} value={s}>{s}</option>)}</select>
+              <select value={formData.owner_id} onChange={(e) => setFormData({ ...formData, owner_id: e.target.value })} className="select-base w-full" aria-label="Owner" data-form-owner>
+                {team.map((m) => <option key={m.id} value={m.id}>{String(m.id) === String(user?.id) ? `Owner: me` : `Owner: ${m.name}`}</option>)}
+                {!team.length && <option value={user?.id || ''}>Owner: me</option>}
               </select>
-              <input type="text" placeholder="A&R Rep" value={formData.ar_rep} onChange={e => setFormData({ ...formData, ar_rep: e.target.value })} className="input-base" />
-              <input type="text" placeholder="Source" value={formData.source} onChange={e => setFormData({ ...formData, source: e.target.value })} className="input-base" />
-              <select value={formData.priority} onChange={e => setFormData({ ...formData, priority: e.target.value })} className="select-base w-full">
-                {PRIORITIES.map(p => <option key={p} value={p}>{`Priority: ${p}`}</option>)}
-              </select>
-              <select value={formData.deal_type} onChange={e => setFormData({ ...formData, deal_type: e.target.value })} className="select-base w-full">
-                <option value="">Deal Type (optional)</option>
-                {DEAL_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-              </select>
+              <input type="text" placeholder="Source (referral, showcase, inbound…)" value={formData.source} onChange={(e) => setFormData({ ...formData, source: e.target.value })} className="input-base" aria-label="Source" />
+              <select value={formData.priority} onChange={(e) => setFormData({ ...formData, priority: e.target.value })} className="select-base w-full" aria-label="Priority">{PRIORITIES.map((p) => <option key={p} value={p}>{`Priority: ${p}`}</option>)}</select>
+              <select value={formData.deal_type} onChange={(e) => setFormData({ ...formData, deal_type: e.target.value })} className="select-base w-full" aria-label="Deal type"><option value="">Deal Type (optional)</option>{DEAL_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}</select>
+              <label className="block"><input type="date" value={formData.next_followup_date} onChange={(e) => setFormData({ ...formData, next_followup_date: e.target.value })} className="input-base w-full" aria-label="First follow-up" title="First follow-up" /><span className="text-[10px] text-gray-400">First follow-up (optional)</span></label>
             </div>
-            <textarea placeholder="Notes" value={formData.notes} onChange={e => setFormData({ ...formData, notes: e.target.value })} className="input-base" rows="2" />
+            <textarea placeholder="First note — where they came from, what they want" value={formData.notes} onChange={(e) => setFormData({ ...formData, notes: e.target.value })} className="input-base w-full" rows="2" aria-label="Notes" />
             <div className="flex gap-2 justify-end">
               <button type="button" onClick={() => setShowForm(false)} className="btn-secondary">Cancel</button>
-              <button type="submit" className="btn-primary">Add Deal</button>
+              <button type="submit" className="btn-primary" data-deal-form-submit>Add Deal</button>
             </div>
           </form>
         </div>
       )}
 
-      {error && <div className="text-sm text-red-600 text-center py-12">{error}</div>}
-
-      {!loading && !error && deals.length === 0 && !showForm && (
-        <EmptyState
-          title="No deals in the pipeline"
-          body="Track a prospect from first meeting to signed. A deal marked Signed is what becomes a contract."
-          action={{ label: 'New deal', onClick: () => setShowForm(true) }}
-        />
-      )}
-
+      {error && <div className="text-sm text-red-600 flex items-center justify-between bg-red-50 border border-red-200 rounded-lg px-3 py-2"><span>{error}</span><button onClick={() => setError('')} aria-label="Dismiss" className="p-0.5"><X size={14} /></button></div>}
       <NextStepPrompt prompt={nextStep} onClose={clearNextStep} />
 
-      {/* Kanban Board */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3" data-tour="deal-board">
-        {STAGES.map(stage => {
-          const isDropTarget = dragOverStage === stage && draggedDealId != null
-          const draggedDeal = deals.find(d => d.id === draggedDealId)
-          const isDifferentStage = draggedDeal && draggedDeal.stage !== stage
-          const count = grouped[stage].length
+      {view === 'report' && <DealFunnel />}
 
-          return (
-            <div data-tour="deal-column"
-              key={stage}
-              className={`rounded-xl border bg-card p-3 min-h-[16rem] transition-all duration-150 ${
-                isDropTarget && isDifferentStage
-                  ? 'border-gray-400 bg-gray-50 ring-1 ring-gray-300'
-                  : 'border-rule'
-              }`}
-              onDragEnter={e => onDragEnter(e, stage)}
-              onDragLeave={e => onDragLeave(e, stage)}
-              onDragOver={onDragOver}
-              onDrop={e => onDrop(e, stage)}
-            >
-              {/* Column header */}
-              <div className="flex items-center gap-2 mb-3 pb-2 border-b border-divider">
-                <div className={`w-2 h-2 rounded-full flex-shrink-0 ${STAGE_DOT[stage]}`} />
-                <h3 className={`text-[11px] font-bold uppercase tracking-wider flex-1 ${STAGE_HEADER[stage]}`}>
-                  {stage}
-                </h3>
-                {count > 0 && (
-                  <span className="text-[10px] font-bold text-gray-400 bg-gray-100 rounded px-1.5 py-0.5 tabular-nums">
-                    {count}
-                  </span>
-                )}
-              </div>
+      {view === 'list' && <DealList deals={visible} sort={filters.sort} onSort={(s) => setFilter({ sort: s })} onOpen={openDeal} />}
 
-              {/* Cards */}
-              <div className="space-y-2">
-                {grouped[stage].map(deal => (
-                  <div
-                    key={deal.id}
-                    draggable
-                    onDragStart={e => onDragStart(e, deal.id)}
-                    onDragEnd={onDragEnd}
-                    className={`p-2.5 rounded-lg border border-gray-150 hover:border-gray-300 bg-card hover:shadow-sm transition-all group ${
-                      draggedDealId === deal.id ? 'opacity-30' : ''
-                    }`}
-                    style={{ cursor: 'grab' }}
-                  >
-                    <div className="flex items-start gap-1.5">
-                      <GripVertical size={12} className="text-gray-300 mt-0.5 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
-                      <button onClick={() => setSelectedDeal(deal)} className="flex-1 min-w-0 text-left">
-                        <p className="text-[13px] font-semibold text-gray-900 truncate leading-tight">{deal.artist_name}</p>
-                        {deal.genre && <p className="text-[11px] text-gray-400 mt-0.5 truncate">{deal.genre}</p>}
-                        {deal.ar_rep && <p className="text-[11px] text-gray-400 truncate">{deal.ar_rep}</p>}
-                        {(deal.priority || deal.next_followup_date) && (
-                          <div className="flex items-center gap-1.5 mt-1 flex-wrap">
-                            {deal.priority && (
-                              <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider ${PRIORITY_PILL_TONE[deal.priority] || PRIORITY_PILL_TONE.Medium}`}>
-                                {deal.priority}
-                              </span>
-                            )}
-                            {deal.next_followup_date && (
-                              <span className={`text-[10px] font-medium ${isOverdue(deal.next_followup_date) ? 'text-amber-600' : 'text-gray-400'}`}>
-                                Follow up: {formatShortDate(deal.next_followup_date)}
-                              </span>
-                            )}
-                          </div>
-                        )}
-                        {(dealFileCounts[deal.id] > 0) && (
-                          <span className="inline-flex items-center gap-0.5 mt-1 text-[10px] font-medium text-gray-300">
-                            <Paperclip size={9} /> {dealFileCounts[deal.id]}
-                          </span>
-                        )}
-                      </button>
-                      <button
-                        onClick={() => handleDeleteDeal(deal.id)}
-                        className="p-0.5 text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all flex-shrink-0"
-                      >
-                        <X size={12} />
-                      </button>
+      {view === 'board' && (
+        <div className="space-y-3" data-tour="deal-board" data-deal-board>
+          {deals.length === 0 && !showForm ? (
+            <EmptyState title="No deals in the pipeline" body="Track a prospect from first meeting to signed. A deal marked Signed becomes a roster artist, an advance invoice and a contract." action={{ label: 'New deal', onClick: () => setShowForm(true) }} />
+          ) : (
+            <>
+              {visible.length === 0 && <p className="text-sm text-gray-400 text-center py-3" data-deals-nomatch>No deals match these filters. <button type="button" className="underline" onClick={() => setFilter({ q: '', owner: '', type: '', priority: '', stage: '', attn: '' })}>Clear filters</button></p>}
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                {LIVE_STAGES.map((stage) => {
+                  const col = grouped[stage]; const target = isDropTarget(stage)
+                  return (
+                    <div key={stage} data-tour="deal-column" data-deal-column={stage} {...dropProps(stage)}
+                      className={`rounded-xl border bg-card p-3 min-h-[12rem] transition-all duration-150 ${target ? 'border-gray-400 bg-gray-50 ring-1 ring-gray-300' : 'border-rule'}`}>
+                      <div className="flex items-center gap-2 mb-3 pb-2 border-b border-divider">
+                        <div className={`w-2 h-2 rounded-full flex-shrink-0 ${STAGE_DOT[stage]}`} />
+                        <h3 className={`text-[11px] font-bold uppercase tracking-wider flex-1 ${STAGE_HEADER[stage]}`}>{stage}</h3>
+                        {sumAdvance(col) > 0 && <span className="text-[10px] font-semibold text-gray-500 tabular-nums" data-column-sum>{fmtMoney(sumAdvance(col))}</span>}
+                        {col.length > 0 && <span className="text-[10px] font-bold text-gray-400 bg-gray-100 rounded px-1.5 py-0.5 tabular-nums" data-column-count>{col.length}</span>}
+                      </div>
+                      <div className="space-y-2">{col.map((deal) => <DealCard key={deal.id} {...cardProps(deal)} />)}</div>
+                      {target && col.length === 0 && <div className="border-2 border-dashed border-gray-300 rounded-lg p-3 text-center text-[11px] text-gray-400 font-medium">Drop here</div>}
                     </div>
-                    {deal.stage !== STAGES[STAGES.length - 1] && (
-                      <button
-                        onClick={() => {
-                          const next = STAGES.indexOf(deal.stage) + 1
-                          if (next < STAGES.length) handleChangeStage(deal.id, STAGES[next])
-                        }}
-                        className="mt-1.5 w-full flex items-center justify-center gap-0.5 text-[11px] font-medium text-gray-400 hover:text-boom-600 py-0.5 rounded hover:bg-boom-50/50 transition-all"
-                      >
-                        Next <ChevronRight size={11} />
+                  )
+                })}
+              </div>
+              {/* Signed and Passed fold away: the board is the work, these are the record. Still drop targets. */}
+              <div className="grid md:grid-cols-2 gap-3" data-tour="deals-closed" data-deals-closed>
+                {CLOSED_STAGES.map((stage) => {
+                  const col = grouped[stage]; const all = deals.filter((d) => d.stage === stage); const open = !!closedOpen[stage]; const target = isDropTarget(stage)
+                  return (
+                    <div key={stage} data-deal-column={stage} data-open={open ? '1' : '0'} {...dropProps(stage)}
+                      className={`rounded-xl border bg-card transition-all duration-150 ${target ? 'border-gray-400 bg-gray-50 ring-1 ring-gray-300' : 'border-rule'}`}>
+                      <button type="button" onClick={() => toggleClosed(stage)} className="w-full flex items-center gap-2 px-3 py-2.5 text-left" aria-expanded={open} data-closed-toggle={stage}>
+                        {open ? <ChevronDown size={14} className="text-gray-400" /> : <ChevronRight size={14} className="text-gray-400" />}
+                        <div className={`w-2 h-2 rounded-full flex-shrink-0 ${STAGE_DOT[stage]}`} />
+                        <h3 className={`text-[11px] font-bold uppercase tracking-wider ${STAGE_HEADER[stage]}`}>{stage}</h3>
+                        <span className="text-[11px] text-gray-500 tabular-nums">{col.length}{col.length !== all.length ? ` of ${all.length}` : ''}{stage === 'Signed' && sumAdvance(col) > 0 ? ` · ${fmtMoney(sumAdvance(col))} in advances` : ''}</span>
+                        {target && <span className="ml-auto text-[11px] text-gray-500 font-medium">Drop to mark {stage.toLowerCase()}</span>}
                       </button>
-                    )}
-                  </div>
-                ))}
+                      {open && (
+                        <div className="px-3 pb-3 grid sm:grid-cols-2 gap-2">
+                          {col.length === 0 && <p className="text-xs text-gray-400 col-span-2">{stage === 'Signed' ? 'Nothing signed yet.' : 'Nothing passed on yet.'}</p>}
+                          {col.map((deal) => <DealCard key={deal.id} {...cardProps(deal)} />)}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
               </div>
-
-              {/* Drop hint */}
-              {isDropTarget && isDifferentStage && count === 0 && (
-                <div className="border-2 border-dashed border-gray-300 rounded-lg p-3 text-center text-[11px] text-gray-400 font-medium">
-                  Drop here
-                </div>
-              )}
-            </div>
-          )
-        })}
-      </div>
-
-      {/* Deal detail slide-over */}
-      {selectedDeal && (
-        <div className="fixed inset-0 z-50 flex justify-end" onClick={() => setSelectedDeal(null)}>
-          <div className="relative w-full max-w-sm bg-card shadow-xl border-l border-rule h-full overflow-y-auto" onClick={e => e.stopPropagation()}>
-            <div className="sticky top-0 bg-card border-b border-divider px-5 py-4 flex items-start justify-between gap-3 z-10">
-              <div className="min-w-0">
-                <p className="text-base font-semibold text-gray-900 truncate">{selectedDeal.artist_name}</p>
-                <p className="text-xs text-gray-400 mt-0.5">
-                  {selectedDeal.stage}{selectedDeal.genre && ` · ${selectedDeal.genre}`}{selectedDeal.ar_rep && ` · ${selectedDeal.ar_rep}`}
-                </p>
-              </div>
-              <button onClick={() => setSelectedDeal(null)} className="p-1.5 text-gray-400 hover:text-gray-700 rounded-lg hover:bg-gray-100 transition-colors flex-shrink-0">
-                <X size={16} />
-              </button>
-            </div>
-            <div className="px-5 py-4 space-y-3 border-b border-divider">
-              {selectedDeal.source && (
-                <div>
-                  <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-0.5">Source</p>
-                  <p className="text-sm text-gray-700">{selectedDeal.source}</p>
-                </div>
-              )}
-              {selectedDeal.notes && (
-                <div>
-                  <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-0.5">Notes</p>
-                  <p className="text-sm text-gray-700 whitespace-pre-wrap">{selectedDeal.notes}</p>
-                </div>
-              )}
-              {selectedDeal.added_date && (
-                <p className="text-xs text-gray-400">Added {formatDate(selectedDeal.added_date)}</p>
-              )}
-            </div>
-            {/* Deal details — editable */}
-            <div className="px-5 py-4 border-b border-divider space-y-3">
-              <div className="flex items-center justify-between">
-                <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Details</p>
-                {editStatus === 'saved' && (
-                  <span className="inline-flex items-center gap-1 text-[11px] text-emerald-600 font-medium">
-                    <Check size={11} /> Saved
-                  </span>
-                )}
-                {editStatus === 'error' && (
-                  <span className="text-[11px] text-red-600 font-medium">Save failed</span>
-                )}
-              </div>
-
-              <div className="grid grid-cols-2 gap-2.5">
-                <label className="block">
-                  <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Priority</span>
-                  <Select
-                    value={editForm.priority || 'Medium'}
-                    onChange={e => setEditForm(f => ({ ...f, priority: e.target.value }))}
-                    className={`mt-1 font-semibold ${PRIORITY_SELECT_TONE[editForm.priority] || PRIORITY_SELECT_TONE.Medium}`}
-                  >
-                    {PRIORITIES.map(p => <option key={p} value={p}>{p}</option>)}
-                  </Select>
-                </label>
-
-                <label className="block">
-                  <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Deal Type</span>
-                  <Select
-                    value={editForm.deal_type || ''}
-                    onChange={e => setEditForm(f => ({ ...f, deal_type: e.target.value }))}
-                    className="mt-1"
-                  >
-                    <option value="">—</option>
-                    {DEAL_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-                  </Select>
-                </label>
-
-                <label className="block">
-                  <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Last Contact</span>
-                  <Input
-                    type="date"
-                    value={editForm.last_contact_date || ''}
-                    onChange={e => setEditForm(f => ({ ...f, last_contact_date: e.target.value }))}
-                    className="mt-1"
-                  />
-                </label>
-
-                <label className="block">
-                  <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Next Follow-up</span>
-                  <Input
-                    type="date"
-                    value={editForm.next_followup_date || ''}
-                    onChange={e => setEditForm(f => ({ ...f, next_followup_date: e.target.value }))}
-                    className="mt-1"
-                  />
-                </label>
-
-                <label className="block">
-                  <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Offer Amount</span>
-                  <div className="relative mt-1">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400 pointer-events-none">$</span>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      placeholder="0.00"
-                      value={editForm.offer_amount ?? ''}
-                      onChange={e => setEditForm(f => ({ ...f, offer_amount: e.target.value }))}
-                      className="pl-7"
-                    />
-                  </div>
-                </label>
-
-                <label className="block">
-                  <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Spotify Monthly</span>
-                  <Input
-                    inputMode="numeric"
-                    placeholder="e.g. 250,000"
-                    // Display comma-formatted; strip commas on edit so the
-                    // raw value stored in state is always a clean integer
-                    // string (the payload coerces it to Number on save).
-                    value={
-                      editForm.spotify_monthly_listeners === '' || editForm.spotify_monthly_listeners == null
-                        ? ''
-                        : Number(editForm.spotify_monthly_listeners).toLocaleString('en-US')
-                    }
-                    onChange={e => {
-                      const raw = e.target.value.replace(/,/g, '')
-                      if (raw === '' || /^\d+$/.test(raw)) {
-                        setEditForm(f => ({ ...f, spotify_monthly_listeners: raw }))
-                      }
-                    }}
-                    className="mt-1"
-                  />
-                </label>
-              </div>
-
-              {/* Terms and contact — typed at Offer, read by signing: the
-                  contract form, the roster row and the advance invoice all
-                  come from these. */}
-              <div className="pt-2" data-deal-terms>
-                <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-2">Terms · typed at Offer</p>
-                <div className="grid grid-cols-2 gap-2.5">
-                  <label className="block"><span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Advance</span>
-                    <div className="relative mt-1"><span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400 pointer-events-none">$</span>
-                      <Input type="number" step="0.01" min="0" placeholder="0" value={editForm.advance ?? ''} onChange={e => setEditForm(f => ({ ...f, advance: e.target.value }))} className="pl-7" data-term="advance" /></div></label>
-                  <label className="block"><span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Artist royalty %</span>
-                    <Input type="number" step="0.5" min="0" max="100" placeholder="e.g. 50" value={editForm.royalty_split ?? ''} onChange={e => setEditForm(f => ({ ...f, royalty_split: e.target.value }))} className="mt-1" data-term="royalty_split" /></label>
-                  <label className="block"><span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Term (months)</span>
-                    <Input type="number" step="1" min="0" placeholder="e.g. 24" value={editForm.term_months ?? ''} onChange={e => setEditForm(f => ({ ...f, term_months: e.target.value }))} className="mt-1" data-term="term_months" /></label>
-                  <label className="block"><span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Territory</span>
-                    <Input placeholder="World" value={editForm.territory ?? ''} onChange={e => setEditForm(f => ({ ...f, territory: e.target.value }))} className="mt-1" data-term="territory" /></label>
-                  <label className="block"><span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Releases committed</span>
-                    <Input type="number" step="1" min="0" placeholder="e.g. 3" value={editForm.num_releases ?? ''} onChange={e => setEditForm(f => ({ ...f, num_releases: e.target.value }))} className="mt-1" data-term="num_releases" /></label>
-                  <label className="block"><span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Option periods</span>
-                    <Input type="number" step="1" min="0" placeholder="0" value={editForm.option_periods ?? ''} onChange={e => setEditForm(f => ({ ...f, option_periods: e.target.value }))} className="mt-1" data-term="option_periods" /></label>
-                </div>
-                <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mt-4 mb-2">Contact · goes onto the roster at signing</p>
-                <div className="grid grid-cols-2 gap-2.5">
-                  <label className="block"><span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Artist email</span>
-                    <Input type="email" placeholder="artist@email.com" value={editForm.artist_email ?? ''} onChange={e => setEditForm(f => ({ ...f, artist_email: e.target.value }))} className="mt-1" data-term="artist_email" /></label>
-                  <label className="block"><span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Artist phone</span>
-                    <Input placeholder="+1 …" value={editForm.artist_phone ?? ''} onChange={e => setEditForm(f => ({ ...f, artist_phone: e.target.value }))} className="mt-1" /></label>
-                  <label className="block"><span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Manager</span>
-                    <Input placeholder="Name" value={editForm.manager_name ?? ''} onChange={e => setEditForm(f => ({ ...f, manager_name: e.target.value }))} className="mt-1" /></label>
-                  <label className="block"><span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Manager email</span>
-                    <Input type="email" placeholder="manager@email.com" value={editForm.manager_email ?? ''} onChange={e => setEditForm(f => ({ ...f, manager_email: e.target.value }))} className="mt-1" /></label>
-                  <label className="block col-span-2"><span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Spotify artist link</span>
-                    <Input placeholder="https://open.spotify.com/artist/…" value={editForm.spotify_url ?? ''} onChange={e => setEditForm(f => ({ ...f, spotify_url: e.target.value }))} className="mt-1" /></label>
-                  <label className="block col-span-2"><span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Socials · one per line, "platform handle"</span>
-                    <textarea rows="2" placeholder={'instagram @rosavale\ntiktok @rosa.vale'} value={editForm.socials_text ?? ''} onChange={e => setEditForm(f => ({ ...f, socials_text: e.target.value }))} className="input-base w-full mt-1 text-sm" data-term="socials" /></label>
-                </div>
-              </div>
-
-              <div className="flex justify-end pt-1">
-                <Button
-                  size="sm"
-                  onClick={handleSaveEdit}
-                  disabled={savingEdit}
-                >
-                  <Save size={13} />
-                  {savingEdit ? 'Saving…' : 'Save Changes'}
-                </Button>
-              </div>
-            </div>
-
-            <div className="px-5 py-4 border-b border-divider">
-              <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-2">Move Stage</p>
-              <div className="flex flex-wrap gap-1.5">
-                {STAGES.map(s => (
-                  <button
-                    key={s}
-                    onClick={() => {
-                      if (s !== selectedDeal.stage) {
-                        handleChangeStage(selectedDeal.id, s)
-                        setSelectedDeal({ ...selectedDeal, stage: s })
-                      }
-                    }}
-                    className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-all ${
-                      s === selectedDeal.stage ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                    }`}
-                  >
-                    {s}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div>
-              <div className="px-5 pt-4 pb-1">
-                <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Documents</p>
-              </div>
-              <FilesPanel
-                entityType="deal" entityId={selectedDeal.id} basePath="/deals"
-                onCountChange={(count) => setDealFileCounts(prev => ({ ...prev, [selectedDeal.id]: count }))}
-              />
-            </div>
-          </div>
+            </>
+          )}
         </div>
       )}
+
+      {selectedDeal && (
+        <DealDrawer deal={selectedDeal} team={team} user={user} onClose={() => openDeal(null)} onSaved={upsert}
+          onMoveStage={(deal, stage) => { if (stage === 'Passed') setPassing({ deal, revert: deal.stage }); else moveStage(deal, stage) }}
+          onFileCount={(id, count) => setDeals((prev) => prev.map((d) => (d.id === id ? { ...d, file_count: count } : d)))} />
+      )}
+      {passing && <PassedModal deal={passing.deal} onConfirm={confirmPassed} onCancel={cancelPassed} />}
     </div>
   )
 }

@@ -326,6 +326,16 @@ keys, toolbar), `pages/MyWork.jsx` TaskRow. No server change — `tasks.notes`
 is already TEXT. Boom's My Work is the old two-pane page, so port the
 component and wire it wherever Boom edits task notes.
 
+## 23. Deal pipeline, second pass — PORT
+
+`lib/deals.js`, `pages/DealPipeline.jsx`, `components/deals/*`,
+`routes/deals.js` (owner, `deal_events`, passed reason/revisit, funnel),
+`routes/calendar.js` (source `deals`), `routes/team.js` (`deals_due`),
+`lib/flags-register.js` (three deal detectors), migrations in index.js
+(`deals.owner_id / stage_changed_at / passed_reason / passed_note /
+revisit_date`, table `deal_events`). Nothing label-shaped. Boom's page is the
+first-pass board; port the whole commit and run `deals-pipeline-fixture.cjs`.
+
 ## Suggested order for Cadence
 
 1. Sections 3, 4, 7 (sidebar, presets, Settings) — they define the shape

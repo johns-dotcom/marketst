@@ -528,10 +528,31 @@ const runMigrations = async () => {
     `socials JSONB`, `spotify_url TEXT`,
     `signed_artist_id INTEGER REFERENCES artists(id) ON DELETE SET NULL`, `signed_at TIMESTAMPTZ`,
     `advance_expense_id INTEGER`,
+    // Pipeline second pass (2026-09-20): an OWNER (a person, so follow-ups reach
+    // My Work), the moment the stage last changed (days-in-stage, the funnel),
+    // why we passed and when to look again.
+    `owner_id INTEGER REFERENCES users(id) ON DELETE SET NULL`, `stage_changed_at TIMESTAMPTZ`,
+    `passed_reason TEXT`, `passed_note TEXT`, `revisit_date DATE`,
   ]) {
     await pool.query(`ALTER TABLE deals ADD COLUMN IF NOT EXISTS ${col}`)
       .catch(err => console.error(`deals.${col.split(' ')[0]} migration failed:`, err.message));
   }
+  await pool.query(`UPDATE deals SET stage_changed_at = COALESCE(updated_at, created_at, NOW()) WHERE stage_changed_at IS NULL`).catch(() => {});
+  // The deal's timeline: dated notes by a person, and every stage move —
+  // what the card shows as "last touch" and what the funnel report is built from.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS deal_events (
+      id SERIAL PRIMARY KEY,
+      deal_id INTEGER NOT NULL REFERENCES deals(id) ON DELETE CASCADE,
+      kind VARCHAR(20) NOT NULL,          -- created | stage | note | passed | signed
+      body TEXT,
+      from_stage VARCHAR(50),
+      to_stage VARCHAR(50),
+      user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      user_name TEXT,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    )`).catch(err => console.error('deal_events CREATE TABLE failed:', err.message));
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_deal_events_deal ON deal_events(deal_id, created_at DESC)`).catch(() => {});
   for (const col of [
     `email TEXT`, `phone TEXT`, `manager_name TEXT`, `manager_email TEXT`, `socials JSONB`, `spotify_url TEXT`,
     `signed_at TIMESTAMPTZ`, `onboarded_at TIMESTAMPTZ`, `signed_deal_id INTEGER`,

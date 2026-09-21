@@ -41,7 +41,7 @@ const d = (raw) => {
 // Payments grant sees due dates, an A&R User without one gets no money at all.
 // `sources` says which feeds this caller received, so the legend can name a
 // source that is missing by permission instead of leaving a silent gap.
-const CAL_PAGES = { releases: '/releases', contracts: '/contracts', renewals: '/renewals', payments: '/bk/payments', team: '/team' }
+const CAL_PAGES = { releases: '/releases', contracts: '/contracts', renewals: '/renewals', payments: '/bk/payments', team: '/team', deals: '/deals' }
 
 const fmtMoney = (amount, currency) => {
   const n = Number(amount) || 0
@@ -57,7 +57,7 @@ router.get('/', authMiddleware, async (req, res) => {
     const teamTasks = can('team')
     const none = Promise.resolve({ rows: [] })
 
-    const [releases, contracts, dsps, tasks, payments, manual] = await Promise.all([
+    const [releases, contracts, dsps, tasks, payments, manual, deals] = await Promise.all([
       can('releases') ? safeQuery(`
         SELECT r.id, r.project_name AS title, r.release_date AS date,
                a.name AS artist_name, r.release_type
@@ -113,6 +113,15 @@ router.get('/', authMiddleware, async (req, res) => {
         FROM calendar_events
         ORDER BY event_date
       `),
+      // Deal follow-ups on live deals, and the revisit date on a passed one — each
+      // carrying the owner so My Work can keep "mine".
+      can('deals') ? safeQuery(`
+        SELECT d.id, d.artist_name, d.stage, d.owner_id, u.name AS owner_name, d.next_followup_date, d.revisit_date
+          FROM deals d LEFT JOIN users u ON u.id = d.owner_id
+         WHERE (d.stage NOT IN ('Signed','Passed') AND d.next_followup_date IS NOT NULL)
+            OR (d.stage = 'Passed' AND d.revisit_date IS NOT NULL)
+         ORDER BY d.next_followup_date
+      `) : none,
     ])
 
     const events = []
@@ -181,6 +190,23 @@ router.get('/', authMiddleware, async (req, res) => {
       })
     }
 
+    for (const dl of deals.rows) {
+      if (dl.stage !== 'Passed' && dl.next_followup_date) {
+        events.push({
+          id: `deal-fu-${dl.id}`, type: 'deal_followup', title: `${dl.artist_name} — follow up`,
+          subtitle: [dl.stage, dl.owner_name].filter(Boolean).join(' · ') || null, date: d(dl.next_followup_date),
+          sourceId: dl.id, ownerId: dl.owner_id, to: `/deals?deal=${dl.id}`,
+        })
+      }
+      if (dl.stage === 'Passed' && dl.revisit_date) {
+        events.push({
+          id: `deal-rv-${dl.id}`, type: 'deal_revisit', title: `${dl.artist_name} — revisit`,
+          subtitle: dl.owner_name ? `Passed · ${dl.owner_name}` : 'Passed', date: d(dl.revisit_date),
+          sourceId: dl.id, ownerId: dl.owner_id, to: `/deals?deal=${dl.id}`,
+        })
+      }
+    }
+
     for (const e of manual.rows) {
       events.push({
         id: `event-${e.id}`, type: e.event_type || 'manual', title: e.title,
@@ -199,6 +225,7 @@ router.get('/', authMiddleware, async (req, res) => {
         contracts: can('contracts'),
         renewals: can('renewals'),
         payments: can('payments'),
+        deals: can('deals'),
         tasks: teamTasks ? 'team' : 'own',
       },
     })

@@ -45,6 +45,7 @@ const DAYS = {
   never_signed_in: 14,
   stats_stale: 3,
   mail_failed_window: 7,
+  deal_stale: 21,           // a live deal with no stage move this long
 };
 
 const ADMIN = new Set(['Admin', 'Superadmin']);
@@ -363,6 +364,37 @@ const DETECTORS = [
         `SELECT d.id, d.artist_name, d.signed_at, a.id AS artist_id, a.name FROM deals d JOIN artists a ON a.id = d.signed_artist_id
           WHERE d.stage = 'Signed' AND NOT EXISTS (SELECT 1 FROM contracts c WHERE c.artist_id = a.id) ORDER BY d.signed_at`).catch(() => ({ rows: [] }));
       return rows.map((r) => ({ key: String(r.id), severity: 'high', to: `/contracts?new=1&artist=${encodeURIComponent(r.name)}&deal=${r.id}`, title: `${r.name}: signed, no contract on file`, detail: r.signed_at ? `signed ${plural(daysSince(r.signed_at), 'day')} ago` : null }));
+    },
+  },
+  {
+    kind: 'deal_stale', group: WORKFLOW, label: 'Deals stuck in a stage', page: '/deals',
+    description: `A live deal that has not moved stage in ${DAYS.deal_stale}+ days. Move it, pass on it, or set a follow-up.`,
+    async run() {
+      const { rows } = await pool.query(
+        `SELECT d.id, d.artist_name, d.stage, u.name AS owner_name, COALESCE(d.stage_changed_at, d.updated_at, d.created_at) AS since
+           FROM deals d LEFT JOIN users u ON u.id = d.owner_id
+          WHERE d.stage NOT IN ('Signed','Passed') AND COALESCE(d.stage_changed_at, d.updated_at, d.created_at) < NOW() - ($1 || ' days')::interval
+          ORDER BY since`, [DAYS.deal_stale]).catch(() => ({ rows: [] }));
+      return rows.map((r) => ({ key: String(r.id), severity: daysSince(r.since) > DAYS.deal_stale * 2 ? 'high' : 'medium', to: `/deals?deal=${r.id}`, title: `${r.artist_name}: ${plural(daysSince(r.since), 'day')} in ${r.stage}`, detail: r.owner_name ? `owner ${r.owner_name}` : 'no owner', fingerprint: fp([r.stage]) }));
+    },
+  },
+  {
+    kind: 'deal_followup_overdue', group: WORKFLOW, label: 'Deal follow-ups overdue', page: '/deals',
+    description: 'The follow-up date on a live deal has passed. Log the touch and set the next one.',
+    async run() {
+      const { rows } = await pool.query(
+        `SELECT d.id, d.artist_name, d.stage, d.next_followup_date, u.name AS owner_name FROM deals d LEFT JOIN users u ON u.id = d.owner_id
+          WHERE d.stage NOT IN ('Signed','Passed') AND d.next_followup_date < CURRENT_DATE ORDER BY d.next_followup_date`).catch(() => ({ rows: [] }));
+      return rows.map((r) => ({ key: String(r.id), severity: daysSince(r.next_followup_date) > 7 ? 'high' : 'medium', to: `/deals?deal=${r.id}`, title: `${r.artist_name}: follow-up ${plural(daysSince(r.next_followup_date), 'day')} overdue`, detail: [r.stage, r.owner_name && `owner ${r.owner_name}`].filter(Boolean).join(' · '), fingerprint: fp([String(r.next_followup_date).slice(0, 10)]) }));
+    },
+  },
+  {
+    kind: 'deal_revisit_due', group: WORKFLOW, label: 'Passed deals to revisit', page: '/deals',
+    description: 'A deal we passed on with a date to look again — that date has arrived.',
+    async run() {
+      const { rows } = await pool.query(
+        `SELECT d.id, d.artist_name, d.passed_reason, d.revisit_date FROM deals d WHERE d.stage = 'Passed' AND d.revisit_date <= CURRENT_DATE ORDER BY d.revisit_date`).catch(() => ({ rows: [] }));
+      return rows.map((r) => ({ key: String(r.id), severity: 'low', to: `/deals?deal=${r.id}`, title: `${r.artist_name}: revisit (passed — ${r.passed_reason || 'no reason recorded'})`, detail: `revisit date ${String(r.revisit_date).slice(0, 10)}`, fingerprint: fp([String(r.revisit_date).slice(0, 10)]) }));
     },
   },
   {

@@ -273,6 +273,18 @@ router.get('/my-work', authMiddleware, async (req, res) => {
       invites_pending = rows;
     } catch { /* table may not exist on an old database */ }
 
+    // Deals I own that need a touch: follow-up overdue or due today, or stuck.
+    let deals_due = [];
+    try {
+      const { rows } = await pool.query(
+        `SELECT id, artist_name, stage, next_followup_date::text AS next_followup_date,
+                FLOOR(EXTRACT(EPOCH FROM (NOW() - COALESCE(stage_changed_at, updated_at, created_at))) / 86400)::int AS days_in_stage
+           FROM deals WHERE owner_id = $1 AND stage NOT IN ('Signed','Passed')
+            AND (next_followup_date <= CURRENT_DATE OR COALESCE(stage_changed_at, updated_at, created_at) < NOW() - INTERVAL '21 days')
+          ORDER BY next_followup_date NULLS LAST`, [userId]);
+      deals_due = rows;
+    } catch { /* column may not exist on an old database */ }
+
     res.json({
       success: true,
       data: {
@@ -280,6 +292,7 @@ router.get('/my-work', authMiddleware, async (req, res) => {
         upcoming,
         tasks,
         invites_pending,
+        deals_due,
         activity: activityResult.rows,
       }
     });

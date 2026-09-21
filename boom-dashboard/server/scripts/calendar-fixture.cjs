@@ -70,7 +70,7 @@ const get = async (path, token) => {
     check('the approved unpaid invoice is a payment due on its scheduled date, linking to /bk/payments', pay && pay.type === 'payment_due' && pay.to === '/bk/payments' && pay.date === due, JSON.stringify(pay));
     check('titled by payee and amount, marked Rush, subtitled by artist · song', pay && /Vendor — \$1,500 due/.test(pay.title) && pay.meta === 'Rush' && /Artist · .*Song/.test(pay.subtitle));
     check('a PAID invoice is not a due date', !find((x) => x.id === `payment-${paid.id}`));
-    check('sources: every feed, tasks = team', JSON.stringify(full.body?.sources) === JSON.stringify({ releases: true, contracts: true, renewals: true, payments: true, tasks: 'team' }), JSON.stringify(full.body?.sources));
+    check('sources: every feed (deals included), tasks = team', JSON.stringify(full.body?.sources) === JSON.stringify({ releases: true, contracts: true, renewals: true, payments: true, deals: true, tasks: 'team' }), JSON.stringify(full.body?.sources));
 
     // ── User with /releases only ──
     const narrow = await get('/calendar', tokenFor(u));
@@ -81,7 +81,7 @@ const get = async (path, token) => {
     check('NO renewal and NO signing — /renewals and /contracts are not theirs', !nev.some((x) => x.type.startsWith('contract')));
     check('their own task, not John\'s', nev.some((x) => x.id === `task-${t2.id}`) && !nev.some((x) => x.id === `task-${t1.id}`));
     check('sources say so: payments false, renewals false, contracts false, tasks own',
-      JSON.stringify(narrow.body?.sources) === JSON.stringify({ releases: true, contracts: false, renewals: false, payments: false, tasks: 'own' }), JSON.stringify(narrow.body?.sources));
+      JSON.stringify(narrow.body?.sources) === JSON.stringify({ releases: true, contracts: false, renewals: false, payments: false, deals: false, tasks: 'own' }), JSON.stringify(narrow.body?.sources));
   } catch (err) {
     console.error('FIXTURE ERROR', err); results.push({ name: 'no exception', ok: false });
   } finally {

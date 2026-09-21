@@ -34,10 +34,13 @@ const PAGE_TOURS = [
     ],
   },
   {
-    id: 'deals', title: 'Deals', path: '/deals', version: '2026-09-20',
+    id: 'deals', title: 'Deals', path: '/deals', version: '2026-09-21',
     steps: [
-      { target: '[data-tour="deals-header"]', title: 'Scouting to Signed', body: 'Prospects move left to right across the stages. New Deal adds one with artist, genre, stage, rep, source and priority.' },
-      { target: '[data-tour="deal-board"], [data-tour="deals-header"]', title: 'The board', body: 'Drag a card between columns or use its Next button. Open a card for the terms: advance, split, term, territory, releases, options, and the artist\'s contact details.' },
+      { target: '[data-tour="deals-header"]', title: 'Scouting to Signed', body: 'Prospects move left to right across four live stages. The subtitle counts what is live, the advances on the table, and how many deals need attention. Every deal has an OWNER — their follow-ups land in My Work and on the calendar.' },
+      { target: '[data-tour="deals-views"], [data-tour="deals-header"]', title: 'Board, list, report', body: 'The same deals three ways. The list sorts by any column; the report is the funnel — how many reached each stage, days per stage, win rate by source and by owner, why we passed.' },
+      { target: '[data-tour="deals-filters"], [data-tour="deals-header"]', title: 'Filters live in the URL', body: 'Search, owner (Mine), type, priority, and Needs attention — an overdue follow-up or a deal stuck past 21 days. Copy the address to share the view.' },
+      { target: '[data-tour="deal-board"], [data-tour="deals-header"]', title: 'The board', body: 'Drag a card between columns or press Next. Each card shows its owner, days in stage (amber at 14, red at 21), the follow-up, the last touch and the advance. Open a card for its timeline — dated notes and every stage move — and the Before Signed checklist.' },
+      { target: '[data-tour="deals-closed"], [data-tour="deal-board"], [data-tour="deals-header"]', title: 'Signed and Passed fold away', body: 'The board is the work; these two are the record. Drop a card on a header to close it. Passing asks why and whether to revisit — the date comes back as a flag and a calendar event.' },
       { target: '[data-tour="deals-new"], [data-tour="deals-header"]', title: 'Signed does the work', body: 'Moving a deal to Signed creates the roster artist, books the advance as an approved recoupable expense, adds a calendar event and hands you to a prefilled contract.' },
     ],
   },

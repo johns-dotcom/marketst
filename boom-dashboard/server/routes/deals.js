@@ -159,7 +159,7 @@ async function signDeal(dealId, user) {
 // GET /api/deals/:id — one deal (the contract form reads its terms)
 router.get('/:id(\\d+)', authMiddleware, async (req, res) => {
   try {
-    const { rows: [deal] } = await pool.query('SELECT * FROM deals WHERE id = $1', [req.params.id]);
+    const deal = await readDeal(req.params.id);
     if (!deal) return res.status(404).json({ success: false, error: 'Deal not found' });
     res.json({ success: true, data: deal });
   } catch (error) {
@@ -183,16 +183,20 @@ router.post('/:id(\\d+)/sign', authMiddleware, async (req, res) => {
 
 router.get('/', authMiddleware, async (req, res) => {
   try {
-    const { stage } = req.query;
-    let query = 'SELECT * FROM deals WHERE 1=1';
+    const { stage, owner } = req.query;
+    let query = `${LIST_SQL} WHERE 1=1`;
     const params = [];
 
     if (stage) {
-      query += ` AND stage = $${params.length + 1}`;
+      query += ` AND d.stage = $${params.length + 1}`;
       params.push(stage);
     }
+    if (owner) {
+      params.push(owner === 'me' ? req.user.id : Number(owner));
+      query += ` AND d.owner_id = $${params.length}`;
+    }
 
-    query += ' ORDER BY added_date DESC';
+    query += ' ORDER BY d.added_date DESC, d.id DESC';
 
     const result = await pool.query(query, params);
 
@@ -208,6 +212,33 @@ router.get('/', authMiddleware, async (req, res) => {
 
 const PRIORITIES = ['High', 'Medium', 'Low'];
 const DEAL_TYPES = ['360 Deal', 'Master License', 'Single License', 'Distribution', 'Publishing', 'Other'];
+const STAGES = ['Scouting', 'Meeting', 'Offer', 'Negotiation', 'Signed', 'Passed'];
+const LIVE_STAGES = ['Scouting', 'Meeting', 'Offer', 'Negotiation'];
+// Why a deal was passed — a fixed list so the report can count them; "Other" carries the note.
+const PASSED_REASONS = ['Budget', 'Went elsewhere', 'Not ready', 'No fit', 'Unresponsive', 'Other'];
+const isDate = (v) => /^\d{4}-\d{2}-\d{2}$/.test(String(v || ''));
+
+// One row on the timeline. Never throws: a lost log line is a log line, not a failed write.
+async function logEvent(dealId, { kind, body = null, from_stage = null, to_stage = null, user }) {
+  try {
+    const { rows: [e] } = await pool.query(
+      `INSERT INTO deal_events (deal_id, kind, body, from_stage, to_stage, user_id, user_name) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+      [dealId, kind, body, from_stage, to_stage, user?.id || null, user?.name || user?.email || null]);
+    return e;
+  } catch (e) { console.error('deal_events insert failed:', e.message); return null; }
+}
+
+// The list shape: the deal, its owner's name, days in the current stage, the
+// last thing that happened on it, and how many documents it carries.
+const LIST_SQL = `
+  SELECT d.*, u.name AS owner_name,
+         FLOOR(EXTRACT(EPOCH FROM (NOW() - COALESCE(d.stage_changed_at, d.updated_at, d.created_at))) / 86400)::int AS days_in_stage,
+         le.kind AS last_event_kind, le.body AS last_event_body, le.created_at AS last_event_at, le.user_name AS last_event_user,
+         (SELECT COUNT(*)::int FROM entity_files ef WHERE ef.entity_type = 'deal' AND ef.entity_id = d.id) AS file_count
+    FROM deals d
+    LEFT JOIN users u ON u.id = d.owner_id
+    LEFT JOIN LATERAL (SELECT kind, body, created_at, user_name FROM deal_events e WHERE e.deal_id = d.id ORDER BY created_at DESC, id DESC LIMIT 1) le ON TRUE`;
+const readDeal = async (id) => (await pool.query(`${LIST_SQL} WHERE d.id = $1`, [id])).rows[0] || null;
 
 // POST /api/deals
 router.post('/', authMiddleware, async (req, res) => {
@@ -217,6 +248,11 @@ router.post('/', authMiddleware, async (req, res) => {
     if (!artist_name || !stage) {
       return res.status(400).json({ success: false, error: 'Artist name and stage required' });
     }
+    if (!STAGES.includes(stage)) return res.status(400).json({ success: false, error: 'Unknown stage' });
+    // The owner is a PERSON — the one whose My Work and calendar carry the follow-ups.
+    // Defaults to whoever adds the deal.
+    const ownerId = req.body.owner_id === undefined || req.body.owner_id === null || req.body.owner_id === '' ? req.user.id : Number(req.body.owner_id);
+    if (!Number.isInteger(ownerId)) return res.status(400).json({ success: false, error: 'owner_id must be a user id' });
     if (priority && !PRIORITIES.includes(priority)) {
       return res.status(400).json({ success: false, error: 'Invalid priority' });
     }
@@ -231,21 +267,27 @@ router.post('/', authMiddleware, async (req, res) => {
       `
       INSERT INTO deals (artist_name, genre, stage, ar_rep, source, notes, priority, deal_type, added_date, created_at, updated_at,
                          advance, royalty_split, term_months, territory, num_releases, option_periods,
-                         artist_email, artist_phone, manager_name, manager_email, socials, spotify_url)
+                         artist_email, artist_phone, manager_name, manager_email, socials, spotify_url,
+                         owner_id, stage_changed_at, next_followup_date)
       VALUES ($1, $2, $3, $4, $5, $6, COALESCE($7, 'Medium'), $8, CURRENT_DATE, NOW(), NOW(),
-              $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19::jsonb, $20)
+              $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19::jsonb, $20,
+              $21, NOW(), $22::date)
       RETURNING *
       `,
       [artist_name, genre || null, stage, ar_rep || null, source || null, notes || null, priority || null, deal_type || null,
        numOrNull(b.advance), numOrNull(b.royalty_split), intOrNull(b.term_months), strOrNull(b.territory), intOrNull(b.num_releases), intOrNull(b.option_periods),
-       strOrNull(b.artist_email), strOrNull(b.artist_phone), strOrNull(b.manager_name), strOrNull(b.manager_email), socialsOrNull(b.socials) ?? null, strOrNull(b.spotify_url)]
+       strOrNull(b.artist_email), strOrNull(b.artist_phone), strOrNull(b.manager_name), strOrNull(b.manager_email), socialsOrNull(b.socials) ?? null, strOrNull(b.spotify_url),
+       ownerId, isDate(b.next_followup_date) ? b.next_followup_date : null]
     );
+    await logEvent(result.rows[0].id, { kind: 'created', to_stage: stage, body: source ? `Added from ${source}` : 'Added', user: req.user });
+    if (notes && String(notes).trim()) await logEvent(result.rows[0].id, { kind: 'note', body: String(notes).trim(), user: req.user });
 
     let signing = null;
     if (String(stage).toLowerCase() === 'signed') {
       const out = await signDeal(result.rows[0].id, req.user);
       if (out && !out.error) { result.rows[0] = out.deal; signing = { artist: out.artist, advance_expense_id: out.advance_expense_id, created: out.created }; }
     }
+    result.rows[0] = (await readDeal(result.rows[0].id)) || result.rows[0];
     res.status(201).json({
       success: true,
       data: result.rows[0],
@@ -276,6 +318,10 @@ router.put('/:id', authMiddleware, async (req, res) => {
     if (deal_type !== undefined && deal_type !== null && deal_type !== '' && !DEAL_TYPES.includes(deal_type)) {
       return res.status(400).json({ success: false, error: 'Invalid deal_type' });
     }
+    if (stage !== undefined && stage !== null && stage !== '' && !STAGES.includes(stage)) return res.status(400).json({ success: false, error: 'Unknown stage' });
+    if (b.passed_reason !== undefined && b.passed_reason !== null && b.passed_reason !== '' && !PASSED_REASONS.includes(b.passed_reason)) return res.status(400).json({ success: false, error: `passed_reason must be one of ${PASSED_REASONS.join(', ')}` });
+    if (b.revisit_date !== undefined && b.revisit_date !== null && b.revisit_date !== '' && !isDate(b.revisit_date)) return res.status(400).json({ success: false, error: 'revisit_date must be YYYY-MM-DD' });
+    if (b.owner_id !== undefined && b.owner_id !== null && b.owner_id !== '' && !Number.isInteger(Number(b.owner_id))) return res.status(400).json({ success: false, error: 'owner_id must be a user id' });
 
     // The stage BEFORE the write, so the activity feed can report a
     // transition rather than a value. The UPDATE below is all COALESCE, so the
@@ -320,6 +366,12 @@ router.put('/:id', authMiddleware, async (req, res) => {
           manager_email             = CASE WHEN $32::boolean THEN $33 ELSE manager_email END,
           socials                   = CASE WHEN $34::boolean THEN $35::jsonb ELSE socials END,
           spotify_url               = CASE WHEN $36::boolean THEN $37 ELSE spotify_url END,
+          owner_id                  = CASE WHEN $38::boolean THEN $39::integer ELSE owner_id END,
+          passed_reason             = CASE WHEN $40::boolean THEN $41 ELSE passed_reason END,
+          passed_note               = CASE WHEN $42::boolean THEN $43 ELSE passed_note END,
+          revisit_date              = CASE WHEN $44::boolean THEN $45::date ELSE revisit_date END,
+          -- the clock restarts only when the stage actually moves
+          stage_changed_at          = CASE WHEN $46::boolean THEN NOW() ELSE stage_changed_at END,
           updated_at                = NOW()
       WHERE id = $13
       RETURNING *
@@ -343,11 +395,26 @@ router.put('/:id', authMiddleware, async (req, res) => {
         b.manager_email !== undefined, strOrNull(b.manager_email),
         b.socials !== undefined, socialsOrNull(b.socials) ?? null,
         b.spotify_url !== undefined, strOrNull(b.spotify_url),
+        b.owner_id !== undefined, b.owner_id == null || b.owner_id === '' ? null : Number(b.owner_id),
+        b.passed_reason !== undefined, strOrNull(b.passed_reason),
+        b.passed_note !== undefined, strOrNull(b.passed_note),
+        b.revisit_date !== undefined, isDate(b.revisit_date) ? b.revisit_date : null,
+        previousStage !== null && norm(stage) && norm(stage) !== previousStage,
       ]
     );
 
     if (result.rows.length === 0) {
       return res.status(404).json({ success: false, error: 'Deal not found' });
+    }
+    // The timeline records the move (and, for Passed, the reason beside it).
+    if (previousStage !== null && result.rows[0].stage !== previousStage) {
+      const toPassed = result.rows[0].stage === 'Passed';
+      await logEvent(id, {
+        kind: toPassed ? 'passed' : 'stage', from_stage: previousStage, to_stage: result.rows[0].stage,
+        body: toPassed ? [result.rows[0].passed_reason, result.rows[0].passed_note].filter(Boolean).join(' — ') || null : null, user: req.user,
+      });
+      // Leaving Passed: the revisit reminder no longer applies.
+      if (previousStage === 'Passed' && !toPassed) await pool.query('UPDATE deals SET revisit_date = NULL WHERE id = $1', [id]).catch(() => {});
     }
 
     // The transition INTO Signed runs the signing before the response, so the
@@ -369,6 +436,7 @@ router.put('/:id', authMiddleware, async (req, res) => {
       }
     }
 
+    result.rows[0] = (await readDeal(id)) || result.rows[0];
     res.json({
       success: true,
       data: result.rows[0],
@@ -390,6 +458,112 @@ router.put('/:id', authMiddleware, async (req, res) => {
     console.error('Update deal error:', error);
     res.status(500).json({ success: false, error: 'Internal server error' });
   }
+});
+
+// ── The timeline ───────────────────────────────────────────────────────────
+// GET  /deals/:id/events            newest first
+// POST /deals/:id/events {body}     a dated note by the caller; also stamps last_contact_date
+// DELETE /deals/:id/events/:eid     your own note, or any note for Admin/Superadmin
+router.get('/:id(\\d+)/events', authMiddleware, async (req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT * FROM deal_events WHERE deal_id = $1 ORDER BY created_at DESC, id DESC LIMIT 500', [req.params.id]);
+    res.json({ success: true, data: rows });
+  } catch (error) { console.error('deal events error:', error); res.status(500).json({ success: false, error: 'Internal server error' }); }
+});
+router.post('/:id(\\d+)/events', authMiddleware, async (req, res) => {
+  try {
+    const body = String(req.body?.body || '').trim();
+    if (!body) return res.status(400).json({ success: false, error: 'Write something first' });
+    if (body.length > 5000) return res.status(400).json({ success: false, error: 'A note is at most 5,000 characters' });
+    const { rows: [d] } = await pool.query('SELECT id FROM deals WHERE id = $1', [req.params.id]);
+    if (!d) return res.status(404).json({ success: false, error: 'Deal not found' });
+    const e = await logEvent(d.id, { kind: 'note', body, user: req.user });
+    if (!e) return res.status(500).json({ success: false, error: 'Could not save the note' });
+    // A note is a touch: the card's "last contact" follows it unless somebody typed a later date.
+    await pool.query('UPDATE deals SET last_contact_date = GREATEST(COALESCE(last_contact_date, CURRENT_DATE), CURRENT_DATE), updated_at = NOW() WHERE id = $1', [d.id]).catch(() => {});
+    res.status(201).json({ success: true, data: e, deal: await readDeal(d.id) });
+  } catch (error) { console.error('deal note error:', error); res.status(500).json({ success: false, error: 'Internal server error' }); }
+});
+router.delete('/:id(\\d+)/events/:eid(\\d+)', authMiddleware, async (req, res) => {
+  try {
+    const { rows: [e] } = await pool.query('SELECT * FROM deal_events WHERE id = $1 AND deal_id = $2', [req.params.eid, req.params.id]);
+    if (!e) return res.status(404).json({ success: false, error: 'Not found' });
+    if (e.kind !== 'note') return res.status(400).json({ success: false, error: 'Stage history cannot be deleted' });
+    const admin = ['Admin', 'Superadmin'].includes(req.user?.role);
+    if (!admin && Number(e.user_id) !== Number(req.user.id)) return res.status(403).json({ success: false, error: 'Not your note' });
+    await pool.query('DELETE FROM deal_events WHERE id = $1', [e.id]);
+    res.json({ success: true });
+  } catch (error) { console.error('deal note delete error:', error); res.status(500).json({ success: false, error: 'Internal server error' }); }
+});
+
+// ── The funnel report ──────────────────────────────────────────────────────
+// GET /deals/report/funnel?from=&to=   (added_date window; default all time)
+//   funnel[]        per live stage: deals that REACHED it (or further) and the conversion from the stage before
+//   stage_days[]    per stage: average days of every COMPLETED stint, and how many deals sit there now
+//   by_source[] / by_owner[]   signed · passed · open · win_rate (signed / (signed + passed))
+//   passed_reasons[]           counts
+//   totals          live count and advance sum, signed count and advance sum, passed count, win_rate
+// Built from deal_events (created + stage moves) — the history, not the current column — so a deal
+// that went Scouting → Offer → Passed still counts as having reached Offer.
+router.get('/report/funnel', authMiddleware, async (req, res) => {
+  try {
+    const from = isDate(req.query.from) ? req.query.from : null;
+    const to = isDate(req.query.to) ? req.query.to : null;
+    const where = ['1=1']; const params = [];
+    if (from) { params.push(from); where.push(`d.added_date >= $${params.length}::date`); }
+    if (to) { params.push(to); where.push(`d.added_date <= $${params.length}::date`); }
+    const { rows: deals } = await pool.query(`SELECT d.*, u.name AS owner_name FROM deals d LEFT JOIN users u ON u.id = d.owner_id WHERE ${where.join(' AND ')}`, params);
+    const ids = deals.map((d) => d.id);
+    const { rows: events } = ids.length
+      ? await pool.query(`SELECT deal_id, kind, from_stage, to_stage, created_at FROM deal_events WHERE deal_id = ANY($1) AND kind IN ('created','stage','passed','signed') ORDER BY deal_id, created_at, id`, [ids])
+      : { rows: [] };
+    const byDeal = new Map(); for (const e of events) { if (!byDeal.has(e.deal_id)) byDeal.set(e.deal_id, []); byDeal.get(e.deal_id).push(e); }
+    const idx = (st) => LIVE_STAGES.indexOf(st);
+    const reached = LIVE_STAGES.map(() => 0);
+    const stints = {}; for (const st of STAGES) stints[st] = { total_days: 0, n: 0, open: 0 };
+    const now = Date.now();
+    for (const d of deals) {
+      const evs = byDeal.get(d.id) || [];
+      // furthest live stage: every stage entered plus the current one
+      let far = idx(d.stage);
+      for (const e of evs) far = Math.max(far, idx(e.to_stage));
+      if (d.stage === 'Signed' || evs.some((e) => e.to_stage === 'Signed')) far = LIVE_STAGES.length - 1;
+      if (d.stage === 'Passed' && far < 0) far = 0;
+      for (let i = 0; i <= far; i += 1) reached[i] += 1;
+      // stints: from each entry to the next move
+      const entries = evs.filter((e) => e.to_stage);
+      if (!entries.length) entries.push({ to_stage: d.stage, created_at: d.stage_changed_at || d.created_at });
+      for (let i = 0; i < entries.length; i += 1) {
+        const st = entries[i].to_stage; const start = new Date(entries[i].created_at).getTime();
+        const next = entries[i + 1];
+        if (!stints[st]) continue;
+        if (next) { stints[st].total_days += (new Date(next.created_at).getTime() - start) / 86400000; stints[st].n += 1; }
+        else if (LIVE_STAGES.includes(st)) stints[st].open += 1;
+      }
+    }
+    const funnel = LIVE_STAGES.map((st, i) => ({ stage: st, reached: reached[i], conversion: i === 0 ? null : (reached[i - 1] ? Math.round((reached[i] / reached[i - 1]) * 1000) / 10 : null) }));
+    const signedN = deals.filter((d) => d.stage === 'Signed').length;
+    funnel.push({ stage: 'Signed', reached: signedN, conversion: reached[LIVE_STAGES.length - 1] ? Math.round((signedN / reached[LIVE_STAGES.length - 1]) * 1000) / 10 : null });
+    const stage_days = STAGES.filter((s) => s !== 'Passed').map((st) => ({ stage: st, avg_days: stints[st].n ? Math.round((stints[st].total_days / stints[st].n) * 10) / 10 : null, completed: stints[st].n, sitting: stints[st].open }));
+    const group = (keyOf) => {
+      const m = new Map();
+      for (const d of deals) {
+        const k = keyOf(d) || '—'; if (!m.has(k)) m.set(k, { key: k, signed: 0, passed: 0, open: 0, advance_signed: 0 });
+        const g = m.get(k);
+        if (d.stage === 'Signed') { g.signed += 1; g.advance_signed += Number(d.advance) || 0; } else if (d.stage === 'Passed') g.passed += 1; else g.open += 1;
+      }
+      return [...m.values()].map((g) => ({ ...g, win_rate: g.signed + g.passed ? Math.round((g.signed / (g.signed + g.passed)) * 1000) / 10 : null })).sort((a, b) => (b.signed + b.passed + b.open) - (a.signed + a.passed + a.open));
+    };
+    const reasons = new Map(); for (const d of deals) if (d.stage === 'Passed') reasons.set(d.passed_reason || 'Not recorded', (reasons.get(d.passed_reason || 'Not recorded') || 0) + 1);
+    const live = deals.filter((d) => LIVE_STAGES.includes(d.stage));
+    const signed = deals.filter((d) => d.stage === 'Signed'); const passed = deals.filter((d) => d.stage === 'Passed');
+    res.json({ success: true, data: {
+      range: { from, to }, deals: deals.length,
+      totals: { live: live.length, live_advance: live.reduce((a, d) => a + (Number(d.advance) || 0), 0), signed: signed.length, signed_advance: signed.reduce((a, d) => a + (Number(d.advance) || 0), 0), passed: passed.length, win_rate: signed.length + passed.length ? Math.round((signed.length / (signed.length + passed.length)) * 1000) / 10 : null },
+      funnel, stage_days, by_source: group((d) => d.source), by_owner: group((d) => d.owner_name),
+      passed_reasons: [...reasons.entries()].map(([reason, n]) => ({ reason, n })).sort((a, b) => b.n - a.n),
+    } });
+  } catch (error) { console.error('deal funnel error:', error); res.status(500).json({ success: false, error: 'Internal server error' }); }
 });
 
 // DELETE /api/deals/:id
