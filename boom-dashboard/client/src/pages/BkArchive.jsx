@@ -293,14 +293,14 @@ export default function BkArchive() {
   }
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-5" data-tour="archive-page">
       <Link
         to="/bk/approvals"
         className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-gray-600 hover:text-gray-900 bg-white border border-rule hover:border-gray-300"
       >
         <ArrowLeft size={13} /> Back to Approvals
       </Link>
-      <PageHeader
+      <PageHeader tour="archive-header"
         title="Archived Invoices"
         subtitle="Rejected and soft-deleted invoices — kept indefinitely for reference and recoverable when needed."
       />

@@ -58,6 +58,33 @@ import Salary from '../src/pages/Salary'
 import Analytics from '../src/pages/Analytics'
 import ActivityHistory from '../src/pages/ActivityHistory'
 import SettingsShell from '../src/components/SettingsShell'
+import TeamMember from '../src/pages/TeamMember'
+import BkVendors from '../src/pages/BkVendors'
+import ArtistBudgetSimple from '../src/pages/ArtistBudgetSimple'
+import ArtistBudgetSheet from '../src/pages/ArtistBudgetSheet'
+import ReleaseDetail from '../src/pages/ReleaseDetail'
+import BudgetDetail from '../src/pages/BudgetDetail'
+import BkArchive from '../src/pages/BkArchive'
+import BkVendorsAdded from '../src/pages/BkVendorsAdded'
+import UserManual from '../src/pages/UserManual'
+// Detail pages: the tour's `sample` path is mounted on this route.
+const DETAIL = {
+  'artist-profile': ['/artists/:id', <ArtistProfile />],
+  'team-member': ['/team/:id', <SettingsShell><TeamMember /></SettingsShell>],
+  'vendor-detail': ['/bk/vendors/:vendorName', <BkVendors />],
+  'recoupments-artist': ['/recoupments/:artistName', <Recoupments />],
+  'budget-simple': ['/artist-budgets/:artistKey', <ArtistBudgetSimple />],
+  'budget-detail': ['/artist-budgets/:artistKey/detail', <ArtistBudgetSheet />],
+  'campaigns-artist': ['/artist-campaigns/:artistName', <ArtistCampaigns />],
+  'release-detail': ['/releases/:id', <ReleaseDetail />],
+  'recording-budget': ['/budget/:id', <BudgetDetail />],
+  'financials-month': ['/financials/month/:month', <Financials />],
+  'messages-channel': ['/messages/:channelId', <Messages />],
+  'archive': ['/bk/approvals/archive', <BkArchive />],
+  'vendors-added': ['/bk/vendors/added-expenses', <BkVendorsAdded />],
+  'nda-template': ['/create-nda/:template', <CreateNDA />],
+  'manual': ['/manual', <UserManual />],
+}
 
 const PAGES = {
   '/': Dashboard, '/my-work': MyWork, '/artists': Artists, '/releases': Releases, '/deals': DealPipeline, '/contracts': Contracts,
@@ -86,16 +113,17 @@ class Catch extends React.Component { constructor(p) { super(p); this.state = { 
 async function main() {
   const tours = TOURS.filter((t) => t.id !== 'welcome')
   for (const t of tours) {
-    const path = t.match ? '/artists/1' : t.path
-    const Page = PAGES[t.path]
-    if (!Page) { say(`  ${t.id}: no page component mapped for ${t.path} -> false`); continue }
+    const detail = DETAIL[t.id]
+    const path = t.sample || (t.match ? '/artists/1' : t.path)
+    const Page = detail ? null : PAGES[t.path]
+    if (!Page && !detail) { say(`  ${t.id}: no page component mapped for ${t.path} -> false`); continue }
     const host = document.createElement('div'); document.body.appendChild(host)
     const before = errors.length
     const root = createRoot(host)
     root.render(<Catch><ThemeProvider><ToastProvider><BoomRepsProvider><MemoryRouter initialEntries={[path]}><Routes>
-      <Route path="/artists/:id" element={<ArtistProfile />} />
+      {detail && <Route path={detail[0]} element={detail[1]} />}
       {/* Layout wraps the Settings family in SettingsShell (the rail the settings tour points at) */}
-      <Route path="*" element={t.path === '/settings' ? <SettingsShell><Page /></SettingsShell> : <Page />} />
+      {Page && <Route path="*" element={t.path === '/settings' ? <SettingsShell><Page /></SettingsShell> : <Page />} />}
     </Routes></MemoryRouter></BoomRepsProvider></ToastProvider></ThemeProvider></Catch>)
     // let loading states settle
     for (let i = 0; i < 25; i += 1) { await sleep(120); if (!/Loading|Fetching/.test(host.textContent || '') && i > 4) break }

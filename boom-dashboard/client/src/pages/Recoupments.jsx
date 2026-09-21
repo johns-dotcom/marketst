@@ -1952,7 +1952,7 @@ export default function Recoupments() {
     : {}
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" data-tour="recoupments-page">
       {isDetail && (
         <div className="flex items-center justify-between">
           <Link

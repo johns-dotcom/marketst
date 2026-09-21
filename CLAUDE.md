@@ -378,7 +378,30 @@ Authoritative project guide: **`boom-dashboard/CLAUDE.md`** — read it before m
   everyone at the next sign-in. A newer version still reads as "updated" in
   the ? menu and in My Work's Waiting on you (`isDone` = version match), where
   it can be replayed by hand. A failed read of `/settings/me` leaves `done`
-  null and starts nothing. **THE RULE: a change to a page changes its tour
+  null and starts nothing.
+  **Every route has a tour (2026-09-21, John: "make sure every feature has a
+  walkthrough").** Measured first: 71 `<Route path>`s in App.jsx against 48
+  tour paths left 23 routes with none — 14 real detail pages (a person, a
+  vendor, one artist's recoupments / budget sheet / full breakdown /
+  campaigns, a release, a recording budget, a drilled month, a conversation,
+  the archive, added-expense vendors, an NDA from a template, the manual) and
+  9 redirects or public pages. `DETAIL_TOURS` in tours/index.js is the new
+  list: each has `match` (the route shape), `sample` (the path anchors-dom
+  mounts), and `path` = the nav page it hangs off, which is what the
+  tours-fixture requires and why the WALK skips them (`!t.match`) — a detail
+  page's tour runs the first time THAT page is opened. Every first step
+  targets a `data-tour="<x>-page"` anchor on the page's ROOT element, added to
+  each page (MonthDetailPage has its own root, hence
+  `financials-month-page`), so the step renders in every state. `TOURS =
+  [WELCOME, ...PAGE_TOURS, ...DETAIL_TOURS]`. `tours-fixture` now opens with
+  section 0: every App route (params filled, redirects / `/submit` / `/login`
+  / `/eula` / `/privacy` / invites / `*` skipped) resolves through
+  `tourForPath` — add a route without a tour and it fails. `anchors-dom`
+  mounts each detail tour at its `sample` on the real route (`DETAIL` map) and
+  its empty-label stub gained OBJECT shapes for the detail endpoints (simple
+  sheet, full sheet, campaigns artist, drilled month, added-expense vendors) —
+  `[]` where a page destructures an object is the crash it kept hitting
+  (243 checks now). **THE RULE: a change to a page changes its tour
   in the same commit and bumps that tour's `version` (a date).**
   **Every visible page has a tour, and the welcome walk covers the whole nav
   (2026-09-20, John: "releases only shows the pipeline, not the catalog. make

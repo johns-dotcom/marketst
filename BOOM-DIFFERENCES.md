@@ -342,6 +342,16 @@ first-pass board; port the whole commit and run `deals-pipeline-fixture.cjs`.
 `VendorSubmitLab.jsx` (`SongPicker`, `song_other` on the row), the
 vendorform-dom harness (`fillProject` drives the picker). Nothing label-shaped.
 
+## 25. Every route has a walkthrough — PORT
+
+`tours/index.js` `DETAIL_TOURS` (14 detail-page tours with `match` + `sample`),
+root `data-tour` anchors on TeamMember, BkVendors, Recoupments,
+ArtistBudgetSimple, ArtistBudgetSheet, ArtistCampaigns, ReleaseDetail,
+BudgetDetail, Financials (+ MonthDetailPage), Messages, BkArchive,
+BkVendorsAdded, UserManual; `tours-fixture` section 0 (every App route resolves
+to a tour); `anchors-dom` DETAIL map + object-shaped stubs. Also: tours
+auto-start ONCE per person (`everSeen` in Tour.jsx). Nothing label-shaped.
+
 ## Suggested order for Cadence
 
 1. Sections 3, 4, 7 (sidebar, presets, Settings) — they define the shape

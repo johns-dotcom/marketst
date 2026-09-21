@@ -563,7 +563,7 @@ export default function UserManual() {
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: '#f4f4f5', color: '#111', fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Nunito, sans-serif", lineHeight: 1.55 }}>
+    <div data-tour="manual-page" style={{ minHeight: '100vh', background: '#f4f4f5', color: '#111', fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Nunito, sans-serif", lineHeight: 1.55 }}>
       <style>{`
         @keyframes spin { to { transform: rotate(360deg) } }
         @page { margin: 18mm }

@@ -64,14 +64,14 @@ export default function BkVendorsAdded() {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" data-tour="vendors-added-page">
       <Link
         to="/bk/vendors"
         className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-gray-600 hover:text-gray-900 bg-card border border-rule hover:border-gray-300"
       >
         <ArrowLeft size={13} /> All vendors
       </Link>
-      <PageHeader
+      <PageHeader tour="vendors-added-header"
         title="Added-Expense Vendors"
         subtitle="Creators paid through the Recoupments / Artist Campaigns add modals — no invoices on file, so totals and duplicates are tracked here."
       />

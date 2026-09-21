@@ -1915,7 +1915,7 @@ function KpiDrillModal({ bucket, scopeFilters, onClose }) {
   const rows = payload?.rows || []
   const rangeText = payload?.from && payload?.to ? `${payload.from} → ${payload.to}` : (payload?.paid_only === false ? 'All outstanding' : '')
   return (
-    <div
+    <div data-tour="financials-page"
       className="fixed inset-0 z-50 flex items-start justify-center bg-overlay p-4 overflow-y-auto"
       onClick={e => { if (e.target === e.currentTarget) onClose() }}
     >
@@ -2181,7 +2181,7 @@ function MonthDetailPage({ month }) {
   }))
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" data-tour="financials-month-page">
       <BackLink to="/financials" label="Financials" />
       {/* Header with prev/next month navigation. Keyboard-accessible
           via native <Link> semantics; the arrows also carry the

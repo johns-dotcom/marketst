@@ -2999,13 +2999,13 @@ export default function ArtistCampaigns() {
   // ── DETAIL / SONG VIEW ──────────────────────────────────────────────────
   if (!detail) {
     return (
-      <div className="space-y-4">
+      <div className="space-y-4" data-tour="campaigns-artist-page">
         <Breadcrumb items={[
           { label: 'Campaigns', path: '/artist-campaigns' },
           artistLink ? { label: routeArtist, path: `/artists/${artistLink.id}` } : { label: routeArtist },
           ...(songParam ? [{ label: decodeURIComponent(songParam) }] : []),
         ]} />
-        <PageHeader title={routeArtist} />
+        <PageHeader tour="campaigns-artist-header" title={routeArtist} />
         <div className="card p-12 text-center">
           <p className="text-sm text-gray-400">No data for {routeArtist}.</p>
         </div>
@@ -3075,7 +3075,7 @@ export default function ArtistCampaigns() {
           <span className="text-gray-600 font-semibold">{routeSong}</span>
         </div>
       )}
-      <PageHeader
+      <PageHeader tour="campaigns-artist-header"
         title={isSong ? routeSong : detail.artist}
         subtitle={isSong
           ? `${detail.artist} — song-level reconciliation`

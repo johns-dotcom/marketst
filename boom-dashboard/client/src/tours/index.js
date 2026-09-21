@@ -468,7 +468,108 @@ const WELCOME = {
     { path: '/', target: '[data-tour="walkthrough"], [data-tour="help"]', title: 'That is the dashboard', body: 'Each page also has its own short tour the first time you open it. Replay any of them from Walkthrough in the top bar (the footprints on a phone), or press ? for shortcuts and tours.' },
   ],
 }
-export const TOURS = [WELCOME, ...PAGE_TOURS]
+
+// ─── Detail pages ─────────────────────────────────────────────────────────
+// Pages reached FROM a nav page (a person, a vendor, one artist's sheet…).
+// Each carries `match` (the route shape), `sample` (a path the anchors harness
+// mounts), and `path` = the nav page it hangs off — the walk skips them, the
+// page's first-open tour runs when the page is opened. Every first step targets
+// an anchor on the page's ROOT element, so it renders in every state.
+const V_DETAIL = '2026-09-21'
+export const DETAIL_TOURS = [
+  {
+    id: 'team-member', title: "A person's page", path: '/team', match: /^\/team\/\d+/, sample: '/team/1', version: V_DETAIL,
+    steps: [
+      { target: '[data-tour="person-page"]', title: 'One person', body: 'Their open tasks, what they are assigned on, and their activity. Admins see an Access tab: presets, page grants, view-as, force sign-out.' },
+      { target: '[data-tour="person-page"] table, [data-tour="person-page"] ul, [data-tour="person-page"]', title: 'Tasks', body: 'Everything assigned to them. Add one from here and it lands in their My Work; reassigning moves it.' },
+    ],
+  },
+  {
+    id: 'vendor-detail', title: "A vendor's page", path: '/bk/vendors', match: /^\/bk\/vendors\/(?!added-expenses$)[^/]+$/, sample: '/bk/vendors/Fixture%20Vendor', version: V_DETAIL,
+    steps: [
+      { target: '[data-tour="vendor-page"]', title: 'One vendor', body: 'Every invoice from this payee, split families grouped, the W-9 and payment details behind audited reads, aliases and merge.' },
+      { target: '[data-tour="vendor-page"] table, [data-tour="vendor-page"]', title: 'Their invoices', body: 'Open a row for its documents; the bank dot says whether a statement line proves the payment.' },
+    ],
+  },
+  {
+    id: 'recoupments-artist', title: "An artist's recoupments", path: '/recoupments', match: /^\/recoupments\/(?!planning$|audit$)[^/]+$/, sample: '/recoupments/Fixture%20Artist', version: V_DETAIL,
+    steps: [
+      { target: '[data-tour="recoupments-header"], [data-tour="recoupments-page"]', title: 'One artist', body: 'Recoupable spend grouped by song. The four bank states and the statement period are filter chips; the left rail on each row is what the bank says.' },
+      { target: '[data-tour="recoupments-page"]', title: 'Upload for recoupment', body: 'Tick items to mark them uploaded (UFR). The stamp is what we CLAIMED; the rail is whether the bank can prove it.' },
+    ],
+  },
+  {
+    id: 'budget-simple', title: "An artist's budget sheet", path: '/artist-budgets', match: /^\/artist-budgets\/[^/]+$/, sample: '/artist-budgets/fixture', version: V_DETAIL,
+    steps: [
+      { target: '[data-tour="budget-simple-header"], [data-tour="budget-simple-page"]', title: 'Two totals', body: 'Advance and Total marketing, typed in the cells; releases sit under marketing with their own budgets. Spent is what was PAID; unpaid is a note.' },
+      { target: '[data-simple-sheet] table, [data-tour="budget-simple-page"]', title: 'Budget · Spent · Left', body: 'Type a budget in a cell and it saves when you leave it. Full breakdown opens the 32-category grid.' },
+    ],
+  },
+  {
+    id: 'budget-detail', title: 'The full budget breakdown', path: '/artist-budgets', match: /^\/artist-budgets\/[^/]+\/detail$/, sample: '/artist-budgets/fixture/detail', version: V_DETAIL,
+    steps: [
+      { target: '[data-tour="budget-detail-header"], [data-tour="budget-detail-page"]', title: 'Every category', body: 'Sections, categories under them, expenses under those. Group by category or by release — the same money two ways.' },
+      { target: '[data-tour="budget-detail-page"] table, [data-tour="budget-detail-page"]', title: 'Type, paste, filter', body: 'Budgets are typed on category rows; a section is the sum of its own. Paste a column from Excel; arrows, Enter and Tab walk the cells.' },
+    ],
+  },
+  {
+    id: 'campaigns-artist', title: "An artist's campaigns", path: '/artist-campaigns', match: /^\/artist-campaigns\/[^/]+/, sample: '/artist-campaigns/Fixture%20Artist', version: V_DETAIL,
+    steps: [
+      { target: '[data-tour="campaigns-artist-header"], [data-tour="campaigns-artist-page"], [data-tour="campaigns-header"]', title: 'One artist, one song', body: 'Settled (what the bank paid) and committed (invoices with no bank line yet), per song. A song page lists the invoices behind it.' },
+      { target: '[data-tour="campaigns-artist-page"], [data-tour="campaigns-artist-header"], [data-tour="campaigns-header"]', title: 'Fix it here', body: 'Fill in missing socials inline, dismiss a row that is not a campaign, mark a song complete.' },
+    ],
+  },
+  {
+    id: 'release-detail', title: 'A release', path: '/releases', match: /^\/releases\/\d+/, sample: '/releases/1', version: V_DETAIL,
+    steps: [
+      { target: '[data-tour="release-page"]', title: 'One release', body: 'The checklist, metadata, DSP dates, budget, activity and comments for one release, on its own page.' },
+    ],
+  },
+  {
+    id: 'recording-budget', title: 'A recording budget', path: '/budget', match: /^\/budget\/\d+/, sample: '/budget/1', version: V_DETAIL,
+    steps: [
+      { target: '[data-tour="recording-budget-page"]', title: 'One recording budget', body: 'Line items by section — producers, studio, mixing, musicians, travel — through draft, approve and lock.' },
+    ],
+  },
+  {
+    id: 'financials-month', title: 'A month, drilled', path: '/financials', match: /^\/financials\/month\//, sample: '/financials/month/2026-06', version: V_DETAIL,
+    steps: [
+      { target: '[data-tour="financials-month-page"], [data-tour="financials-header"]', title: 'One month', body: 'The month opened from the Financials chart: what was paid and what is still owed, by artist, song and category.' },
+    ],
+  },
+  {
+    id: 'messages-channel', title: 'A conversation', path: '/messages', match: /^\/messages\/.+/, sample: '/messages/general', version: V_DETAIL,
+    steps: [
+      { target: '[data-tour="messages-pane"], [data-tour="messages-page"]', title: 'This conversation', body: 'The thread you opened. ⌘Enter sends; @ mentions somebody and it shows in their My Work.' },
+    ],
+  },
+  {
+    id: 'archive', title: 'Archived invoices', path: '/bk/approvals', match: /^\/bk\/approvals\/archive$/, sample: '/bk/approvals/archive', version: V_DETAIL,
+    steps: [
+      { target: '[data-tour="archive-header"], [data-tour="archive-page"]', title: 'Rejected and deleted', body: 'Kept indefinitely. Restore puts an invoice back where it was; the documents stay openable.' },
+    ],
+  },
+  {
+    id: 'vendors-added', title: 'Added-expense vendors', path: '/bk/vendors', match: /^\/bk\/vendors\/added-expenses$/, sample: '/bk/vendors/added-expenses', version: V_DETAIL,
+    steps: [
+      { target: '[data-tour="vendors-added-header"], [data-tour="vendors-added-page"]', title: 'Paid without an invoice', body: 'Creators paid through the Recoupments and Campaigns add modals — no invoice on file, so totals and duplicates are tracked here.' },
+    ],
+  },
+  {
+    id: 'nda-template', title: 'An NDA from a template', path: '/create-nda', match: /^\/create-nda\/.+/, sample: '/create-nda/standard', version: V_DETAIL,
+    steps: [
+      { target: '[data-tour="nda-form"], [data-tour="nda-preview"]', title: 'Prefilled from the template', body: 'The template picked the clauses; fill the counterparty and the preview updates as you type. Send for signature or download the PDF.' },
+    ],
+  },
+  {
+    id: 'manual', title: 'The manual', path: '/', match: /^\/manual$/, sample: '/manual', version: V_DETAIL,
+    steps: [
+      { target: '[data-tour="manual-page"]', title: 'The written guide', body: 'Every page and rule in prose, for when a walkthrough is not enough. Walkthroughs live under the ? button and the footprints icon.' },
+    ],
+  },
+]
+
+export const TOURS = [WELCOME, ...PAGE_TOURS, ...DETAIL_TOURS]
 // Every visible nav page the walk expects a tour for (the fixture fails on a gap).
 export const WALK_PATHS = NAV_GROUPS.flatMap((g) => g.items.flatMap((item) => (item.tabbed || item.collapsible) ? item.children.filter((c) => !c.hidden && !c.external).map((c) => c.path) : (!item.hidden && !item.external ? [item.path] : [])))
 

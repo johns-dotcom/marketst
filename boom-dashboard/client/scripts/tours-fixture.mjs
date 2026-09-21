@@ -40,6 +40,16 @@ const hasAttr = (attr, value) => value
   ? new RegExp(`${attr}=(?:"${value}"|\\{[^}]*'${value}'[^}]*\\}|\\{\`[^\`]*${value}[^\`]*\`\\})`).test(source) || new RegExp(`tour="${value}"`).test(source) && attr === 'data-tour'
   : new RegExp(`${attr}(?=[\\s>=])`).test(source)
 
+console.log('0. every route has a tour')
+// Every <Route path> in App.jsx, params filled in, resolves through tourForPath —
+// except redirects, public pages (no Layout, no tour engine) and the catch-all.
+const appSrc = fs.readFileSync(SRC + '/App.jsx', 'utf8')
+const SKIP_ROUTES = new Set(['/duplicates', '/bk/bank-vendors', '/bk/vendor-flags', '/admin/vendor-preview', '/submit', '/login', '/eula', '/privacy', '*'])
+const routes = [...new Set([...appSrc.matchAll(/path="([^"]+)"/g)].map((m) => m[1]))].filter((r) => !SKIP_ROUTES.has(r) && !r.startsWith('/invite'))
+for (const r of routes) {
+  const concrete = r.replace(/:id\b/g, '1').replace(/:[a-zA-Z]+/g, 'x')
+  ok(!!tourForPath(concrete), `route ${r} (${concrete}) has a tour`)
+}
 console.log('1. shape')
 ok(TOURS.length >= 5, `${TOURS.length} tours`)
 ok(new Set(TOURS.map((t) => t.id)).size === TOURS.length, 'ids are unique')

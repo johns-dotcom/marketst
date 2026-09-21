@@ -91,7 +91,7 @@ export default function TeamMember() {
   const viewAs = async () => { try { await impersonate(member.id); navigate('/') } catch (e) { setAccessNote(e?.response?.data?.error || 'Could not view as this person') } }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" data-tour="person-page">
       <Breadcrumb items={[
         { label: 'People', path: '/team' },
         { label: member.name },

@@ -372,7 +372,7 @@ export default function Messages() {
   const typingLine = Object.values(typers)
 
   return (
-    <div className="flex flex-col h-[calc(100vh-7rem)] sm:h-[calc(100vh-8rem)]">
+    <div className="flex flex-col h-[calc(100vh-7rem)] sm:h-[calc(100vh-8rem)]" data-tour="messages-page">
       <div className="flex-1 min-h-0 flex rounded-2xl border border-rule bg-card overflow-hidden">
 
         {/* ── Sidebar ───────────────────────────────────────────────────── */}

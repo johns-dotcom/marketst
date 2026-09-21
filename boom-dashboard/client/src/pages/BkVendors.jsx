@@ -1650,7 +1650,7 @@ export default function BkVendors() {
       .filter((inv) => !inv.bank_evidence)
       .map((inv) => ({ ...inv, family_total: invFamilyTotal(inv) }))
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: C.pageBg, fontSize: 14 }}>
+      <div data-tour="vendor-page" style={{ display: 'flex', flexDirection: 'column', height: '100%', background: C.pageBg, fontSize: 14 }}>
         {/* Breadcrumb bar */}
         <div style={{
           padding: '10px 16px', display: 'flex', gap: 6, alignItems: 'center',
@@ -4070,7 +4070,7 @@ export default function BkVendors() {
 
   // ── List view ──
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: C.pageBg, fontSize: 14 }}>
+    <div data-tour="vendor-page" style={{ display: 'flex', flexDirection: 'column', height: '100%', background: C.pageBg, fontSize: 14 }}>
 
       {/* Toolbar */}
       <div style={{

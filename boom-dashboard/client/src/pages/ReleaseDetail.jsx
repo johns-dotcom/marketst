@@ -289,7 +289,7 @@ export default function ReleaseDetail() {
   const budgetTotal = budgetItems.reduce((s, i) => s + parseFloat(i.amount || 0), 0)
 
   return (
-    <div>
+    <div data-tour="release-page">
       <Breadcrumb items={[
         { label: 'Releases', path: fromCatalog ? '/catalog' : '/releases' },
         { label: release.artist_name, path: `/artists/${release.artist_id}` },

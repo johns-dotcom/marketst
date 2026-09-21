@@ -151,13 +151,13 @@ export default function ArtistBudgetSimple() {
   const nothingYet = !totals.budget && !totals.spent && !totals.open
 
   return (
-    <div className="space-y-5" data-simple-sheet>
+    <div className="space-y-5" data-simple-sheet data-tour="budget-simple-page">
       <Breadcrumb items={[
         { label: 'Artists', path: '/artists' },
         data.artist_id ? { label: title, path: `/artists/${data.artist_id}` } : { label: title },
         { label: 'Budget' },
       ]} />
-      <PageHeader
+      <PageHeader tour="budget-simple-header"
         title={title}
         subtitle="Two totals and the releases under them. Type a budget in a cell; it saves when you leave it."
         actions={(

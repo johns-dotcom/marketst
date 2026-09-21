@@ -452,14 +452,14 @@ export default function ArtistBudgetSheet() {
 
   const shownName = data.artist === artistKey && openedAs ? openedAs : data.artist
   return (
-    <div className="space-y-5">
+    <div className="space-y-5" data-tour="budget-detail-page">
       <Breadcrumb items={[
         { label: 'Artists', path: '/artists' },
         data.artist_id ? { label: shownName, path: `/artists/${data.artist_id}` } : { label: shownName },
         { label: 'Budget', path: `/artist-budgets/${encodeURIComponent(artistKey)}${openedAs ? `?name=${encodeURIComponent(openedAs)}` : ''}` },
         { label: 'Full breakdown' },
       ]} />
-      <PageHeader
+      <PageHeader tour="budget-detail-header"
         title={shownName}
         subtitle="The full breakdown: every expense category as its own row, with spend matched to it. The simple sheet (Advance, Total marketing, releases) is the everyday view."
         actions={(

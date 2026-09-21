@@ -113,7 +113,7 @@ export default function BudgetDetail() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" data-tour="recording-budget-page">
       <BackLink />
       {/* ── Header (Artist / Project / Type / Currency / Status) ── */}
       <div className="card p-5">
