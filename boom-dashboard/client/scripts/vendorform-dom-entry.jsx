@@ -57,7 +57,7 @@ window.fetch = globalThis.fetch = async (url, opts) => {
   // directly. Getting this wrong threw on first render and looked exactly like a
   // broken page — worth the comment, since the shape is not obvious from the
   // fetch site.
-  if (u.includes('/api/vendor/roster')) return json({ artists: ['Fixture Artist'] })
+  if (u.includes('/api/vendor/roster')) return json({ artists: ['Fixture Artist'], songs: { 'Fixture Artist': ['Night Drive', 'Second Single'] } })
   if (u.includes('/api/vendor/lookup')) return json({ on_file: false })
   // ONFILE=1 reproduces a RETURNING vendor. The form then shows
   // "ACH ••••6789 — still correct?" and the field block is NOT rendered, which
@@ -363,8 +363,36 @@ if ((process.env.SCENARIO || 'ach') === 'multi') {
         const row = [...document.querySelectorAll('div')]
           .find((d) => (d.textContent || '').trim() === artist && d.children.length === 0)
         if (row) row.dispatchEvent(new window.MouseEvent('mousedown', { bubbles: true }))
-        const song = byPlaceholder(/song|track/i)
-        if (song) setValue(song, 'Fixture Song')
+        // React 18 flushes a discrete event's state in a MICROTASK, not before
+        // dispatchEvent returns — so the song picker only becomes a list a tick
+        // after the artist is picked. Without this wait the plain box is still on
+        // screen and the song lands as "other" before the artist is visibly set.
+        ;(async () => {
+        const tick = () => new Promise((r) => setTimeout(r, 25))
+        await tick()
+        // The song is a PICKER once a roster artist is chosen: focusing lists the
+        // artist's releases, a row commits on mousedown, and "+ Other" (or Enter
+        // with no match) takes the typed text as a song that is not a release.
+        let song = byPlaceholder(/song|track|release/i)
+        const rosterArtist = artist === 'Fixture Artist' && !!document.querySelector('[data-song-input="list"]')
+        if (song && rosterArtist) {
+          song.focus(); await tick()
+          const opts = [...document.querySelectorAll('[data-song-option]')].map((o) => o.getAttribute('data-song-option'))
+          console.log('song picker: lists the chosen artist\'s releases, newest first ->', opts.join('|') === 'Night Drive|Second Single' && !!document.querySelector('[data-song-other]'))
+          document.querySelector('[data-song-option="Night Drive"]')?.dispatchEvent(new window.MouseEvent('mousedown', { bubbles: true, cancelable: true })); await tick()
+          song = byPlaceholder(/song|track|release/i)
+          console.log('song picker: mousedown on a release picks it ->', song?.value === 'Night Drive' && song?.getAttribute('data-song-input') === 'list')
+          song.focus(); await tick()
+          setValue(song, 'Fixture Song'); await tick()
+          console.log('song picker: an unknown title offers "+ Use … not one of our releases" ->', /not one of our releases/.test(document.querySelector('[data-song-other]')?.textContent || '') && document.querySelectorAll('[data-song-option]').length === 0)
+          document.querySelector('[data-song-other]')?.dispatchEvent(new window.MouseEvent('mousedown', { bubbles: true, cancelable: true })); await tick()
+          song = byPlaceholder(/song|project/i)
+          console.log('song picker: Other keeps the typed song as free text with an Other chip ->', song?.value === 'Fixture Song' && song?.getAttribute('data-song-input') === 'other' && !!document.querySelector('[data-song-other-chip]'))
+        } else if (song) {
+          console.log('song picker: an off-roster artist gets a plain song box ->', song.getAttribute('data-song-input') === 'plain')
+          setValue(song, 'Fixture Song')
+        }
+        await tick()
         // The ARTIST ROW's amount, not the social row's optional one — they are
         // both money boxes and the social one comes second in the DOM.
         const amt = byPlaceholder(/\$ Amount/i)
@@ -377,6 +405,7 @@ if ((process.env.SCENARIO || 'ach') === 'multi') {
         const handle = byPlaceholder(/@yourhandle/i)
         if (handle) setValue(handle, '@fixture')
         setTimeout(done, 300)
+        })()
       }, 250)
     }, 250)
   }

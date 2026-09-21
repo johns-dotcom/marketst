@@ -899,6 +899,31 @@ Authoritative project guide: **`boom-dashboard/CLAUDE.md`** — read it before m
   deals-dom` (36, full · empty · url), `server/scripts/deals-pipeline-fixture.cjs`
   (32); calendar-fixture's `sources` gained `deals`. Tour `deals` bumped to
   2026-09-21 (six steps + keys).
+- **The vendor form's song is a picker over the artist's releases (2026-09-21,
+  John: "add dropdowns to the vendor submit form for artists and songs that
+  pull from the artist roster and their releases. also be sure to add an
+  'other' option").** The artist already was one (`RosterPicker`, with "+ Not
+  on our roster" as its Other). `GET /api/vendor/roster` now returns
+  `{ artists: [names], songs: { [name]: [project_name, …] } }` — `artists`
+  stays an array of STRINGS (rosterIndex and the harness read it that way);
+  songs are the artist's releases, newest first, deduped, archived artists
+  excluded. `SongPicker` in VendorSubmit.jsx (mirrored to the lab with
+  `sync-vendor-lab.mjs --force`) renders three ways: a LIST when the row's
+  artist is on the roster and has releases (rows commit on mousedown; Enter
+  with one match picks it; "+ Other — a song or project not listed", or Enter
+  with no match, keeps the typed text and shows an amber Other chip with ×);
+  the OTHER free-text box; a PLAIN box when the artist is off-roster or has
+  no releases (nothing to offer). Changing the artist clears the song. The row
+  carries `song_other` client-side only — the server still receives `song` as
+  text and nothing about it changed. `data-song-input="list|other|plain"`,
+  `data-song-option`, `data-song-other`, `data-song-other-chip` are the
+  harness hooks; vendorform-dom's `fillProject` now drives the picker and
+  asserts all four states in the `multi` scenario. **Harness trap recorded
+  there:** React 18 flushes a discrete event's state in a MICROTASK, so the
+  DOM after `dispatchEvent(mousedown)` is still the old one — the song input
+  was still the plain box when the harness typed into it, and the song landed
+  as "other" while every payload assertion stayed green. `fillProject` awaits
+  a tick after each pick.
 - **Bank-statement heuristics were tuned on Boom's Bank of America statements.** The own-name lists (`statements.js` stop-words, `funding-pairs.js` account-trailer strip) now say Market Street, but the layout parsers have not seen a Market Street statement yet. Expect the AI fallback to do the work until they do.
 
 ## Commands (run from `boom-dashboard/`)

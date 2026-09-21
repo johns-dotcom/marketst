@@ -330,6 +330,89 @@ function RosterPicker({ value, offRoster, onChange, roster, placeholder, warning
   )
 }
 
+// The song beside the artist: a dropdown of THAT artist's releases (John,
+// 2026-09-21: "dropdowns … for artists and songs that pull from the artist
+// roster and their releases"), with an "Other" escape for a track that is not
+// a release of ours — marketing for a song we did not put out, a project not
+// on the calendar yet. An off-roster artist, or one with no releases, gets a
+// plain text box: there is no list to offer.
+//   value       the song text
+//   other       true once the vendor chose "Other" (or typed with no list)
+//   songs       the releases for the chosen artist ([] when none)
+//   hasList     false = render the plain input
+function SongPicker({ value, other, onChange, songs, hasList, placeholder, required }) {
+  const [open, setOpen] = useState(false)
+  const [query, setQuery] = useState('')
+  const [highlighted, setHighlighted] = useState(-1)
+  const wrapRef = useRef(null)
+  useEffect(() => {
+    if (!open) return
+    const handler = (e) => { if (wrapRef.current && !wrapRef.current.contains(e.target)) { setOpen(false); setQuery(''); setHighlighted(-1) } }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [open])
+  const baseInputCls = 'w-full border-2 rounded-lg px-3 py-2.5 text-sm outline-none transition-colors min-w-0 border-rule focus:border-red-500'
+
+  if (!hasList) {
+    return (
+      <input type="text" value={value} onChange={e => onChange(e.target.value, true)} placeholder={placeholder} required={required} data-song-input="plain" data-song-choices={songs.length}
+        className={`flex-[1.5] ${baseInputCls}`} />
+    )
+  }
+  if (other) {
+    return (
+      <div ref={wrapRef} className="relative flex-[1.5] min-w-0">
+        <input type="text" value={value} onChange={e => onChange(e.target.value, true)} placeholder="Song or project name" required={required} data-song-input="other"
+          className={`${baseInputCls} pr-20`} />
+        <button type="button" onClick={() => onChange('', false)} title="Pick one of our releases instead" data-song-other-chip
+          className="absolute right-1.5 top-1/2 -translate-y-1/2 inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wide bg-amber-100 text-amber-800 ring-1 ring-amber-300 hover:bg-amber-200">
+          Other <span className="text-amber-700 font-black">×</span>
+        </button>
+      </div>
+    )
+  }
+  const q = query.trim().toLowerCase()
+  const shown = (q ? songs.filter(t => t.toLowerCase().includes(q)) : songs).slice(0, 60)
+  const commit = (title) => { onChange(title, false); setOpen(false); setQuery(''); setHighlighted(-1) }
+  const commitOther = () => { onChange(query.trim() || value.trim(), true); setOpen(false); setQuery(''); setHighlighted(-1) }
+  const onKeyDown = (e) => {
+    if (!open && (e.key === 'ArrowDown' || e.key === 'Enter')) { e.preventDefault(); setOpen(true); return }
+    if (!open) return
+    if (e.key === 'ArrowDown') { e.preventDefault(); setHighlighted(h => Math.min(h + 1, shown.length)) }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); setHighlighted(h => Math.max(h - 1, -1)) }
+    else if (e.key === 'Enter') {
+      e.preventDefault()
+      if (highlighted >= 0 && highlighted < shown.length) commit(shown[highlighted])
+      else if (highlighted === shown.length) commitOther()
+      else if (shown.length === 1 && q) commit(shown[0])
+      else if (shown.length === 0 && q) commitOther()
+    } else if (e.key === 'Escape') { setOpen(false); setQuery(''); setHighlighted(-1) }
+  }
+  return (
+    <div ref={wrapRef} className="relative flex-[1.5] min-w-0">
+      <input type="text" value={open ? query : value} onChange={e => { setQuery(e.target.value); setHighlighted(-1); if (!open) setOpen(true) }}
+        onFocus={() => { setOpen(true); setQuery('') }} onKeyDown={onKeyDown} placeholder={placeholder} required={required} data-song-input="list" data-song-choices={songs.length}
+        className={baseInputCls} />
+      {open && (
+        <div className="absolute z-50 left-0 right-0 mt-1 max-h-64 overflow-y-auto rounded-lg border border-rule bg-card shadow-lg" data-song-menu>
+          {shown.length === 0
+            ? <div className="px-3 py-2 text-xs text-gray-400">{q ? `No release called "${query.trim()}"` : 'No releases for this artist yet'}</div>
+            : shown.map((title, idx) => (
+              <div key={title} onMouseDown={e => { e.preventDefault(); commit(title) }} onMouseEnter={() => setHighlighted(idx)} data-song-option={title}
+                className={`px-3 py-2 text-sm cursor-pointer ${idx === highlighted ? 'bg-red-50 text-red-700' : 'text-gray-800 hover:bg-gray-50'} ${title.toLowerCase() === (value || '').toLowerCase() ? 'font-bold' : ''}`}>
+                {title}
+              </div>
+            ))}
+          <div onMouseDown={e => { e.preventDefault(); commitOther() }} onMouseEnter={() => setHighlighted(shown.length)} data-song-other
+            className={`px-3 py-2 text-xs font-semibold cursor-pointer border-t border-rule ${highlighted === shown.length ? 'bg-amber-100 text-amber-900' : 'bg-amber-50 text-amber-800 hover:bg-amber-100'}`}>
+            {q ? <>+ Use <span className="font-black">"{query.trim()}"</span> — not one of our releases</> : <>+ Other — a song or project not listed</>}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ── One invoice, on step 2 ───────────────────────────────────────────────────
 //
 // A row is a document plus the number printed on it, and that pairing is the
@@ -657,6 +740,9 @@ export default function VendorSubmitLab() {
   // picker shows an empty list and every row lands as off-roster, which the
   // server re-validates anyway.
   const [roster, setRoster] = useState([])
+  // Each roster artist's releases (project names), for the song picker. An
+  // artist with none, or an off-roster artist, gets a plain song box.
+  const [songsByArtist, setSongsByArtist] = useState({})
   useEffect(() => {
     let cancelled = false
     ;(async () => {
@@ -665,6 +751,7 @@ export default function VendorSubmitLab() {
         if (!r.ok) return
         const d = await r.json()
         if (!cancelled && Array.isArray(d?.artists)) setRoster(d.artists)
+        if (!cancelled && d?.songs && typeof d.songs === 'object') setSongsByArtist(d.songs)
       } catch {}
     })()
     return () => { cancelled = true }
@@ -2277,15 +2364,16 @@ export default function VendorSubmitLab() {
                       roster={roster}
                       placeholder={i === 0 ? 'Search Market Street roster or "+ Not on our roster"' : 'Search roster'}
                       warningRing={looksHandle ? 'border-amber-400 focus:border-amber-500 bg-amber-50' : 'border-rule focus:border-red-500'}
-                      onChange={(artist, offRoster) => updateArtistRow(i, { artist, off_roster: offRoster })}
+                      onChange={(artist, offRoster) => updateArtistRow(i, { artist, off_roster: offRoster, ...(artist !== row.artist ? { song: '', song_other: false } : {}) })}
                     />
-                    <input
-                      type="text"
+                    <SongPicker
                       value={row.song}
-                      onChange={e => updateArtistRow(i, 'song', e.target.value)}
-                      placeholder="Song / Track *"
+                      other={!!row.song_other}
+                      songs={(!row.off_roster && songsByArtist[row.artist]) || []}
+                      hasList={!!row.artist && !row.off_roster && (songsByArtist[row.artist] || []).length > 0}
+                      placeholder={row.artist && !row.off_roster && (songsByArtist[row.artist] || []).length ? 'Choose a release or "+ Other" *' : 'Song / Track *'}
                       required={i === 0}
-                      className="flex-[1.5] border-2 border-rule rounded-lg px-3 py-2.5 text-sm outline-none focus:border-red-500 transition-colors min-w-0"
+                      onChange={(song, other) => updateArtistRow(i, { song, song_other: other })}
                     />
                     <input
                       type="text"

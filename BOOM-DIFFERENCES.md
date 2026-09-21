@@ -336,6 +336,12 @@ component and wire it wherever Boom edits task notes.
 revisit_date`, table `deal_events`). Nothing label-shaped. Boom's page is the
 first-pass board; port the whole commit and run `deals-pipeline-fixture.cjs`.
 
+## 24. Vendor form: song picker over the artist's releases — PORT
+
+`routes/vendor-submit.js` `/roster` (adds `songs`), `pages/VendorSubmit.jsx` +
+`VendorSubmitLab.jsx` (`SongPicker`, `song_other` on the row), the
+vendorform-dom harness (`fillProject` drives the picker). Nothing label-shaped.
+
 ## Suggested order for Cadence
 
 1. Sections 3, 4, 7 (sidebar, presets, Settings) — they define the shape

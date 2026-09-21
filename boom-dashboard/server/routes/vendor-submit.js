@@ -639,11 +639,23 @@ IMPORTANT: A document IS attached and you CAN read it. Read every visible field 
 // submission form load would otherwise hit this.
 router.get('/roster', async (_req, res) => {
   try {
+    // Each artist with their releases (project names, newest first), so the
+    // form can offer a song list per artist. `artists` stays an array of
+    // STRINGS — rosterIndex and the harness read it that way.
     const { rows } = await pool.query(
-      `SELECT name FROM artists WHERE name IS NOT NULL AND TRIM(name) <> '' AND (archived = false OR archived IS NULL) ORDER BY LOWER(name)`
+      `SELECT a.name, r.project_name
+         FROM artists a
+         LEFT JOIN releases r ON r.artist_id = a.id AND r.project_name IS NOT NULL AND TRIM(r.project_name) <> ''
+        WHERE a.name IS NOT NULL AND TRIM(a.name) <> '' AND (a.archived = false OR a.archived IS NULL)
+        ORDER BY LOWER(a.name), r.release_date DESC NULLS LAST, LOWER(r.project_name)`
     );
+    const artists = []; const songs = {};
+    for (const r of rows) {
+      if (!songs[r.name]) { artists.push(r.name); songs[r.name] = []; }
+      if (r.project_name && !songs[r.name].includes(r.project_name)) songs[r.name].push(r.project_name);
+    }
     res.set('Cache-Control', 'public, max-age=300');
-    res.json({ artists: rows.map(r => r.name) });
+    res.json({ artists, songs });
   } catch (err) {
     console.error('GET /api/vendor/roster:', err.message);
     res.json({ artists: [] });
