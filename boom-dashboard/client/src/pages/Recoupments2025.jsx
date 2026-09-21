@@ -118,14 +118,14 @@ export default function Recoupments2025() {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" data-tour="recoupments-2025-page">
       <Link
         to="/recoupments"
         className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-gray-600 hover:text-gray-900 bg-card border border-rule hover:border-gray-300"
       >
         <ArrowLeft size={13} /> Back to Recoupments
       </Link>
-      <PageHeader
+      <PageHeader tour="recoupments-2025-header"
         title="2025 Expenses"
         subtitle="Prior-year spend tagged from the Recoupments page — kept in its own bucket so current recoupment work stays clean."
       />

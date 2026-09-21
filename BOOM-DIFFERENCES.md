@@ -352,6 +352,14 @@ BkVendorsAdded, UserManual; `tours-fixture` section 0 (every App route resolves
 to a tour); `anchors-dom` DETAIL map + object-shaped stubs. Also: tours
 auto-start ONCE per person (`everSeen` in Tour.jsx). Nothing label-shaped.
 
+## 26. Walkthrough bug pass 3 — PORT
+
+`Tour.jsx` (page-aware onPage via `pageOf`, welcome records the page tours it
+ran, `isUpdated`, strip `paths`), `tours/index.js` (`tourForPath` prefix
+fallback, recoupments-2025), `Layout.jsx` + `GlobalSearch.jsx` + `useHotkeys.js`
+(keyboard quiet under a tour), `KeyboardShortcutsHelp.jsx` (navigate before
+start), `MyWork.jsx` (`isUpdated`). Boom's Messages page has the same redirect.
+
 ## Suggested order for Cadence
 
 1. Sections 3, 4, 7 (sidebar, presets, Settings) — they define the shape

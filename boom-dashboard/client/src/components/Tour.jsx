@@ -13,7 +13,7 @@ import { useAuth } from '../context/AuthContext'
 import { TOURS, tourById, tourForPath } from '../tours'
 
 const TourContext = createContext(null)
-const NOOP = { startTour: () => false, tours: [], done: {}, active: null, doneVersion: () => null, isDone: () => false, pageTour: null }
+const NOOP = { startTour: () => false, tours: [], done: {}, active: null, doneVersion: () => null, isDone: () => false, isUpdated: () => false, pageTour: null }
 export const useTour = () => useContext(TourContext) || NOOP
 
 const visible = (el) => { if (!el) return false; const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0 }
@@ -67,6 +67,8 @@ export function TourProvider({ children }) {
   // time I log in"). A newer version shows as "updated" in the ? menu and in My
   // Work's Waiting on you, where it can be replayed; it never pounces again.
   const everSeen = useCallback((t) => !!done?.[t.id], [done])
+  // "Updated since you took it": finished (not skipped) at an older version.
+  const isUpdated = useCallback((t) => { const d = done?.[t.id]; return !!d && !d.skipped && d.version !== t.version }, [done])
 
   const startTour = useCallback((id) => {
     const t = tourById(id); if (!t) return false
@@ -76,20 +78,34 @@ export function TourProvider({ children }) {
   // completed: true = Done, false = Skip, null = nothing was on screen to show
   // (a tour started for a page you are not on) — closed without recording,
   // so it still offers itself the first time that page is opened.
-  const finish = useCallback(async (completed) => {
+  const finish = useCallback(async (completed, skippedPaths = []) => {
     const t = active?.tour; setActive(null)
     if (!t || completed === null) return
-    // The welcome walk shows ONE orientation step per page; each page's own
-    // tour (the deeper steps) still runs the first time that page is opened.
-    // Only the page the walk ends on is held back this session, so a second
-    // tour does not pounce the moment the walk closes.
-    if (t.id === 'welcome') { const here = tourForPath(location.pathname); if (here) startedOnPath.current.add(here.id) }
+    // The welcome walk runs EVERY step of every page tour it visits (since
+    // 2026-09-20), so finishing it also records those page tours as taken —
+    // otherwise each page replayed the identical steps on its first open.
+    // Pages the person chose to Skip are left out (their tour still runs once,
+    // later). A SKIPPED walk records only itself: those pages were not seen.
     const batch = [{ id: t.id, version: t.version, skipped: !completed }]
+    if (t.id === 'welcome') {
+      const here = tourForPath(location.pathname); if (here) startedOnPath.current.add(here.id)
+      if (completed) {
+        const pages = [...new Set(t.steps.flatMap((st) => (st.paths ? st.paths : st.path ? [st.path] : [])))].filter((p) => canView(p) && !skippedPaths.includes(p))
+        for (const p of pages) { const pt = tourForPath(p); if (pt && !pt.match && !batch.some((b) => b.id === pt.id)) batch.push({ id: pt.id, version: pt.version, skipped: false }) }
+      }
+    }
+    const local = Object.fromEntries(batch.map((b) => [b.id, { version: b.version, skipped: b.skipped }]))
     try {
-      const r = await api.put('/settings/me/tours', batch.length > 1 ? { tours: batch } : batch[0])
-      setDone(r.data?.data || Object.fromEntries(batch.map((b) => [b.id, { version: b.version }])))
-    } catch { setDone((d) => ({ ...(d || {}), ...Object.fromEntries(batch.map((b) => [b.id, { version: b.version }])) })) }
-  }, [active, done, location.pathname])
+      // The server takes 50 per request; a Superadmin's walk covers more pages than that.
+      let merged = null
+      for (let i = 0; i < batch.length; i += 50) {
+        const part = batch.slice(i, i + 50)
+        const r = await api.put('/settings/me/tours', part.length > 1 ? { tours: part } : part[0])
+        merged = r.data?.data || merged
+      }
+      setDone(merged || local)
+    } catch { setDone((d) => ({ ...(d || {}), ...local })) }
+  }, [active, done, location.pathname, canView])
 
   // Auto-start. Welcome first; then the page tour once per page per session.
   useEffect(() => {
@@ -107,7 +123,7 @@ export function TourProvider({ children }) {
     return undefined
   }, [user?.id, done, location.pathname, active, everSeen, allowed])
 
-  const value = useMemo(() => ({ startTour, tours, done: done || {}, active, doneVersion, isDone, pageTour: (() => { const pt = tourForPath(location.pathname); return allowed(pt) ? pt : null })() }), [startTour, tours, done, active, doneVersion, isDone, location.pathname, allowed])
+  const value = useMemo(() => ({ startTour, tours, done: done || {}, active, doneVersion, isDone, isUpdated, pageTour: (() => { const pt = tourForPath(location.pathname); return allowed(pt) ? pt : null })() }), [startTour, tours, done, active, doneVersion, isDone, isUpdated, location.pathname, allowed])
   return (
     <TourContext.Provider value={value}>
       {children}
@@ -119,6 +135,8 @@ export function TourProvider({ children }) {
 // How long a step may wait for its page to render its anchor before it is
 // skipped. Harnesses shorten it.
 const WAIT_MS = () => (typeof window !== 'undefined' && window.__TOUR_WAIT_MS__) || 4000
+// The nav page a pathname belongs to: /messages/12 → /messages, /team/4 → /team.
+const pageOf = (pathname) => tourForPath(pathname)?.path || pathname
 
 function TourOverlay({ tour, index, setIndex, onFinish, canView, role }) {
   const location = useLocation()
@@ -126,13 +144,17 @@ function TourOverlay({ tour, index, setIndex, onFinish, canView, role }) {
   const steps = tour.steps
   // Which steps this person may take: a step on a page they cannot open is
   // dropped up front, so the count is honest.
-  const eligible = useMemo(() => steps.map((st, i) => ({ st, i })).filter(({ st }) => canView(st.path || tour.path) && (!st.needs || canView(st.needs)) && (!st.roles || st.roles.includes(role))), [steps, tour.path, canView, role])
+  const eligible = useMemo(() => steps.map((st, i) => ({ st, i })).filter(({ st }) => (st.paths ? st.paths.some(canView) : canView(st.path || tour.path)) && (!st.needs || canView(st.needs)) && (!st.roles || st.roles.includes(role))), [steps, tour.path, canView, role])
   const order = eligible.map((e) => e.i)
   const pos = Math.max(0, order.indexOf(index) === -1 ? 0 : order.indexOf(index))
   const stepIdx = order[pos]
   const step = steps[stepIdx]
-  const wantPath = step?.path || null
-  const onPage = !wantPath || location.pathname === wantPath || (tour.match && tour.match.test(location.pathname))
+  // A family's tab-strip step lists every tab (`paths`); it wants the first one this person can open.
+  const wantPath = step?.paths ? (step.paths.find(canView) || step.path) : (step?.path || null)
+  // "On the page" is page-aware, not path-equal: Messages redirects /messages to
+  // /messages/<channel> the moment it loads, and a vendor's or artist's page hangs
+  // off its nav page. `pageOf` folds a pathname to the nav page its tour belongs to.
+  const onPage = !wantPath || location.pathname === wantPath || pageOf(location.pathname) === wantPath || (tour.match && tour.match.test(location.pathname))
   const [rect, setRect] = useState(null)
   const [waiting, setWaiting] = useState(false)
   const [missing, setMissing] = useState(false)   // on the page, but its anchor never rendered (no data yet)
@@ -156,7 +178,7 @@ function TourOverlay({ tour, index, setIndex, onFinish, canView, role }) {
   // and is excluded; it drops pages it cannot reach itself.
   useEffect(() => {
     if (tour.multipage) return
-    const here = tour.match ? tour.match.test(location.pathname) : location.pathname === tour.path
+    const here = tour.match ? tour.match.test(location.pathname) : (location.pathname === tour.path || pageOf(location.pathname) === tour.path)
     if (!here) onFinish(null)
   }, [location.pathname]) // eslint-disable-line react-hooks/exhaustive-deps
 

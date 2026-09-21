@@ -18,7 +18,7 @@ if (!existsSync(fileURLToPath(JSDOM_PATH))) { console.error(`no jsdom at ${JSDOM
 execFileSync('npx', ['vite', 'build', '-c', 'scripts/mywork-dom.vite.config.mjs'], {
   cwd: CLIENT, env: { ...process.env, ENTRY: 'scripts/tour-dom-entry.jsx', API_STUB: 'scripts/tour-api-stub.js', AUTH_STUB: 'scripts/home-dom-auth-stub.js' }, stdio: ['ignore', 'ignore', 'pipe'],
 })
-const scenarios = process.env.TOUR_SCENARIO ? [process.env.TOUR_SCENARIO] : ['fresh', 'done', 'user', 'mobile']
+const scenarios = process.env.TOUR_SCENARIO ? [process.env.TOUR_SCENARIO] : ['fresh', 'done', 'user', 'mobile', 'detail']
 let all = ''
 for (const sc of scenarios) {
   let log = ''

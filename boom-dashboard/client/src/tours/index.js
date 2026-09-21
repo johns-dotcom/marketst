@@ -448,7 +448,7 @@ function walkSteps() {
         if (!kids.length) continue
         const fam = { family: item.key || item.label, familyLabel: item.label }
         const names = kids.map((c) => c.label).join(' · ')
-        out.push({ path: kids[0].path, target: `[data-tour="family-tabs"][data-family="${item.key}"]`, title: `${item.label}: ${kids.length} tab${kids.length === 1 ? '' : 's'}`, body: `One sidebar row, several pages: ${names}. The tabs sit across the top; the walk visits each one.`, page: item.label, ...fam, ...(item.adminOnly ? { roles: ['Admin', 'Superadmin'] } : {}) })
+        out.push({ path: kids[0].path, paths: kids.map((c) => c.path), target: `[data-tour="family-tabs"][data-family="${item.key}"]`, title: `${item.label}: ${kids.length} tab${kids.length === 1 ? '' : 's'}`, body: `One sidebar row, several pages: ${names}. The tabs sit across the top; the walk visits each one.`, page: item.label, ...fam, ...(item.adminOnly ? { roles: ['Admin', 'Superadmin'] } : {}) })
         for (const c of kids) out.push(...stepsOf(PAGE_TOURS.find((t) => t.path === c.path && !t.match), c.path, { ...fam, ...(c.adminOnly ? { roles: ['Admin', 'Superadmin'] } : {}) }))
       } else if (!item.hidden && !item.external) {
         out.push(...stepsOf(PAGE_TOURS.find((t) => t.path === item.path && !t.match), item.path, item.adminOnly ? { roles: ['Admin', 'Superadmin'] } : {}))
@@ -465,7 +465,7 @@ const WELCOME = {
     { path: '/', target: '[data-tour="search"]', title: 'Search jumps anywhere', body: 'Press / or ⌘K. Type a page, an artist, a vendor or an invoice number.' },
     { path: '/', target: null, title: 'The keyboard', body: 'Press g then a letter to jump to a page (g f is Flags, g a Approvals, g p Payments). On any list j and k move, Enter opens, e edits, x selects, f finds the filter box, n makes a new one. Press ? for the list on the page you are on.' },
     ...walkSteps(),
-    { path: '/', target: '[data-tour="walkthrough"], [data-tour="help"]', title: 'That is the dashboard', body: 'Each page also has its own short tour the first time you open it. Replay any of them from Walkthrough in the top bar (the footprints on a phone), or press ? for shortcuts and tours.' },
+    { path: '/', target: '[data-tour="walkthrough"], [data-tour="help"]', title: 'That is the dashboard', body: 'You have walked every page. Each of them is marked as taken, so none replays on its own; replay any tour from the ? menu or the footprints icon beside the manual. Pages you skipped keep their own short tour for the first time you open them.' },
   ],
 }
 
@@ -492,10 +492,16 @@ export const DETAIL_TOURS = [
     ],
   },
   {
-    id: 'recoupments-artist', title: "An artist's recoupments", path: '/recoupments', match: /^\/recoupments\/(?!planning$|audit$)[^/]+$/, sample: '/recoupments/Fixture%20Artist', version: V_DETAIL,
+    id: 'recoupments-artist', title: "An artist's recoupments", path: '/recoupments', match: /^\/recoupments\/(?!planning$|audit$|2025$)[^/]+$/, sample: '/recoupments/Fixture%20Artist', version: V_DETAIL,
     steps: [
       { target: '[data-tour="recoupments-header"], [data-tour="recoupments-page"]', title: 'One artist', body: 'Recoupable spend grouped by song. The four bank states and the statement period are filter chips; the left rail on each row is what the bank says.' },
       { target: '[data-tour="recoupments-page"]', title: 'Upload for recoupment', body: 'Tick items to mark them uploaded (UFR). The stamp is what we CLAIMED; the rail is whether the bank can prove it.' },
+    ],
+  },
+  {
+    id: 'recoupments-2025', title: 'Recoupments tagged 2025', path: '/recoupments', match: /^\/recoupments\/2025$/, sample: '/recoupments/2025', version: V_DETAIL,
+    steps: [
+      { target: '[data-tour="recoupments-2025-header"], [data-tour="recoupments-2025-page"]', title: 'The 2025 tag', body: 'Items marked as 2025 expenses from the artist pages, gathered in one list for the statement.' },
     ],
   },
   {
@@ -538,12 +544,6 @@ export const DETAIL_TOURS = [
     ],
   },
   {
-    id: 'messages-channel', title: 'A conversation', path: '/messages', match: /^\/messages\/.+/, sample: '/messages/general', version: V_DETAIL,
-    steps: [
-      { target: '[data-tour="messages-pane"], [data-tour="messages-page"]', title: 'This conversation', body: 'The thread you opened. ⌘Enter sends; @ mentions somebody and it shows in their My Work.' },
-    ],
-  },
-  {
     id: 'archive', title: 'Archived invoices', path: '/bk/approvals', match: /^\/bk\/approvals\/archive$/, sample: '/bk/approvals/archive', version: V_DETAIL,
     steps: [
       { target: '[data-tour="archive-header"], [data-tour="archive-page"]', title: 'Rejected and deleted', body: 'Kept indefinitely. Restore puts an invoice back where it was; the documents stay openable.' },
@@ -561,12 +561,6 @@ export const DETAIL_TOURS = [
       { target: '[data-tour="nda-form"], [data-tour="nda-preview"]', title: 'Prefilled from the template', body: 'The template picked the clauses; fill the counterparty and the preview updates as you type. Send for signature or download the PDF.' },
     ],
   },
-  {
-    id: 'manual', title: 'The manual', path: '/', match: /^\/manual$/, sample: '/manual', version: V_DETAIL,
-    steps: [
-      { target: '[data-tour="manual-page"]', title: 'The written guide', body: 'Every page and rule in prose, for when a walkthrough is not enough. Walkthroughs live under the ? button and the footprints icon.' },
-    ],
-  },
 ]
 
 export const TOURS = [WELCOME, ...PAGE_TOURS, ...DETAIL_TOURS]
@@ -577,6 +571,9 @@ export const tourById = (id) => TOURS.find((t) => t.id === id) || null
 // Which tour belongs to a pathname (a page tour, never the welcome tour).
 export function tourForPath(pathname) {
   const hits = TOURS.filter((t) => t.id !== 'welcome' && (t.match ? t.match.test(pathname) : (t.path === pathname)))
-  if (!hits.length) return null
-  return hits.find((t) => t.match) || hits[0]
+  if (hits.length) return hits.find((t) => t.match) || hits[0]
+  // No exact or pattern hit: the nav page this path hangs off (/messages/12 → the
+  // Messages tour — the page redirects to a channel the moment it loads).
+  const parents = TOURS.filter((t) => t.id !== 'welcome' && !t.match && t.path !== '/' && pathname.startsWith(t.path + '/')).sort((a, b) => b.path.length - a.path.length)
+  return parents[0] || null
 }

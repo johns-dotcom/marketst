@@ -371,7 +371,7 @@ export default function Layout() {
 // The Walkthrough button: one click starts this page's tour; the chevron
 // opens the full list so any tour can be replayed. Sits beside the manual.
 function WalkthroughButton() {
-  const { tours, startTour, pageTour, isDone, doneVersion } = useTour()
+  const { tours, startTour, pageTour, isDone, doneVersion, isUpdated } = useTour()
   const navigate = useNavigate()
   const location = useLocation()
   const [open, setOpen] = useState(false)
@@ -394,7 +394,7 @@ function WalkthroughButton() {
   }, [open])
   if (!tours.length) return null
   const primary = pageTour || tours.find((t) => t.id === 'welcome') || tours[0]
-  const label = (t) => `${t.title}${isDone(t) ? '' : doneVersion(t.id) ? ' · updated' : ' · new'}`
+  const label = (t) => `${t.title}${isUpdated(t) ? ' · updated' : doneVersion(t.id) ? '' : ' · new'}`
   return (
     <div className="relative" ref={ref} data-walkthrough data-tour="walkthrough">
       {small ? (
@@ -529,6 +529,7 @@ function LayoutInner() {
   useEffect(() => {
     const handler = (e) => {
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return
+      if (document.querySelector('[data-tour-overlay]')) return   // a tour owns the keyboard; Escape must not close the help AND skip the tour
       if (e.key === '?') { e.preventDefault(); setShowShortcuts(v => !v) }
     }
     window.addEventListener('keydown', handler)

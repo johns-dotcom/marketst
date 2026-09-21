@@ -5,10 +5,10 @@
 // reads as updated but does NOT auto-start (a tour runs itself once, ever).
 import React from 'react'
 import { createRoot } from 'react-dom/client'
-import { MemoryRouter, Routes, Route, useLocation, Link } from 'react-router-dom'
+import { MemoryRouter, Routes, Route, useLocation, Link, useNavigate } from 'react-router-dom'
 import { TourProvider, useTour } from '../src/components/Tour'
 import { calls } from './tour-api-stub.js'
-import { TOURS } from '../src/tours'
+import { TOURS, tourForPath } from '../src/tours'
 
 const errors = []
 window.addEventListener('error', (e) => errors.push('window.error: ' + e.message))
@@ -41,10 +41,11 @@ const parseSel = (sel) => {
 const anchorsFor = (pathname) => {
   const out = new Map()
   for (const t of TOURS) {
-    const on = t.match ? t.match.test(pathname) : t.path === pathname
+    // page-aware, like the engine: /messages/general carries the Messages anchors
+    const on = t.match ? t.match.test(pathname) : (t.path === pathname || tourForPath(pathname)?.id === t.id)
     for (const st of t.steps) {
       const p = st.path || t.path
-      if ((t.multipage ? p === pathname : on) && st.target) { const parsed = parseSel(String(st.target).split(',')[0]); if (parsed) out.set(JSON.stringify(parsed), parsed) }
+      if ((t.multipage ? (p === pathname || tourForPath(pathname)?.path === p) : on) && st.target) { const parsed = parseSel(String(st.target).split(',')[0]); if (parsed) out.set(JSON.stringify(parsed), parsed) }
     }
   }
   return [...out.values()]
@@ -53,6 +54,10 @@ function Page() {
   const { pageTour, tours, startTour } = useTour()
   window.__START__ = startTour
   const loc = useLocation()
+  const navigate = useNavigate()
+  // The real Messages page redirects /messages to the most recent channel the
+  // moment it loads. The walk used to wait 4 s there and skip the page.
+  React.useEffect(() => { if (loc.pathname === '/messages') navigate('/messages/general', { replace: true }) }, [loc.pathname, navigate])
   const anchors = anchorsFor(loc.pathname)
   return (
     <div>
@@ -61,7 +66,9 @@ function Page() {
         // on a phone the desktop help button is hidden; the walkthrough icon stands in
         const hidden = scenario === 'mobile' && a.attrs['data-tour'] === 'help'
         const props = { ...a.attrs, ...(hidden ? { 'data-hidden': '' } : {}) }
-        return <div key={i} {...props}>{a.child ? <a.child>{a.child}</a.child> : Object.values(a.attrs).join(' ') || 'anchor'}</div>
+        // a table needs a row to hold text, or React warns about DOM nesting
+        const child = a.child === 'table' ? <table><tbody><tr><td>table</td></tr></tbody></table> : a.child ? <a.child>{a.child}</a.child> : null
+        return <div key={i} {...props}>{child || Object.values(a.attrs).join(' ') || 'anchor'}</div>
       })}
       {scenario === 'mobile' && loc.pathname === '/' && <div data-tour="walkthrough">icon</div>}
       <p data-page-tour>{pageTour?.id || 'none'} · {tours.length} tours</p>
@@ -72,7 +79,7 @@ function Page() {
 async function main() {
   say(`SCENARIO ${scenario}`)
   const host = document.createElement('div'); document.body.appendChild(host)
-  createRoot(host).render(<MemoryRouter initialEntries={[scenario === 'user' ? '/team' : '/']}><TourProvider><Routes><Route path="*" element={<Page />} /></Routes></TourProvider></MemoryRouter>)
+  createRoot(host).render(<MemoryRouter initialEntries={[scenario === 'user' ? '/team' : scenario === 'detail' ? '/team/1' : '/']}><TourProvider><Routes><Route path="*" element={<Page />} /></Routes></TourProvider></MemoryRouter>)
   for (let i = 0; i < (scenario === 'user' ? 15 : 40) && !document.querySelector('[data-tour-overlay]'); i += 1) await sleep(100)
   await sleep(150)
   const ov = () => document.querySelector('[data-tour-overlay]')
@@ -110,7 +117,7 @@ async function main() {
     click(card().querySelector('[data-tour-next]')); await sleep(400)
     assert('the last step of every page with keys is "Keys on this page", built from lib/shortcuts', where() === '/my-work' && /Keys on this page/.test(textOf(card())) && /N new task/i.test(textOf(card())))
     click(card().querySelector('[data-tour-next]')); await sleep(600)
-    assert('after the last step of My Work the walk moves to the NEXT PAGE — Messages', where() === '/messages')
+    assert('after the last step of My Work the walk moves to the NEXT PAGE — Messages, which redirected to a channel, and its first step SHOWS there with its anchor', where() === '/messages/general' && /Messages 1 of/.test(textOf(card().querySelector('[data-tour-counter]'))) && !!ov().querySelector('[data-tour-spotlight]') && !/Opening/.test(textOf(card())))
     click(card().querySelector('[data-tour-back]')); await sleep(600)
     assert('Back returns to My Work', where() === '/my-work')
     // walk until a family strip step appears, then Skip that family
@@ -126,7 +133,9 @@ async function main() {
     while (ov() && guard < 400) { const b = card().querySelector('[data-tour-next]'); if (b && !b.disabled) click(b); await sleep(350); guard += 1 }
     assert('the tour ends back on Home after visiting every page', !ov() && where() === '/')
     const put = calls.put.filter((c) => c.url === '/settings/me/tours').pop()
-    assert('…and records ONLY welcome as done — every page keeps its own first-open tour', !!put && put.body.id === 'welcome' && put.body.skipped === false && !put.body.tours)
+    const batch = put?.body?.tours || (put?.body ? [put.body] : [])
+    assert('…and records welcome PLUS every page tour the walk ran, so none replays on its own', !!put && batch.some((b) => b.id === 'welcome' && b.skipped === false) && batch.some((b) => b.id === 'my-work') && batch.length > 2)
+    assert('…but NOT the page that was skipped with Skip this page (Home keeps its first-open tour)', !batch.some((b) => b.id === 'home'))
     await sleep(1200)
     assert('…but Home\'s tour does not pounce the moment the walk ends', !ov())
   } else if (scenario === 'mobile') {
@@ -147,6 +156,16 @@ async function main() {
     assert('the last step skips the HIDDEN desktop help button and spotlights the walkthrough icon instead', ov() && /That is the dashboard/.test(textOf(card())) && !!ov().querySelector('[data-tour-spotlight]') && ov().getAttribute('data-tour-waiting') === '0')
     click(card().querySelector('[data-tour-next]')); await sleep(300)
     assert('Done closes it', !ov())
+  } else if (scenario === 'detail') {
+    // A detail page (a person's page) with welcome SKIPPED long ago at an old version.
+    assert('a skipped welcome at an old version does not replay; the detail page tour auto-starts instead', ov()?.getAttribute('data-tour-id') === 'team-member')
+    assert('the detail tour is the page tour the header offers', /team-member · \d+ tours/.test(textOf(host.querySelector('[data-page-tour]'))))
+    const steps = TOURS.find((t) => t.id === 'team-member').steps.length
+    for (let i = 0; i < steps; i += 1) { click(ov().querySelector('[data-tour-next]')); await sleep(200) }
+    const put = calls.put.find((c) => c.url === '/settings/me/tours')
+    assert('Done records the detail tour by id, not its parent nav page', !ov() && !!put && put.body.id === 'team-member' && put.body.skipped === false)
+    click(host.querySelector('[data-away]')); await sleep(400)
+    assert('leaving for another page does not start anything else (its tour was recorded)', !ov())
   } else if (scenario === 'user') {
     assert('a User on People: the People tour (admin views) does not auto-start', !ov())
     assert('the page reports no tour for it, and the list omits People', /^none · \d+ tours/.test(textOf(host.querySelector('[data-page-tour]'))) && !document.body.textContent.includes('people ·'))

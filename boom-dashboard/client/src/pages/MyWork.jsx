@@ -49,7 +49,7 @@ export default function MyWork() {
   // n focuses the composer — bound by this page's own listener below; advertised for the ? help.
   usePageShortcuts('/my-work', { n: null })
   const { user, canView } = useAuth()
-  const { tours, isDone, doneVersion } = useTour()
+  const { tours, isUpdated } = useTour()
   const [data, setData] = useState(null)
   const [team, setTeam] = useState([])
   const [week, setWeek] = useState(null)
@@ -118,7 +118,7 @@ export default function MyWork() {
 
   // ── Waiting on you: only what this person can unblock ──
   const cutoffDays = (() => { const now = new Date(); const cut = new Date(now.getFullYear(), now.getMonth(), 20); if (now.getDate() > 20) cut.setMonth(cut.getMonth() + 1); return Math.ceil((cut - new Date(now.getFullYear(), now.getMonth(), now.getDate())) / 86400000) })()
-  const updatedTours = tours.filter((t) => doneVersion(t.id) && !isDone(t))
+  const updatedTours = tours.filter(isUpdated)
   const waiting = [
     loop?.approvals && canView('/bk/approvals') && loop.approvals.count > 0 && { icon: Inbox, text: `${loop.approvals.count} invoice${loop.approvals.count === 1 ? '' : 's'} awaiting approval`, to: '/bk/approvals' },
     mentions > 0 && { icon: MessageSquare, text: `${mentions} unread mention${mentions === 1 ? '' : 's'}`, to: '/messages' },

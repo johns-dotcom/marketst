@@ -401,7 +401,35 @@ Authoritative project guide: **`boom-dashboard/CLAUDE.md`** — read it before m
   its empty-label stub gained OBJECT shapes for the detail endpoints (simple
   sheet, full sheet, campaigns artist, drilled month, added-expense vendors) —
   `[]` where a page destructures an object is the crash it kept hitting
-  (243 checks now). **THE RULE: a change to a page changes its tour
+  (243 checks now).
+  **Third bug pass (2026-09-21, John: "bug test the walkthrough feature") —
+  nine verified findings, all fixed:** (1) **Messages redirects `/messages`
+  to `/messages/<channel>` on load**, so the walk's Messages page waited 4 s
+  and skipped, the ? menu's Messages tour closed instantly, and it never
+  auto-started — `pageOf(pathname)` (= `tourForPath(p)?.path`) now makes
+  "on the page" PAGE-aware in `onPage` and the leave-page check, and
+  `tourForPath` falls back to the longest nav tour whose path is a prefix
+  (`messages-channel` is gone; `/messages/x` IS the Messages tour). (2) The
+  ? help's Tours list started other pages' tours without navigating →
+  instant close; it navigates first, like the Walkthrough button. (3)
+  **Finishing the welcome walk now records every page tour it ran** (not the
+  pages Skipped), chunked 50 per PUT — since the walk runs every step of
+  every page, recording only welcome replayed each page's identical tour on
+  first open; the outro says so. (4) `?`, `/` and ⌘K do nothing while a tour
+  is up (`[data-tour-overlay]` guard in Layout and GlobalSearch) — one Escape
+  used to close the help AND record the tour skipped. (5) `useHotkeys` sleeps
+  under a tour: the Calendar's ←/→ paged months while the arrows stepped the
+  tour, `n` opened modals under the dim. (6) `/manual` sits outside `<Layout>`
+  (no TourProvider) — its tour was dead; removed, route skipped in the
+  fixture. (7) `/recoupments/2025` got its own tour (`recoupments-2025`), the
+  artist regex excludes it. (8) "updated since you took it" now means
+  FINISHED at an older version (`isUpdated` in the tour context; skipped
+  tours are not "taken"). (9) A family's tab-strip step carries `paths` (all
+  tabs) so a User who cannot open the FIRST tab still gets it. tour-dom's fake
+  page now redirects `/messages` like the real one and asserts the step
+  shows there; the `detail` scenario covers a skipped-then-updated welcome not
+  replaying while a detail page's tour auto-starts once; tours-fixture pins
+  the four contested resolutions. **THE RULE: a change to a page changes its tour
   in the same commit and bumps that tour's `version` (a date).**
   **Every visible page has a tour, and the welcome walk covers the whole nav
   (2026-09-20, John: "releases only shows the pipeline, not the catalog. make

@@ -66,7 +66,7 @@ import ReleaseDetail from '../src/pages/ReleaseDetail'
 import BudgetDetail from '../src/pages/BudgetDetail'
 import BkArchive from '../src/pages/BkArchive'
 import BkVendorsAdded from '../src/pages/BkVendorsAdded'
-import UserManual from '../src/pages/UserManual'
+import Recoupments2025 from '../src/pages/Recoupments2025'
 // Detail pages: the tour's `sample` path is mounted on this route.
 const DETAIL = {
   'artist-profile': ['/artists/:id', <ArtistProfile />],
@@ -79,11 +79,10 @@ const DETAIL = {
   'release-detail': ['/releases/:id', <ReleaseDetail />],
   'recording-budget': ['/budget/:id', <BudgetDetail />],
   'financials-month': ['/financials/month/:month', <Financials />],
-  'messages-channel': ['/messages/:channelId', <Messages />],
+  'recoupments-2025': ['/recoupments/2025', <Recoupments2025 />],
   'archive': ['/bk/approvals/archive', <BkArchive />],
   'vendors-added': ['/bk/vendors/added-expenses', <BkVendorsAdded />],
   'nda-template': ['/create-nda/:template', <CreateNDA />],
-  'manual': ['/manual', <UserManual />],
 }
 
 const PAGES = {

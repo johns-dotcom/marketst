@@ -27,6 +27,10 @@ export default function useHotkeys(shortcuts) {
 
   useEffect(() => {
     function handler(e) {
+      // A tour owns the keyboard: its arrows must not also page the Calendar, and
+      // `n` must not open a modal under the dim (which Escape would then close
+      // while recording the tour as skipped).
+      if (document.querySelector('[data-tour-overlay]')) return
       for (const s of ref.current) {
         const wantKey = s.key
         const pressedKey = e.key

@@ -44,12 +44,18 @@ console.log('0. every route has a tour')
 // Every <Route path> in App.jsx, params filled in, resolves through tourForPath —
 // except redirects, public pages (no Layout, no tour engine) and the catch-all.
 const appSrc = fs.readFileSync(SRC + '/App.jsx', 'utf8')
-const SKIP_ROUTES = new Set(['/duplicates', '/bk/bank-vendors', '/bk/vendor-flags', '/admin/vendor-preview', '/submit', '/login', '/eula', '/privacy', '*'])
+// /manual sits OUTSIDE <Layout>, where the tour engine lives — the manual IS the written guide.
+const SKIP_ROUTES = new Set(['/duplicates', '/bk/bank-vendors', '/bk/vendor-flags', '/admin/vendor-preview', '/submit', '/login', '/eula', '/privacy', '/manual', '*'])
 const routes = [...new Set([...appSrc.matchAll(/path="([^"]+)"/g)].map((m) => m[1]))].filter((r) => !SKIP_ROUTES.has(r) && !r.startsWith('/invite'))
 for (const r of routes) {
   const concrete = r.replace(/:id\b/g, '1').replace(/:[a-zA-Z]+/g, 'x')
   ok(!!tourForPath(concrete), `route ${r} (${concrete}) has a tour`)
 }
+// precise resolution where a page tour, a detail tour and a redirect compete
+ok(tourForPath('/messages/general')?.id === 'messages', '/messages/<channel> resolves to the Messages tour (the page redirects there on load)')
+ok(tourForPath('/recoupments/2025')?.id === 'recoupments-2025', '/recoupments/2025 has its own tour, not the artist one')
+ok(tourForPath('/bk/vendors/added-expenses')?.id === 'vendors-added', 'added-expenses is not a vendor')
+ok(tourForPath('/recoupments/planning')?.id === 'recoupments-planning', 'planning is a page, not an artist')
 console.log('1. shape')
 ok(TOURS.length >= 5, `${TOURS.length} tours`)
 ok(new Set(TOURS.map((t) => t.id)).size === TOURS.length, 'ids are unique')

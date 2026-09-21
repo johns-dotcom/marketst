@@ -99,6 +99,7 @@ export default function GlobalSearch() {
       if (e.key === '/' && !e.metaKey && !e.ctrlKey) {
         const tag = document.activeElement?.tagName?.toLowerCase()
         if (tag === 'input' || tag === 'textarea' || tag === 'select') return
+        if (document.querySelector('[data-tour-overlay]')) return   // a tour owns the keyboard
         e.preventDefault()
         inputRef.current?.focus()
         setOpen(true)

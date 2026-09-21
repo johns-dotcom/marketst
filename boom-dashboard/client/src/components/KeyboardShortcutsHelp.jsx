@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { useLocation } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { useTour } from './Tour'
 import { useAuth } from '../context/AuthContext'
 import { useShortcuts } from '../context/ShortcutsContext'
@@ -44,7 +44,8 @@ function Group({ title, rows, testId }) {
 }
 
 export default function KeyboardShortcutsHelp({ open, onClose }) {
-  const { tours, startTour, isDone, doneVersion, pageTour } = useTour()
+  const { tours, startTour, isDone, doneVersion, pageTour, isUpdated } = useTour()
+  const navigate = useNavigate()
   const { page } = useShortcuts()
   const { canView } = useAuth()
   const location = useLocation()
@@ -82,14 +83,21 @@ export default function KeyboardShortcutsHelp({ open, onClose }) {
                 {pageTour && (
                   <button onClick={() => { onClose(); setTimeout(() => startTour(pageTour.id), 150) }} data-tour-this-page
                     style={{ fontSize: 12, fontWeight: 700, padding: '5px 10px', borderRadius: 8, border: '1px solid #111827', background: '#111827', color: '#fff', cursor: 'pointer' }}>
-                    Tour this page{isDone(pageTour) ? '' : doneVersion(pageTour.id) ? ' · updated' : ' · new'}
+                    Tour this page{isUpdated(pageTour) ? ' · updated' : doneVersion(pageTour.id) ? '' : ' · new'}
                   </button>
                 )}
                 {/* A pattern-matched tour (an artist's profile) needs a real instance: This page only. */}
                 {tours.filter((t) => t.id !== pageTour?.id && !t.match).map((t) => (
-                  <button key={t.id} onClick={() => { onClose(); setTimeout(() => startTour(t.id), 150) }} data-tour-start={t.id}
+                  <button key={t.id} onClick={() => {
+                    // Another page's tour: go there first, then start it once it has rendered (the
+                    // engine closes a single-page tour that finds itself on the wrong page).
+                    onClose()
+                    const here = t.id === 'welcome' || t.path === location.pathname
+                    if (!here) navigate(t.path)
+                    setTimeout(() => startTour(t.id), here ? 150 : 700)
+                  }} data-tour-start={t.id}
                     style={{ fontSize: 12, fontWeight: 600, padding: '5px 10px', borderRadius: 8, border: '1px solid #d1d5db', background: '#fff', color: '#374151', cursor: 'pointer' }}>
-                    {t.title}{isDone(t) ? '' : doneVersion(t.id) ? ' · updated' : ''}
+                    {t.title}{isUpdated(t) ? ' · updated' : ''}
                   </button>
                 ))}
               </div>
