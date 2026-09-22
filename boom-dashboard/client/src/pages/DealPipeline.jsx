@@ -19,7 +19,7 @@ import DealDrawer from '../components/deals/DealDrawer'
 import DealList from '../components/deals/DealList'
 import DealFunnel from '../components/deals/DealFunnel'
 import PassedModal from '../components/deals/PassedModal'
-import { STAGES, LIVE_STAGES, CLOSED_STAGES, PRIORITIES, DEAL_TYPES, STAGE_DOT, STAGE_HEADER, FILTER_KEYS, filterDeals, sortDeals, sumAdvance, fmtMoney, needsAttention } from '../lib/deals'
+import { STAGES, LIVE_STAGES, CLOSED_STAGES, DEAL_TYPES, STAGE_DOT, STAGE_HEADER, FILTER_KEYS, filterDeals, sortDeals, sumAdvance, fmtMoney, needsAttention } from '../lib/deals'
 
 const CLOSED_OPEN_KEY = 'deals_closed_open_v1'
 
@@ -42,7 +42,7 @@ export default function DealPipeline() {
   // ?new=1 (Home's quick action) opens the new-deal form on arrival
   const [showForm, setShowForm] = useState(() => searchParams.get('new') === '1')
   useEffect(() => { if (searchParams.get('new') === '1') { const n = new URLSearchParams(searchParams); n.delete('new'); setSearchParams(n, { replace: true }) } }, []) // eslint-disable-line react-hooks/exhaustive-deps
-  const blankForm = () => ({ artist_name: '', genre: '', stage: 'Scouting', owner_id: user?.id || '', source: '', notes: '', priority: 'Medium', deal_type: '', next_followup_date: '' })
+  const blankForm = () => ({ artist_name: '', genre: '', stage: 'Scouting', owner_id: user?.id || '', source: '', notes: '', deal_type: '', next_followup_date: '' })
   const [formData, setFormData] = useState(blankForm)
   const [passing, setPassing] = useState(null) // { deal, revert }
   const [closedOpen, setClosedOpen] = useState(() => { try { return JSON.parse(localStorage.getItem(CLOSED_OPEN_KEY) || '{}') } catch { return {} } })
@@ -86,7 +86,7 @@ export default function DealPipeline() {
   const handleAddDeal = async (e) => {
     e.preventDefault()
     try {
-      const r = await api.post('/deals', { ...formData, deal_type: formData.deal_type || null, priority: formData.priority || 'Medium', owner_id: formData.owner_id || null, next_followup_date: formData.next_followup_date || null })
+      const r = await api.post('/deals', { ...formData, deal_type: formData.deal_type || null, owner_id: formData.owner_id || null, next_followup_date: formData.next_followup_date || null })
       setDeals((prev) => [r.data.data, ...prev]); setFormData(blankForm()); setShowForm(false)
       if (r.data.signing) promptSigned(r.data.data, r.data.signing)
     } catch (err) { setError(err?.response?.data?.error || 'Failed to add deal') }
@@ -137,7 +137,7 @@ export default function DealPipeline() {
   const grouped = useMemo(() => { const g = {}; for (const s of STAGES) g[s] = visible.filter((d) => d.stage === s); return g }, [visible])
   const live = deals.filter((d) => LIVE_STAGES.includes(d.stage))
   const attnCount = deals.filter(needsAttention).length
-  const activeFilters = ['q', 'owner', 'type', 'priority', 'stage', 'attn'].filter((k) => filters[k]).length
+  const activeFilters = ['q', 'owner', 'type', 'stage', 'attn'].filter((k) => filters[k]).length
   const cardProps = (deal) => ({ deal, dragging: draggedDealId === deal.id, onOpen: openDeal, onDelete: handleDeleteDeal, onNext: (d, s) => moveStage(d, s), onDragStart, onDragEnd })
 
   if (loading) return <div className="space-y-6"><Skeleton.PageHeader /><Skeleton.KanbanBoard cols={4} cards={2} /></div>
@@ -170,13 +170,12 @@ export default function DealPipeline() {
             {team.filter((m) => String(m.id) !== String(user?.id)).map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
           </select>
           <select value={filters.type} onChange={(e) => setFilter({ type: e.target.value })} className="select-base text-xs py-1.5" aria-label="Deal type"><option value="">Any type</option>{DEAL_TYPES.map((t) => <option key={t}>{t}</option>)}</select>
-          <select value={filters.priority} onChange={(e) => setFilter({ priority: e.target.value })} className="select-base text-xs py-1.5" aria-label="Priority"><option value="">Any priority</option>{PRIORITIES.map((p) => <option key={p}>{p}</option>)}</select>
           {view === 'list' && <select value={filters.stage} onChange={(e) => setFilter({ stage: e.target.value })} className="select-base text-xs py-1.5" aria-label="Stage"><option value="">Any stage</option>{STAGES.map((s) => <option key={s}>{s}</option>)}</select>}
           <button type="button" onClick={() => setFilter({ attn: filters.attn === '1' ? '' : '1' })} aria-pressed={filters.attn === '1'} data-deals-attn
             className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium border ${filters.attn === '1' ? 'bg-rose-600 text-white border-rose-600' : 'bg-card text-gray-600 border-rule hover:bg-gray-50'}`}>
             <AlertTriangle size={12} /> Needs attention{attnCount ? ` · ${attnCount}` : ''}
           </button>
-          {activeFilters > 0 && <button type="button" onClick={() => setFilter({ q: '', owner: '', type: '', priority: '', stage: '', attn: '' })} className="text-xs text-gray-500 hover:text-gray-900 inline-flex items-center gap-1" data-deals-clear><X size={11} /> Clear</button>}
+          {activeFilters > 0 && <button type="button" onClick={() => setFilter({ q: '', owner: '', type: '', stage: '', attn: '' })} className="text-xs text-gray-500 hover:text-gray-900 inline-flex items-center gap-1" data-deals-clear><X size={11} /> Clear</button>}
         </div>
       )}
 
@@ -197,7 +196,6 @@ export default function DealPipeline() {
                 {!team.length && <option value={user?.id || ''}>Owner: me</option>}
               </select>
               <input type="text" placeholder="Source (referral, showcase, inbound…)" value={formData.source} onChange={(e) => setFormData({ ...formData, source: e.target.value })} className="input-base" aria-label="Source" />
-              <select value={formData.priority} onChange={(e) => setFormData({ ...formData, priority: e.target.value })} className="select-base w-full" aria-label="Priority">{PRIORITIES.map((p) => <option key={p} value={p}>{`Priority: ${p}`}</option>)}</select>
               <select value={formData.deal_type} onChange={(e) => setFormData({ ...formData, deal_type: e.target.value })} className="select-base w-full" aria-label="Deal type"><option value="">Deal Type (optional)</option>{DEAL_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}</select>
               <label className="block"><input type="date" value={formData.next_followup_date} onChange={(e) => setFormData({ ...formData, next_followup_date: e.target.value })} className="input-base w-full" aria-label="First follow-up" title="First follow-up" /><span className="text-[10px] text-gray-400">First follow-up (optional)</span></label>
             </div>
@@ -223,7 +221,7 @@ export default function DealPipeline() {
             <EmptyState title="No deals in the pipeline" body="Track a prospect from first meeting to signed. A deal marked Signed becomes a roster artist, an advance invoice and a contract." action={{ label: 'New deal', onClick: () => setShowForm(true) }} />
           ) : (
             <>
-              {visible.length === 0 && <p className="text-sm text-gray-400 text-center py-3" data-deals-nomatch>No deals match these filters. <button type="button" className="underline" onClick={() => setFilter({ q: '', owner: '', type: '', priority: '', stage: '', attn: '' })}>Clear filters</button></p>}
+              {visible.length === 0 && <p className="text-sm text-gray-400 text-center py-3" data-deals-nomatch>No deals match these filters. <button type="button" className="underline" onClick={() => setFilter({ q: '', owner: '', type: '', stage: '', attn: '' })}>Clear filters</button></p>}
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
                 {LIVE_STAGES.map((stage) => {
                   const col = grouped[stage]; const target = isDropTarget(stage)

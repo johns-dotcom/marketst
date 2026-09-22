@@ -24,7 +24,7 @@ const upload = multer({
 // ── Terms and contact, typed on the deal at Offer (2026-09-18) ────────────
 // Signing reads these: the contract form is prefilled from them, the roster
 // row takes the contact block, the advance becomes an invoice. Typed once.
-const TERM_FIELDS = ['advance', 'royalty_split', 'term_months', 'territory', 'num_releases', 'option_periods'];
+const TERM_FIELDS = ['advance', 'royalty_split', 'term_months', 'territory', 'num_releases', 'option_periods', 'marketing_budget'];
 const CONTACT_FIELDS = ['artist_email', 'artist_phone', 'manager_name', 'manager_email', 'spotify_url'];
 const numOrNull = (v) => (v === undefined || v === null || v === '' ? null : (Number.isFinite(Number(v)) ? Number(v) : null));
 const intOrNull = (v) => { const n = numOrNull(v); return n === null ? null : Math.round(n); };
@@ -268,16 +268,16 @@ router.post('/', authMiddleware, async (req, res) => {
       INSERT INTO deals (artist_name, genre, stage, ar_rep, source, notes, priority, deal_type, added_date, created_at, updated_at,
                          advance, royalty_split, term_months, territory, num_releases, option_periods,
                          artist_email, artist_phone, manager_name, manager_email, socials, spotify_url,
-                         owner_id, stage_changed_at, next_followup_date)
+                         owner_id, stage_changed_at, next_followup_date, marketing_budget)
       VALUES ($1, $2, $3, $4, $5, $6, COALESCE($7, 'Medium'), $8, CURRENT_DATE, NOW(), NOW(),
               $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19::jsonb, $20,
-              $21, NOW(), $22::date)
+              $21, NOW(), $22::date, $23)
       RETURNING *
       `,
       [artist_name, genre || null, stage, ar_rep || null, source || null, notes || null, priority || null, deal_type || null,
        numOrNull(b.advance), numOrNull(b.royalty_split), intOrNull(b.term_months), strOrNull(b.territory), intOrNull(b.num_releases), intOrNull(b.option_periods),
        strOrNull(b.artist_email), strOrNull(b.artist_phone), strOrNull(b.manager_name), strOrNull(b.manager_email), socialsOrNull(b.socials) ?? null, strOrNull(b.spotify_url),
-       ownerId, isDate(b.next_followup_date) ? b.next_followup_date : null]
+       ownerId, isDate(b.next_followup_date) ? b.next_followup_date : null, numOrNull(b.marketing_budget)]
     );
     await logEvent(result.rows[0].id, { kind: 'created', to_stage: stage, body: source ? `Added from ${source}` : 'Added', user: req.user });
     if (notes && String(notes).trim()) await logEvent(result.rows[0].id, { kind: 'note', body: String(notes).trim(), user: req.user });
@@ -372,6 +372,7 @@ router.put('/:id', authMiddleware, async (req, res) => {
           revisit_date              = CASE WHEN $44::boolean THEN $45::date ELSE revisit_date END,
           -- the clock restarts only when the stage actually moves
           stage_changed_at          = CASE WHEN $46::boolean THEN NOW() ELSE stage_changed_at END,
+          marketing_budget          = CASE WHEN $47::boolean THEN $48::numeric ELSE marketing_budget END,
           updated_at                = NOW()
       WHERE id = $13
       RETURNING *
@@ -400,6 +401,7 @@ router.put('/:id', authMiddleware, async (req, res) => {
         b.passed_note !== undefined, strOrNull(b.passed_note),
         b.revisit_date !== undefined, isDate(b.revisit_date) ? b.revisit_date : null,
         previousStage !== null && norm(stage) && norm(stage) !== previousStage,
+        b.marketing_budget !== undefined, numOrNull(b.marketing_budget),
       ]
     );
 

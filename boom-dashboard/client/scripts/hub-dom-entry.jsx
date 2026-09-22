@@ -72,6 +72,27 @@ async function main() {
   assert('no inputs — the hub is read-only', !!bt && bt.querySelectorAll('input').length === 0)
   assert('"Open the sheet" links by KEY and carries the spelling', bt?.querySelector('[data-open="budget"]')?.getAttribute('href') === '/artist-budgets/rosavale?name=Rosa%20Vale')
 
+  say('\nCONTRACT TERMS')
+  window.confirm = () => true
+  click(tabBtn(/^Contracts/))
+  for (let i = 0; i < 30 && !host.querySelector('[data-contract-terms]'); i += 1) await sleep(100)
+  const terms = host.querySelector('[data-artist-contract="5"] [data-contract-terms]')
+  assert('the contract card carries the terms block', !!terms)
+  assert('Deliverables 1 of 3, 2 remaining', !!terms && /1 of 3/.test(textOf(terms.querySelector('[data-term="deliverables"]'))) && /2 remaining/.test(textOf(terms.querySelector('[data-term="deliverables"]'))))
+  assert('Options 0 of 2 used · period 1 · 2 left', !!terms && /0 of 2 used/.test(textOf(terms.querySelector('[data-term="options"]'))) && /2 left/.test(textOf(terms.querySelector('[data-term="options"]'))))
+  assert('the period end is shown clearly with the days left', !!terms && /61 days/.test(textOf(terms.querySelector('[data-term="period-end"]'))))
+  assert('label 40% · artist 60% · marketing $20,000 · advance $10,000', !!terms && /40%/.test(textOf(terms.querySelector('[data-term="label-split"]'))) && /60%/.test(textOf(terms.querySelector('[data-term="artist-split"]'))) && /20,000/.test(textOf(terms.querySelector('[data-term="marketing-budget"]'))) && /10,000/.test(textOf(terms.querySelector('[data-term="advance"]'))))
+  assert('signature reads Signed, set by hand', !!terms && /Signed/.test(textOf(terms.querySelector('[data-term="signature"]'))) && /set by hand/.test(textOf(terms.querySelector('[data-term="signature"]'))))
+  const exBtn = terms?.querySelector('[data-exercise-option]')
+  assert('a Superadmin sees Exercise option 1', !!exBtn && /Exercise option 1/.test(textOf(exBtn)))
+  click(exBtn); await sleep(200)
+  assert('…which POSTs /contracts/5/exercise-option', calls.post.includes('/contracts/5/exercise-option'))
+  const terms2 = host.querySelector('[data-artist-contract="5"] [data-contract-terms]')
+  assert('…and the card now reads period 2, 1 option left', !!terms2 && /1 of 2 used/.test(textOf(terms2.querySelector('[data-term="options"]'))) && /period 2/.test(textOf(terms2.querySelector('[data-term="options"]'))))
+  const sigSel = terms2?.querySelector('[data-signature-select]')
+  if (sigSel) { sigSel.value = 'fully_executed'; sigSel.dispatchEvent(new window.Event('change', { bubbles: true })); await sleep(150) }
+  assert('setting the signature by hand PUTs /contracts/5 { signature_status }', calls.put.some((c) => c.url === '/contracts/5' && c.body?.signature_status === 'fully_executed'), JSON.stringify(calls.put.slice(-1)))
+
   say('\nRECOUPMENTS')
   click(tabBtn(/^Recoupments$/))
   await sleep(150)

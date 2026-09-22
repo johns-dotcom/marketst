@@ -2,11 +2,11 @@
 // read a row at a time. Click a header to sort (again to flip); rows carry
 // data-row so j / k / Enter work through useListKeys.
 import { ArrowUp, ArrowDown, Paperclip } from 'lucide-react'
-import { STAGE_DOT, PRIORITY_PILL_TONE, LIVE_STAGES, followupState, staleTone, fmtMoneyFull, relTime, initials, eventLine, shortDate } from '../../lib/deals'
+import { STAGE_DOT, LIVE_STAGES, followupState, staleTone, fmtMoneyFull, relTime, initials, eventLine, shortDate } from '../../lib/deals'
 
 const COLS = [
   ['artist', 'Artist'], ['stage', 'Stage'], ['owner', 'Owner'], ['type', 'Type', false], ['advance', 'Advance', true, 'right'],
-  ['priority', 'Priority'], ['days', 'In stage', true, 'right'], ['followup', 'Follow-up'], ['touched', 'Last touch'], ['source', 'Source', false],
+  ['days', 'In stage', true, 'right'], ['followup', 'Follow-up'], ['touched', 'Last touch'], ['source', 'Source', false],
 ]
 const FU_TONE = { overdue: 'text-rose-600 font-semibold', today: 'text-amber-600 font-semibold', soon: 'text-gray-700', later: 'text-gray-400', none: 'text-gray-300' }
 const STALE_TONE = { red: 'text-rose-600 font-semibold', amber: 'text-amber-600', none: 'text-gray-600' }
@@ -39,7 +39,6 @@ export default function DealList({ deals, sort, onSort, onOpen }) {
                 <td className="px-3 py-2 whitespace-nowrap text-xs text-gray-700">{d.owner_name ? <span className="inline-flex items-center gap-1.5"><span className="w-5 h-5 rounded-full bg-boom-100 text-boom-700 text-[9px] font-bold inline-flex items-center justify-center">{initials(d.owner_name)}</span>{d.owner_name}</span> : <span className="text-gray-300">—</span>}</td>
                 <td className="px-3 py-2 whitespace-nowrap text-xs text-gray-600">{d.deal_type || <span className="text-gray-300">—</span>}</td>
                 <td className="px-3 py-2 whitespace-nowrap text-right tabular-nums text-gray-800">{Number(d.advance) > 0 ? fmtMoneyFull(d.advance) : <span className="text-gray-300">—</span>}</td>
-                <td className="px-3 py-2 whitespace-nowrap"><span className={`text-[9px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider ${PRIORITY_PILL_TONE[d.priority] || PRIORITY_PILL_TONE.Medium}`}>{d.priority || 'Medium'}</span></td>
                 <td className={`px-3 py-2 whitespace-nowrap text-right tabular-nums text-xs ${STALE_TONE[stale]}`}>{LIVE_STAGES.includes(d.stage) ? `${d.days_in_stage ?? 0}d` : <span className="text-gray-300">—</span>}</td>
                 <td className={`px-3 py-2 whitespace-nowrap text-xs ${FU_TONE[fu.kind]}`}>{fu.kind === 'none' ? (d.stage === 'Passed' && d.revisit_date ? `Revisit ${shortDate(d.revisit_date)}` : '—') : fu.label}</td>
                 <td className="px-3 py-2 text-xs text-gray-500 max-w-[16rem] truncate" title={eventLine({ kind: d.last_event_kind, body: d.last_event_body, to_stage: d.stage })}>{d.last_event_at ? `${eventLine({ kind: d.last_event_kind, body: d.last_event_body, to_stage: d.stage })} · ${relTime(d.last_event_at)}` : <span className="text-gray-300">—</span>}</td>

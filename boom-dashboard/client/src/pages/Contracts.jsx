@@ -12,10 +12,11 @@ import PageHeader from '../components/PageHeader'
 import SearchableSelect from '../components/SearchableSelect'
 import NextStepPrompt, { useNextStep } from '../components/NextStepPrompt'
 import { SendForSignatureButton, useEnvelopes } from '../components/SendForSignature'
+import ContractTerms, { SignatureStatusPill } from '../components/ContractTerms'
 
 // A deal's type, in the contract form's vocabulary (only where the two agree).
 const CONTRACT_TYPES_FROM_DEAL = { '360 Deal': 'Recording', 'Master License': 'Licensing', 'Single License': 'Licensing', 'Distribution': 'Distribution', 'Publishing': 'Publishing' }
-const BLANK_CONTRACT = { artist_id: '', type: '', status: 'Active', date_signed: '', expiration_date: '', royalty_split: '', advance: '', territory: '', notes: '', financial_terms: [] }
+const BLANK_CONTRACT = { artist_id: '', type: '', status: 'Active', date_signed: '', expiration_date: '', royalty_split: '', advance: '', territory: '', notes: '', financial_terms: [], num_releases: '', options_total: '', term_years: '', marketing_budget: '', signature_status: '', deal_id: '' }
 
 export default function Contracts() {
   const [contracts, setContracts] = useState([])
@@ -122,6 +123,12 @@ export default function Contracts() {
         territory: f.territory || d.territory || '',
         date_signed: f.date_signed || signed,
         expiration_date: f.expiration_date || expires,
+        // the CEO's terms (2026-09-22) come off the deal, typed once
+        num_releases: f.num_releases || (d.num_releases != null ? String(d.num_releases) : ''),
+        options_total: f.options_total || (d.option_periods != null ? String(d.option_periods) : ''),
+        term_years: f.term_years || (Number(d.term_months) > 0 ? String(Math.round((Number(d.term_months) / 12) * 100) / 100) : ''),
+        marketing_budget: f.marketing_budget || (d.marketing_budget != null ? String(d.marketing_budget) : ''),
+        deal_id: f.deal_id || String(d.id),
         notes: f.notes || [d.num_releases ? `${d.num_releases} release${Number(d.num_releases) === 1 ? '' : 's'} committed` : null, d.option_periods ? `${d.option_periods} option period${Number(d.option_periods) === 1 ? '' : 's'}` : null, `From deal #${d.id}`].filter(Boolean).join(' · '),
       }))
     }).catch(() => {})
@@ -358,6 +365,12 @@ export default function Contracts() {
         royalty_split: newContractForm.royalty_split ? parseFloat(newContractForm.royalty_split) : null,
         advance: newContractForm.advance ? parseFloat(newContractForm.advance) : null,
         territory: newContractForm.territory || null,
+        num_releases: newContractForm.num_releases !== '' ? Number(newContractForm.num_releases) : null,
+        options_total: newContractForm.options_total !== '' ? Number(newContractForm.options_total) : null,
+        term_years: newContractForm.term_years !== '' ? Number(newContractForm.term_years) : null,
+        marketing_budget: newContractForm.marketing_budget !== '' ? Number(newContractForm.marketing_budget) : null,
+        signature_status: newContractForm.signature_status || null,
+        deal_id: newContractForm.deal_id ? Number(newContractForm.deal_id) : null,
         notes: newContractForm.notes || null,
         financial_terms: newContractForm.financial_terms || [],
       })
@@ -565,8 +578,11 @@ export default function Contracts() {
               <p className="text-sm font-semibold text-gray-900">{selectedContract.territory || '—'}</p>
             </div>
             <div>
-              <p className="text-xs font-medium text-gray-500 mb-1">Releases</p>
-              <p className="text-sm font-semibold text-gray-900">{selectedContract.num_releases || '—'}</p>
+              <p className="text-xs font-medium text-gray-500 mb-1">Deliverables</p>
+              <p className="text-sm font-semibold text-gray-900">{selectedContract.terms ? (selectedContract.terms.deliverables_total === null ? `${selectedContract.terms.delivered} delivered` : `${selectedContract.terms.delivered} of ${selectedContract.terms.deliverables_total}`) : (selectedContract.num_releases || '—')}</p>
+            </div>
+            <div className="col-span-2" data-detail-terms>
+              <ContractTerms contract={selectedContract} canEdit onChange={(c) => { setSelectedContract(c); setContracts((prev) => prev.map((x) => (x.id === c.id ? c : x))) }} />
             </div>
             <div>
               <p className="text-xs font-medium text-gray-500 mb-1">Date Signed</p>
@@ -1026,6 +1042,19 @@ export default function Contracts() {
                 onChange={e => { setNewContractForm(f => ({ ...f, territory: e.target.value })); clearScanConfidence('territory') }}
                 className="input-base w-full" />
             </div>
+            {/* The CEO's terms (2026-09-22) — what the contract page and the artist page count against */}
+            <div><label className="block text-xs font-medium text-gray-500 mb-1">Deliverables (releases owed)</label>
+              <input type="number" min="0" step="1" placeholder="e.g. 4" value={newContractForm.num_releases} onChange={e => setNewContractForm(f => ({ ...f, num_releases: e.target.value }))} className="input-base w-full" data-contract-field="num_releases" /></div>
+            <div><label className="block text-xs font-medium text-gray-500 mb-1">Options included</label>
+              <input type="number" min="0" step="1" placeholder="e.g. 2" value={newContractForm.options_total} onChange={e => setNewContractForm(f => ({ ...f, options_total: e.target.value }))} className="input-base w-full" data-contract-field="options_total" /></div>
+            <div><label className="block text-xs font-medium text-gray-500 mb-1">Term / licence (years)</label>
+              <input type="number" min="0" step="0.5" placeholder="e.g. 2" value={newContractForm.term_years} onChange={e => setNewContractForm(f => ({ ...f, term_years: e.target.value }))} className="input-base w-full" data-contract-field="term_years" /></div>
+            <div><label className="block text-xs font-medium text-gray-500 mb-1">Agreed marketing budget ($)</label>
+              <input type="number" min="0" step="1" placeholder="e.g. 15000" value={newContractForm.marketing_budget} onChange={e => setNewContractForm(f => ({ ...f, marketing_budget: e.target.value }))} className="input-base w-full" data-contract-field="marketing_budget" /></div>
+            <div><label className="block text-xs font-medium text-gray-500 mb-1">Signature status</label>
+              <select value={newContractForm.signature_status} onChange={e => setNewContractForm(f => ({ ...f, signature_status: e.target.value }))} className="select-base w-full" data-contract-field="signature_status">
+                <option value="">Follow DocuSign / the signing date</option><option value="draft">Not sent</option><option value="sent">Sent</option><option value="signed">Signed</option><option value="fully_executed">Fully executed</option>
+              </select></div>
             <div className="col-span-2">
               <label className="block text-xs font-medium text-gray-500 mb-1">Notes</label>
               <textarea rows={2} placeholder="Any additional notes…" value={newContractForm.notes}

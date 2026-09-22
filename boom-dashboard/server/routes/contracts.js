@@ -8,6 +8,7 @@ const { uploadFile, deleteFile } = require('../lib/r2');
 const { callClaude } = require('../services/claude');
 
 const router = express.Router();
+const terms = require('../lib/contract-terms');
 
 // All contract endpoints (read + write) are admin-only. Contract content is
 // sensitive — financial terms, advances, recoupment language — and should not
@@ -147,7 +148,7 @@ router.get('/', authMiddleware, async (req, res) => {
 
     res.json({
       success: true,
-      data: result.rows,
+      data: await terms.withTerms(result.rows),
     });
   } catch (error) {
     console.error('Get contracts error:', error);
@@ -164,14 +165,21 @@ router.post('/', authMiddleware, async (req, res) => {
     if (!artist_id || !type) {
       return res.status(400).json({ success: false, error: 'Artist ID and type required' });
     }
+    const b = req.body; const num = (v) => (v === undefined || v === null || v === '' ? null : Number(v));
+    if (b.signature_status && !terms.SIG.includes(b.signature_status)) return res.status(400).json({ success: false, error: `signature_status must be one of ${terms.SIG.join(', ')}` });
+    // The expiry defaults to signed + term when a term is given and no date was typed.
+    let expiry = expiration_date || null;
+    if (!expiry && date_signed && num(b.term_years)) { const d = new Date(date_signed); d.setUTCMonth(d.getUTCMonth() + Math.round(num(b.term_years) * 12)); expiry = d.toISOString().slice(0, 10); }
 
     const result = await pool.query(
       `
-      INSERT INTO contracts (artist_id, type, date_signed, expiration_date, status, royalty_split, advance, territory, num_releases, notes, financial_terms, created_at)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW())
+      INSERT INTO contracts (artist_id, type, date_signed, expiration_date, status, royalty_split, advance, territory, num_releases, notes, financial_terms, created_at,
+                             options_total, options_exercised, term_years, marketing_budget, deal_id, signature_status, signature_status_manual)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW(), $12, $13, $14, $15, $16, $17, $18)
       RETURNING *
       `,
-      [artist_id, type, date_signed || null, expiration_date || null, status || 'Active', royalty_split, advance, territory, num_releases, notes || null, JSON.stringify(financial_terms || [])]
+      [artist_id, type, date_signed || null, expiry, status || 'Active', royalty_split, advance, territory, num_releases, notes || null, JSON.stringify(financial_terms || []),
+       num(b.options_total), num(b.options_exercised) || 0, num(b.term_years), num(b.marketing_budget), num(b.deal_id), b.signature_status || null, !!b.signature_status]
     );
 
     // Auto-sync artist budget from contract obligations (fire-and-forget)
@@ -179,7 +187,7 @@ router.post('/', authMiddleware, async (req, res) => {
 
     res.status(201).json({
       success: true,
-      data: result.rows[0],
+      data: (await terms.withTerms(result.rows))[0],
     });
   } catch (error) {
     console.error('Create contract error:', error);
@@ -568,6 +576,8 @@ router.put('/:id', authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
     const { type, date_signed, expiration_date, status, royalty_split, advance, territory, num_releases, notes, financial_terms } = req.body;
+    const b = req.body; const num = (v) => (v === undefined || v === null || v === '' ? null : Number(v));
+    if (b.signature_status !== undefined && b.signature_status !== null && !terms.SIG.includes(b.signature_status)) return res.status(400).json({ success: false, error: `signature_status must be one of ${terms.SIG.join(', ')}` });
 
     const result = await pool.query(
       `
@@ -581,11 +591,22 @@ router.put('/:id', authMiddleware, async (req, res) => {
           territory = COALESCE($7, territory),
           num_releases = COALESCE($8, num_releases),
           notes = COALESCE($9, notes),
-          financial_terms = COALESCE($10, financial_terms)
+          financial_terms = COALESCE($10, financial_terms),
+          -- the CEO's terms: present on the body = write it ('' clears)
+          options_total     = CASE WHEN $12::boolean THEN $13::integer ELSE options_total END,
+          options_exercised = CASE WHEN $14::boolean THEN $15::integer ELSE options_exercised END,
+          term_years        = CASE WHEN $16::boolean THEN $17::numeric ELSE term_years END,
+          marketing_budget  = CASE WHEN $18::boolean THEN $19::numeric ELSE marketing_budget END,
+          deal_id           = CASE WHEN $20::boolean THEN $21::integer ELSE deal_id END,
+          -- a status typed by hand sticks (manual); null clears it back to DocuSign / date_signed
+          signature_status  = CASE WHEN $22::boolean THEN $23 ELSE signature_status END,
+          signature_status_manual = CASE WHEN $22::boolean THEN ($23 IS NOT NULL) ELSE signature_status_manual END
       WHERE id = $11
       RETURNING *
       `,
-      [type, date_signed, expiration_date, status, royalty_split, advance, territory, num_releases, notes, financial_terms ? JSON.stringify(financial_terms) : null, id]
+      [type, date_signed, expiration_date, status, royalty_split, advance, territory, num_releases, notes, financial_terms ? JSON.stringify(financial_terms) : null, id,
+       b.options_total !== undefined, num(b.options_total), b.options_exercised !== undefined, num(b.options_exercised) ?? 0, b.term_years !== undefined, num(b.term_years),
+       b.marketing_budget !== undefined, num(b.marketing_budget), b.deal_id !== undefined, num(b.deal_id), b.signature_status !== undefined, b.signature_status || null]
     );
 
     if (result.rows.length === 0) {
@@ -597,12 +618,20 @@ router.put('/:id', authMiddleware, async (req, res) => {
 
     res.json({
       success: true,
-      data: result.rows[0],
+      data: (await terms.withTerms(result.rows))[0],
     });
   } catch (error) {
     console.error('Update contract error:', error);
     res.status(500).json({ success: false, error: 'Internal server error' });
   }
+});
+
+// POST /api/contracts/:id/exercise-option — one more period of the term (2026-09-22).
+router.post('/:id/exercise-option', authMiddleware, async (req, res) => {
+  try {
+    if (!['Admin', 'Superadmin', 'Approver'].includes(req.user?.role)) return res.status(403).json({ success: false, error: 'Admin or Approver required' });
+    res.json({ success: true, data: await terms.exerciseOption(Number(req.params.id), req.user) });
+  } catch (e) { if (e.status) return res.status(e.status).json({ success: false, error: e.message }); console.error('exercise option:', e); res.status(500).json({ success: false, error: 'Internal server error' }); }
 });
 
 // DELETE /api/contracts/:id — remove a contract row and all attached files.

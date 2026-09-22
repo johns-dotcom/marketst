@@ -17,40 +17,42 @@ import { NAV_GROUPS } from '../navConfig'
 import { PAGE_KEYS, keysSentence } from '../lib/shortcuts'
 const PAGE_TOURS = [
   {
-    id: 'home', title: 'Home', path: '/', version: '2026-09-21',
+    id: 'home', title: 'Home', path: '/', version: '2026-09-22',
     steps: [
       { target: '[data-tour="home-loop"]', title: 'The loop', body: 'Invoices arrive, get approved, get paid, the bank statement proves it, reports read from that. One tile per step.' },
+      { target: '[data-home-alerts], [data-tour="home-loop"]', title: 'Alerts', body: 'The four things the label must not miss on a signed artist: no release in two months, an option period ending, deliverables still owed, an advance triggered. Each links to the page that resolves it, and the A&R owner is emailed.' },
       { target: '[data-quick-actions]', title: 'Start something', body: 'Add an invoice, add a release, open a new deal. Only the actions for pages you can open.' },
       { target: '[data-week]', title: 'The next seven days', body: 'From the team calendar: release dates, payment due dates, task deadlines, renewals. Each links to its page.' },
       { target: '[data-activity]', needs: '/activity', title: 'What the team did', body: "Everyone else's recent changes, newest first, with any alerts on top." },
     ],
   },
   {
-    id: 'releases', title: 'Releases', path: '/releases', version: '2026-09-20',
+    id: 'releases', title: 'Releases', path: '/releases', version: '2026-09-22',
     steps: [
       { target: '[data-tour="releases-header"]', title: 'The pipeline', body: 'Every release in progress with its checklist. Add Release starts one; the toggle beside it switches between the list and a calendar.' },
       { target: '[data-tour="releases-filters"], [data-tour="releases-header"]', title: 'Filters', body: 'Search, then year, month, genre, priority and type. Archived shows retired releases.' },
-      { target: '[data-tour="releases-list"], [data-tour="releases-header"]', title: 'One row per release', body: 'Click a row to expand it: Checklist, Metadata & Links, DSP, Budget, Activity, Comments, Details. Tick two rows and a merge bar appears for duplicates. Once it ships, it moves to Catalog.' },
+      { target: '[data-tour="releases-list"], [data-tour="releases-header"]', title: 'One row per release', body: 'The date cell carries the status — Draft, Scheduled, Ingested, Released, Archived. Click a row to expand it: Checklist, Metadata & Links (where a song is ticked as counting toward the artist\'s contractual deliverables and marked ingested for distribution), DSP, Budget, Activity, Comments, Details. Tick two rows and a merge bar appears for duplicates. Once it ships, it moves to Catalog.' },
     ],
   },
   {
-    id: 'deals', title: 'Deals', path: '/deals', version: '2026-09-21',
+    id: 'deals', title: 'Deals', path: '/deals', version: '2026-09-22',
     steps: [
       { target: '[data-tour="deals-header"]', title: 'Scouting to Signed', body: 'Prospects move left to right across four live stages. The subtitle counts what is live, the advances on the table, and how many deals need attention. Every deal has an OWNER — their follow-ups land in My Work and on the calendar.' },
       { target: '[data-tour="deals-views"], [data-tour="deals-header"]', title: 'Board, list, report', body: 'The same deals three ways. The list sorts by any column; the report is the funnel — how many reached each stage, days per stage, win rate by source and by owner, why we passed.' },
-      { target: '[data-tour="deals-filters"], [data-tour="deals-header"]', title: 'Filters live in the URL', body: 'Search, owner (Mine), type, priority, and Needs attention — an overdue follow-up or a deal stuck past 21 days. Copy the address to share the view.' },
+      { target: '[data-tour="deals-filters"], [data-tour="deals-header"]', title: 'Filters live in the URL', body: 'Search, owner (Mine), type, and Needs attention — an overdue follow-up or a deal stuck past 21 days. Copy the address to share the view.' },
       { target: '[data-tour="deal-board"], [data-tour="deals-header"]', title: 'The board', body: 'Drag a card between columns or press Next. Each card shows its owner, days in stage (amber at 14, red at 21), the follow-up, the last touch and the advance. Open a card for its timeline — dated notes and every stage move — and the Before Signed checklist.' },
       { target: '[data-tour="deals-closed"], [data-tour="deal-board"], [data-tour="deals-header"]', title: 'Signed and Passed fold away', body: 'The board is the work; these two are the record. Drop a card on a header to close it. Passing asks why and whether to revisit — the date comes back as a flag and a calendar event.' },
       { target: '[data-tour="deals-new"], [data-tour="deals-header"]', title: 'Signed does the work', body: 'Moving a deal to Signed creates the roster artist, books the advance as an approved recoupable expense, adds a calendar event and hands you to a prefilled contract.' },
     ],
   },
   {
-    id: 'contracts', title: 'Contracts', path: '/contracts', version: '2026-09-20',
+    id: 'contracts', title: 'Contracts', path: '/contracts', version: '2026-09-22',
     steps: [
       { target: '[data-tour="contracts-header"]', title: 'Contracts on file', body: 'Every artist agreement with its dates, split and documents. New Contract opens a form you can autofill by dropping the PDF — the AI reads the terms.' },
       { target: '[data-tour="contracts-filters"], [data-tour="contracts-header"]', title: 'Find one', body: 'Search, type and status. Above the filters, two folds warn about artists with no contract and contracts expiring soon.' },
       { target: '[data-tour="contracts-attach"], [data-tour="contracts-header"]', title: 'Attach a document', body: 'Pick the contract and drop the signed PDF. It also lands on the artist\'s Documents tab.' },
       { target: '[data-tour="contracts-table"], [data-tour="contracts-header"]', title: 'The table', body: 'Click a row for the detail view: terms, financial obligations, documents and everything linked to it. The pen icon sends the PDF for signature through DocuSign; the badge beside it shows who still has to sign.' },
+      { target: '[data-detail-terms], [data-tour="contracts-table"], [data-tour="contracts-header"]', title: 'The terms', body: 'Deliverables delivered and remaining (counted from the releases ticked "counts toward the deal"), options used and the current period with its end date, term in years, label and artist split, marketing budget, advance, and the signature status — Sent, Signed, Fully executed — from DocuSign or set by hand. Exercise option extends the term by one period.' },
     ],
   },
   {
@@ -63,10 +65,11 @@ const PAGE_TOURS = [
     ],
   },
   {
-    id: 'artist-profile', title: "An artist's profile", path: '/artists', version: '2026-09-20', match: /^\/artists\/\d+/,
+    id: 'artist-profile', title: "An artist's profile", path: '/artists', version: '2026-09-22', match: /^\/artists\/\d+/,
     steps: [
       { target: '[data-onboarding], [data-tour="artist-tabs"]', title: 'Onboarding', body: 'For an artist signed through the pipeline: contract on file, payment details and W-9, advance paid, budget set, first release. It ticks itself from the data and collapses when complete.' },
       { target: '[data-tour="artist-tabs"]', title: 'Every side of the artist', body: 'Spotify (followers and popularity tracked daily, monthly listeners when Chartmetric is on), releases and contracts, then the money: Budget, Recoupments and Campaigns, each read-only here with a link to its full page.' },
+      { target: '[data-artist-contract] [data-contract-terms], [data-tour="artist-tabs"]', title: 'Contract terms on the profile', body: 'Each active contract shows deliverables, options, when the current period ends, splits, budget and signature status right here — and the option can be exercised from the card.' },
     ],
   },
   {

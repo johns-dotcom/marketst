@@ -9,6 +9,7 @@ import OnboardingPanel from '../components/OnboardingPanel'
 import FilesPanel from '../components/FilesPanel'
 import { useAuth } from '../context/AuthContext'
 import { Button, Input, Select, Textarea } from '../components/ui'
+import ContractTerms from '../components/ContractTerms'
 
 const DEVLOG_ENTRY_TYPES = [
   'Meeting', 'Demo Received', 'Feedback Sent', 'Offer Made',
@@ -1103,8 +1104,9 @@ export default function ArtistProfile() {
           {contracts.length === 0 ? (
             <p className="text-sm text-gray-400 text-center py-12">No contracts</p>
           ) : contracts.map(c => (
-            <div key={c.id} className="card overflow-hidden">
+            <div key={c.id} className="card overflow-hidden" data-artist-contract={c.id}>
               <div className="p-4">
+                {c.terms && <div className="mb-3 pb-3 border-b border-divider"><ContractTerms compact contract={c} canEdit={['Admin', 'Superadmin', 'Approver'].includes(user?.role)} onChange={(nc) => setData((prev) => ({ ...prev, contracts: (prev.contracts || []).map((x) => (x.id === nc.id ? nc : x)) }))} /></div>}
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-semibold text-gray-900">{c.type}</p>

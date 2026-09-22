@@ -261,6 +261,18 @@ const MERGE_COALESCE_COLUMNS = [
   'cover_art_status', 'cover_art_url', 'assigned_to',
 ];
 
+// One status per release (the CEO: "each release should have a clear status"):
+// Archived · Draft (no date) · Scheduled (dated, not ingested) · Ingested (dated,
+// ingested, not out yet) · Released (the date has passed).
+const releaseStatus = (r) => {
+  if (r.archived) return 'Archived';
+  if (!r.release_date) return 'Draft';
+  const d = r.release_date instanceof Date ? r.release_date.toISOString().slice(0, 10) : String(r.release_date).slice(0, 10);
+  if (d <= new Date().toISOString().slice(0, 10)) return 'Released';
+  return r.ingested ? 'Ingested' : 'Scheduled';
+};
+const withStatus = (rows) => rows.map((r) => ({ ...r, status: releaseStatus(r) }));
+
 const MERGE_CHECKLIST_COLUMNS = [
   'yt_video', 'recoup_added', 'uploaded', 'stem_pitch', 's4a_pitch',
   'amazon_pitch', 'pandora', 'budget', 'marketing_plan',
@@ -526,7 +538,7 @@ router.get('/', authMiddleware, async (req, res) => {
 
     res.json({
       success: true,
-      data: result.rows,
+      data: withStatus(result.rows),
     });
   } catch (error) {
     console.error('Get releases error:', error);
@@ -605,10 +617,14 @@ router.put('/:id', authMiddleware, async (req, res) => {
         subgenre = COALESCE($${paramIdx + 4}, subgenre),
         priority = COALESCE($${paramIdx + 5}, priority),
         assigned_to = COALESCE($${paramIdx + 6}, assigned_to),
+        -- the CEO's list (2026-09-22): counts toward the artist's deal · ingested for distribution
+        counts_toward_deal = CASE WHEN $${paramIdx + 8}::boolean THEN $${paramIdx + 9}::boolean ELSE counts_toward_deal END,
+        ingested = CASE WHEN $${paramIdx + 10}::boolean THEN $${paramIdx + 11}::boolean ELSE ingested END,
         updated_at = NOW()
       WHERE id = $${paramIdx + 7}
       RETURNING *`,
-      [...params, project_name || null, release_date || null, release_type || null, genre || null, subgenre || null, priority || null, assigned_to || null, id]
+      [...params, project_name || null, release_date || null, release_type || null, genre || null, subgenre || null, priority || null, assigned_to || null, id,
+       req.body.counts_toward_deal !== undefined, req.body.counts_toward_deal === null ? null : !!req.body.counts_toward_deal, req.body.ingested !== undefined, req.body.ingested === null ? null : !!req.body.ingested]
     );
 
     if (result.rows.length === 0) {
@@ -655,7 +671,7 @@ router.put('/:id', authMiddleware, async (req, res) => {
 
     res.json({
       success: true,
-      data: full.rows[0],
+      data: withStatus(full.rows)[0],
     });
   } catch (error) {
     console.error('Update release error:', error);

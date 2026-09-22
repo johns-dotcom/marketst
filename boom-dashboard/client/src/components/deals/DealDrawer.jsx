@@ -7,14 +7,9 @@ import api from '../../api'
 import { formatDate } from '../../utils'
 import FilesPanel from '../FilesPanel'
 import { Button, Input, Select } from '../ui'
-import { STAGES, LIVE_STAGES, PRIORITIES, DEAL_TYPES, preSignChecklist, eventLine, relTime, initials } from '../../lib/deals'
+import { STAGES, LIVE_STAGES, DEAL_TYPES, preSignChecklist, eventLine, relTime, initials } from '../../lib/deals'
 
-const PRIORITY_SELECT_TONE = {
-  High: 'bg-red-50 text-red-700 border-red-200 focus:border-red-300',
-  Medium: 'bg-amber-50 text-amber-700 border-amber-200 focus:border-amber-300',
-  Low: 'bg-gray-100 text-gray-700 border-gray-200 focus:border-gray-300',
-}
-const TERM_KEYS = ['advance', 'royalty_split', 'term_months', 'territory', 'num_releases', 'option_periods']
+const TERM_KEYS = ['advance', 'royalty_split', 'term_months', 'territory', 'num_releases', 'option_periods', 'marketing_budget']
 const CONTACT_KEYS = ['artist_email', 'artist_phone', 'manager_name', 'manager_email', 'spotify_url']
 const socialsToText = (v) => (Array.isArray(v) ? v.map((x) => `${x.platform} ${x.handle}`).join('\n') : '')
 const textToSocials = (t) => String(t || '').split('\n').map((l) => l.trim()).filter(Boolean).map((l) => { const [platform, ...rest] = l.split(/\s+/); return { platform, handle: rest.join(' ') } }).filter((x) => x.platform && x.handle)
@@ -36,7 +31,6 @@ export default function DealDrawer({ deal, team, user, onClose, onSaved, onMoveS
     setEditForm({
       last_contact_date: (deal.last_contact_date || '').slice(0, 10),
       next_followup_date: (deal.next_followup_date || '').slice(0, 10),
-      priority: deal.priority || 'Medium',
       spotify_monthly_listeners: deal.spotify_monthly_listeners ?? '',
       deal_type: deal.deal_type || '',
       offer_amount: deal.offer_amount ?? '',
@@ -66,7 +60,6 @@ export default function DealDrawer({ deal, team, user, onClose, onSaved, onMoveS
       const payload = {
         last_contact_date: editForm.last_contact_date || null,
         next_followup_date: editForm.next_followup_date || null,
-        priority: editForm.priority || null,
         spotify_monthly_listeners: listeners === '' || listeners == null ? null : Number(listeners),
         deal_type: editForm.deal_type || null,
         offer_amount: offer === '' || offer == null ? null : Number(offer),
@@ -182,8 +175,6 @@ export default function DealDrawer({ deal, team, user, onClose, onSaved, onMoveS
             {status === 'error' && <span className="text-[11px] text-red-600 font-medium">Save failed</span>}
           </div>
           <div className="grid grid-cols-2 gap-2.5">
-            <label className="block"><span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Priority</span>
-              <Select value={editForm.priority || 'Medium'} onChange={(e) => setEditForm((f) => ({ ...f, priority: e.target.value }))} className={`mt-1 font-semibold ${PRIORITY_SELECT_TONE[editForm.priority] || PRIORITY_SELECT_TONE.Medium}`}>{PRIORITIES.map((p) => <option key={p} value={p}>{p}</option>)}</Select></label>
             <label className="block"><span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Deal Type</span>
               <Select value={editForm.deal_type || ''} onChange={(e) => setEditForm((f) => ({ ...f, deal_type: e.target.value }))} className="mt-1" data-term="deal_type"><option value="">—</option>{DEAL_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}</Select></label>
             <label className="block"><span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Last Contact</span>
@@ -212,6 +203,9 @@ export default function DealDrawer({ deal, team, user, onClose, onSaved, onMoveS
                 <Input type="number" step="1" min="0" placeholder="e.g. 3" value={editForm.num_releases ?? ''} onChange={(e) => setEditForm((f) => ({ ...f, num_releases: e.target.value }))} className="mt-1" data-term="num_releases" /></label>
               <label className="block"><span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Option periods</span>
                 <Input type="number" step="1" min="0" placeholder="0" value={editForm.option_periods ?? ''} onChange={(e) => setEditForm((f) => ({ ...f, option_periods: e.target.value }))} className="mt-1" data-term="option_periods" /></label>
+              <label className="block col-span-2"><span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Agreed marketing budget</span>
+                <div className="relative mt-1"><span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400 pointer-events-none">$</span>
+                  <Input type="number" step="1" min="0" placeholder="0" value={editForm.marketing_budget ?? ''} onChange={(e) => setEditForm((f) => ({ ...f, marketing_budget: e.target.value }))} className="pl-7" data-term="marketing_budget" /></div></label>
             </div>
             <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mt-4 mb-2">Contact · goes onto the roster at signing</p>
             <div className="grid grid-cols-2 gap-2.5">

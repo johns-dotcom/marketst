@@ -14,8 +14,7 @@ import {
   GENRE_OPTIONS, PRIORITY_OPTIONS, TYPE_OPTIONS, MONTHS,
   DSP_STATUSES, DSP_STATUS_STYLES,
   BUDGET_CATEGORIES, TAB_IDS,
-  daysUntil, getCompletionPercentage, getPriorityBadge,
-} from './constants'
+  daysUntil, getCompletionPercentage, getPriorityBadge, RELEASE_STATUS_TONE } from './constants'
 import NotificationBanner from './NotificationBanner'
 import CalendarView from './CalendarView'
 import SpendPlanPanel from './SpendPlanPanel'
@@ -681,7 +680,7 @@ export default function Releases() {
                               className="hover:text-boom-600 transition-colors"
                             >{release.project_name}</Link>
                           </td>
-                          <td className="px-5 py-3.5 text-sm text-gray-400 whitespace-nowrap">{formatDate(release.release_date)}</td>
+                          <td className="px-5 py-3.5 text-sm text-gray-400 whitespace-nowrap">{formatDate(release.release_date)}{release.status && <span className={`ml-2 text-[10px] font-semibold px-1.5 py-0.5 rounded-full border ${RELEASE_STATUS_TONE[release.status] || RELEASE_STATUS_TONE.Draft}`} data-release-status={release.status}>{release.status}</span>}</td>
                           <td className="px-5 py-3.5 text-sm text-gray-400">{release.release_type || '—'}</td>
                           <td className="px-5 py-3.5 text-sm text-gray-400">{release.genre || '—'}</td>
                           <td className="px-5 py-3.5">
@@ -843,6 +842,20 @@ export default function Releases() {
                                   {/* METADATA TAB */}
                                   {tab === 'metadata' && (
                                     <div className="space-y-5">
+                                      {/* The CEO's list (2026-09-22): does this release count toward the artist's deal, and is it ingested for distribution */}
+                                      <div className="flex items-center gap-6 flex-wrap border border-rule rounded-lg px-4 py-3 bg-gray-50/60" data-release-deal-flags>
+                                        <label className="inline-flex items-center gap-2 text-sm text-gray-800 cursor-pointer">
+                                          <input type="checkbox" checked={release.counts_toward_deal !== false} onChange={async (e) => { const v = e.target.checked; try { const r = await api.put(`/releases/${release.id}`, { counts_toward_deal: v }); setReleases((prev) => prev.map((x) => (x.id === release.id ? { ...x, ...r.data.data } : x))) } catch { /* keep */ } }} data-release-counts />
+                                          Counts toward {release.artist_name}'s deal deliverables
+                                        </label>
+                                        <label className="inline-flex items-center gap-2 text-sm text-gray-800">
+                                          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Ingested</span>
+                                          <select value={release.ingested === true ? 'yes' : release.ingested === false ? 'no' : ''} onChange={async (e) => { const v = e.target.value === '' ? null : e.target.value === 'yes'; try { const r = await api.put(`/releases/${release.id}`, { ingested: v }); setReleases((prev) => prev.map((x) => (x.id === release.id ? { ...x, ...r.data.data } : x))) } catch { /* keep */ } }} className="select-base text-xs py-1" data-release-ingested>
+                                            <option value="">Unknown</option><option value="yes">Yes — confirmed in the email thread</option><option value="no">No</option>
+                                          </select>
+                                        </label>
+                                        <span className="text-[11px] text-gray-400">Status: <span className="font-semibold text-gray-700">{release.status}</span></span>
+                                      </div>
                                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                                         {[
                                           { key: 'upc',               label: 'UPC / EAN',         placeholder: 'UPC code' },

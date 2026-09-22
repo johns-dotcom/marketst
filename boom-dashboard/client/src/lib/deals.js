@@ -78,12 +78,11 @@ export const preSignChecklist = (deal) => [
 ]
 
 // Filters live in the URL: q owner type priority stage attn view sort deal
-export const FILTER_KEYS = ['q', 'owner', 'type', 'priority', 'stage', 'attn', 'view', 'sort', 'deal']
+export const FILTER_KEYS = ['q', 'owner', 'type', 'stage', 'attn', 'view', 'sort', 'deal']
 export const filterDeals = (deals, f, userId) => deals.filter((d) => {
   if (f.q) { const q = f.q.toLowerCase(); if (![d.artist_name, d.genre, d.source, d.owner_name, d.deal_type, d.last_event_body].some((v) => String(v || '').toLowerCase().includes(q))) return false }
   if (f.owner) { const want = f.owner === 'me' ? Number(userId) : Number(f.owner); if (Number(d.owner_id) !== want) return false }
   if (f.type && d.deal_type !== f.type) return false
-  if (f.priority && (d.priority || 'Medium') !== f.priority) return false
   if (f.stage && d.stage !== f.stage) return false
   if (f.attn === '1' && !needsAttention(d)) return false
   return true
@@ -95,7 +94,6 @@ export const SORTS = {
   days: (a, b) => (Number(b.days_in_stage) || 0) - (Number(a.days_in_stage) || 0),
   followup: (a, b) => (dayOf(a.next_followup_date) || '9999') .localeCompare(dayOf(b.next_followup_date) || '9999'),
   touched: (a, b) => String(b.last_event_at || '').localeCompare(String(a.last_event_at || '')),
-  priority: (a, b) => PRIORITIES.indexOf(a.priority || 'Medium') - PRIORITIES.indexOf(b.priority || 'Medium'),
   owner: (a, b) => String(a.owner_name || 'zz').localeCompare(String(b.owner_name || 'zz')),
 }
 export const sortDeals = (deals, sort) => { const [key, dir] = String(sort || 'stage').split(':'); const fn = SORTS[key] || SORTS.stage; const out = [...deals].sort(fn); return dir === 'desc' ? out.reverse() : out }

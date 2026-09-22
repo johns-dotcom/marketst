@@ -422,6 +422,36 @@ app.use('/api', (req, res) => {
 const pool = require('./db');
 const bcrypt = require('bcryptjs');
 
+// The team (the CEO, 2026-09-22). Accounts are created ONCE with no password —
+// each gets an invite row, and People shows "copy a new link" until they sign in
+// (Google works too). Titles, departments and John's title are set only where
+// blank, so a later edit in People sticks. Chase starts with the Marketing preset's
+// pages; Admins and Superadmins need no rows.
+const syncTeam = async () => {
+  const { createInvite } = require('./lib/invites');
+  const org = require('./lib/org-config');
+  await pool.query(`INSERT INTO departments (name, presets, default_level, sort, builtin) VALUES ('Interns', '[]'::jsonb, 99, 50, FALSE) ON CONFLICT (name) DO NOTHING`).catch(() => {});
+  const team = [
+    { name: 'Soli Doherty', email: 'soli@market.st', role: 'Superadmin', department: 'Executive', title: 'Founder / President', hierarchy_level: 1, presets: [] },
+    { name: 'London Walley', email: 'london@market.st', role: 'Admin', department: 'Operations', title: 'Head of Operations', hierarchy_level: 2, presets: [] },
+    { name: 'Chase Mann', email: 'chase@market.st', role: 'User', department: 'Marketing', title: 'Digital Coordinator', hierarchy_level: 3, presets: ['marketing'] },
+  ];
+  const marketing = org.SEED.presets.find((p) => p.key === 'marketing');
+  for (const t of team) {
+    const { rows: [existing] } = await pool.query('SELECT id FROM users WHERE LOWER(email) = LOWER($1)', [t.email]);
+    if (existing) continue;
+    const { rows: [u] } = await pool.query(
+      `INSERT INTO users (name, email, password_hash, role, department, title, hierarchy_level, created_at) VALUES ($1, $2, NULL, $3, $4, $5, $6, NOW()) RETURNING id`,
+      [t.name, t.email, t.role, t.department, t.title, t.hierarchy_level]);
+    if (t.presets.includes('marketing') && marketing) for (const page of marketing.paths) await pool.query('INSERT INTO user_page_permissions (user_id, page) VALUES ($1, $2) ON CONFLICT DO NOTHING', [u.id, page]).catch(() => {});
+    const john = (await pool.query(`SELECT id FROM users WHERE email = 'john@deanst.co'`)).rows[0];
+    await createInvite(u.id, john?.id || u.id).catch((e) => console.warn('invite for', t.email, e.message));
+    console.log(`syncTeam: created ${t.name} (${t.role}, ${t.department}) — invite pending`);
+  }
+  // Dean St — backend and books
+  await pool.query(`UPDATE users SET title = 'Backend / Books' WHERE email = 'john@deanst.co' AND (title IS NULL OR title = '')`).catch(() => {});
+};
+
 // Runs on every deploy — upserts user accounts from env vars without touching release data.
 // Change a password or add a user: update env vars, redeploy, done. No FORCE_RESEED needed.
 const syncUsers = async () => {
@@ -559,6 +589,11 @@ const runMigrations = async () => {
   await require('./lib/song-campaigns').ensureSchema();
   // Roles, presets, departments as data (2026-09-22), seeded once from client/src/lib/org.seed.json.
   await require('./lib/org-config').ensureSchema();
+  // Contract terms (2026-09-22, the CEO's list): options, term, splits, budget, signature, deliverables.
+  await require('./lib/contract-terms').ensureSchema();
+  // Who always hears the deal alerts (the CEO: Soli, always). Editable on Settings › Label.
+  await pool.query(`ALTER TABLE label_settings ADD COLUMN IF NOT EXISTS alerts_to TEXT`).catch(() => {});
+  await pool.query(`UPDATE label_settings SET alerts_to = 'soli@market.st' WHERE id = 1 AND alerts_to IS NULL`).catch(() => {});
   for (const col of [
     `email TEXT`, `phone TEXT`, `manager_name TEXT`, `manager_email TEXT`, `socials JSONB`, `spotify_url TEXT`,
     `signed_at TIMESTAMPTZ`, `onboarded_at TIMESTAMPTZ`, `signed_deal_id INTEGER`,
@@ -1590,7 +1625,9 @@ await pool.query(`ALTER TABLE expenses ADD COLUMN IF NOT EXISTS ai_scan JSONB`).
   for (const col of [`title TEXT`, `phone TEXT`, `notification_prefs JSONB`, `tours_done JSONB`, `nav_hidden JSONB`]) {
     await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS ${col}`)
       .catch(err => console.error(`users.${col.split(' ')[0]} migration failed:`, err.message));
-  }
+  }  // the team needs users.title — so after that loop
+  await syncTeam().catch((e) => console.error('syncTeam:', e.message));
+
 
 
   // market.st Reps registry — the canonical list of reps that appears in

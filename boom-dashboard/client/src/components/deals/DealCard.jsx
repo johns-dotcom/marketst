@@ -2,7 +2,7 @@
 // who owns it, how long it has sat, whether the follow-up is due, the last
 // touch, the money, the documents. Drag it or press Next to move it.
 import { GripVertical, X, ChevronRight, Paperclip, Clock } from 'lucide-react'
-import { PRIORITY_PILL_TONE, STAGES, LIVE_STAGES, followupState, staleTone, fmtMoney, relTime, initials, eventLine } from '../../lib/deals'
+import { STAGES, LIVE_STAGES, followupState, staleTone, fmtMoney, relTime, initials, eventLine } from '../../lib/deals'
 
 const FU_TONE = { overdue: 'text-rose-600 font-semibold', today: 'text-amber-600 font-semibold', soon: 'text-gray-600', later: 'text-gray-400' }
 const STALE = { red: 'bg-rose-50 text-rose-700 border-rose-200', amber: 'bg-amber-50 text-amber-700 border-amber-200', none: 'bg-gray-50 text-gray-500 border-gray-200' }
@@ -26,7 +26,6 @@ export default function DealCard({ deal, dragging, onOpen, onDelete, onNext, onD
           <p className="text-[11px] text-gray-400 mt-0.5 truncate">{[deal.genre, deal.deal_type].filter(Boolean).join(' · ') || (deal.source ? `via ${deal.source}` : '')}</p>
           <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
             {Number(deal.advance) > 0 && <span className="text-[11px] font-semibold text-gray-800 tabular-nums" data-deal-advance>{fmtMoney(deal.advance)}</span>}
-            {deal.priority && deal.priority !== 'Medium' && <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider ${PRIORITY_PILL_TONE[deal.priority]}`}>{deal.priority}</span>}
             {live && <span title={`${deal.days_in_stage ?? 0} days in ${deal.stage}`} className={`inline-flex items-center gap-0.5 text-[10px] font-medium border rounded px-1 py-px tabular-nums ${STALE[stale]}`} data-deal-days={deal.days_in_stage ?? 0} data-stale={stale}><Clock size={9} /> {deal.days_in_stage ?? 0}d</span>}
             {deal.file_count > 0 && <span className="inline-flex items-center gap-0.5 text-[10px] text-gray-400"><Paperclip size={9} /> {deal.file_count}</span>}
           </div>

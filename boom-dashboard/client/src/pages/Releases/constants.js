@@ -2,6 +2,9 @@
 // Split out so the main file can import them without the module-level
 // definitions cluttering the component body.
 
+// The computed release status (server routes/releases.js releaseStatus): one pill per row.
+export const RELEASE_STATUS_TONE = { Draft: 'bg-gray-100 text-gray-600 border-gray-200', Scheduled: 'bg-amber-50 text-amber-700 border-amber-200', Ingested: 'bg-blue-50 text-blue-700 border-blue-200', Released: 'bg-emerald-50 text-emerald-700 border-emerald-200', Archived: 'bg-gray-50 text-gray-400 border-gray-200' }
+
 export const CHECKLIST_ITEMS = [
   { key: 'yt_video',        label: 'YT Video',        group: 'Content' },
   { key: 'content',         label: 'Content',          group: 'Content' },
