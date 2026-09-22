@@ -1104,6 +1104,12 @@ Authoritative project guide: **`boom-dashboard/CLAUDE.md`** — read it before m
   ("Google, no password" beside the last sign-in). Fixture
   `google-password-fixture.cjs` (12); settings-dom's `user` scenario sets the
   first password.
+- **Every portable commit is a row in `CADENCE-PORT-LOG.md` (2026-09-22).** When
+  you commit a change that Cadence should also get, run `node
+  tools/port-log.mjs add <sha> PORT <§>` and include the file in the commit (add
+  the BOOM-DIFFERENCES section in the same commit, as before). Docs-only and
+  label-only commits get a `skip` row. The root-level file list above says how
+  Cadence consumes it.
 - **Bank-statement heuristics were tuned on Boom's Bank of America statements.** The own-name lists (`statements.js` stop-words, `funding-pairs.js` account-trailer strip) now say Market Street, but the layout parsers have not seen a Market Street statement yet. Expect the AI fallback to do the work until they do.
 
 ## Commands (run from `boom-dashboard/`)
@@ -1130,6 +1136,8 @@ No lint, no formatter, no test runner — verify changes by running `dev:server`
 - `boom-dashboard/` — the monorepo (client + server)
 - `README.md` — what the app is and what it is for, plus the fork status
 - `BOOM-DIFFERENCES.md` — every difference from the Boom dashboard since the fork, tagged PORT / PORT (config) / LABEL, written as the porting guide for the Cadence project. Update it when a fork rule is added.
+- `CADENCE-PORT-LOG.md` — **the checklist Cadence works from** (John, 2026-09-22: "most of the updates I make to this app, I want to also make to the cadence app. keep a list"). One row per commit since the fork: date · commit · update · tag · BOOM-DIFFERENCES § · status (`todo` / `done <cadence-sha>` / `skip — reason`). Cadence lives at `/Users/johnskead/Desktop/DevProjects/cadence` and its CLAUDE.md points here. **THE HABIT: every commit that should port gets a row in the SAME commit** — `node tools/port-log.mjs add <commit> [tag] [§]` writes it from the commit message; housekeeping commits get a `skip` row so the list stays complete. `node tools/port-log.mjs` lists what is still `todo`.
+- `tools/port-log.mjs` — the log as a command: `todo` (default) · `all` · `add` · `done <ms> <cadence>` · `skip <ms> "reason"`.
 - `tools/` — one-off operator scripts, run by hand, never by the app
   - `get-refresh-token.js` / `.py` — mint a Gmail API refresh token for the server's `GMAIL_REFRESH_TOKEN`. They need a Google OAuth `client_secret_*.json` beside them (sensitive — gitignored, not copied from Boom)
 
