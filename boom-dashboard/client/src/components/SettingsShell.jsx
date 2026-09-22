@@ -9,34 +9,37 @@
 // are untouched. The Sandbox stays an external link — it is a page that
 // deliberately stands apart from the app shell.
 import { Link, useLocation } from 'react-router-dom'
-import { UserCircle2, KeyRound, Bell, Mail, Sun, SlidersHorizontal, Users, Building2, Plug, ScrollText, ShieldCheck, Send, FolderArchive, ExternalLink } from 'lucide-react'
+import { UserCircle2, KeyRound, Bell, SlidersHorizontal, Users, Building2, Plug, ScrollText, ShieldCheck } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 
+// Folded 2026-09-22 (John: "some of these pages can be combined"): 6 → 4 and
+// 9 → 6. Theme lives on Profile; My mailbox on Notifications & mail; the
+// department navs inside Roles & teams; the full export at the foot of Label;
+// the vendor-form sandbox as a link inside Integrations. The old ?tab= ids
+// still resolve (TAB_ALIASES) so a bookmark or an email link lands right.
 export const MY_ITEMS = [
-  { id: 'profile',       label: 'Profile',       icon: UserCircle2,       to: '/settings?tab=profile' },
-  { id: 'signin',        label: 'Sign-in',       icon: KeyRound,          to: '/settings?tab=signin' },
-  { id: 'notifications', label: 'Notifications', icon: Bell,              to: '/settings?tab=notifications' },
-  { id: 'mailbox',       label: 'My mailbox',    icon: Mail,              to: '/settings?tab=mailbox' },
-  { id: 'theme',         label: 'Theme',         icon: Sun,               to: '/settings?tab=theme' },
-  { id: 'mynav',         label: 'My Nav',        icon: SlidersHorizontal, to: '/settings?tab=mynav' },
+  { id: 'profile',       label: 'Profile',               icon: UserCircle2,       to: '/settings?tab=profile' },
+  { id: 'signin',        label: 'Sign-in',               icon: KeyRound,          to: '/settings?tab=signin' },
+  { id: 'notifications', label: 'Notifications & mail',  icon: Bell,              to: '/settings?tab=notifications' },
+  { id: 'mynav',         label: 'My Nav',                icon: SlidersHorizontal, to: '/settings?tab=mynav' },
 ]
 export const LABEL_ITEMS = [
-  { id: 'people',       label: 'People',       icon: Users,       to: '/team',    path: '/team' },
-  { id: 'label',        label: 'Label',        icon: Building2,   to: '/settings?tab=label' },
-  { id: 'integrations', label: 'Integrations', icon: Plug,        to: '/settings?tab=integrations' },
+  { id: 'people',       label: 'People',        icon: Users,       to: '/team',    path: '/team' },
   { id: 'roles',        label: 'Roles & teams', icon: KeyRound,    to: '/settings?tab=roles' },
-  { id: 'navs',         label: 'Navs',         icon: KeyRound,    to: '/settings?tab=navs', superOnly: true },
-  { id: 'activity',     label: 'Activity',     icon: ScrollText,  to: '/activity', path: '/activity' },
-  { id: 'admin',        label: 'Admin docs',   icon: ShieldCheck, to: '/admin',    path: '/admin', strict: true },
-  { id: 'sandbox',      label: 'Sandbox',      icon: Send,        to: '/admin/vendor-lab', external: true },
-  { id: 'archive',      label: 'Archive',      icon: FolderArchive, to: '/settings?tab=archive', superOnly: true },
+  { id: 'label',        label: 'Label',         icon: Building2,   to: '/settings?tab=label' },
+  { id: 'integrations', label: 'Integrations',  icon: Plug,        to: '/settings?tab=integrations' },
+  { id: 'activity',     label: 'Activity',      icon: ScrollText,  to: '/activity', path: '/activity' },
+  { id: 'admin',        label: 'Admin docs',    icon: ShieldCheck, to: '/admin',    path: '/admin', strict: true },
 ]
+// Where the folded tabs went. `hash` scrolls to the section inside the new tab.
+export const TAB_ALIASES = { mailbox: { tab: 'notifications', hash: 'mailbox' }, theme: { tab: 'profile', hash: 'theme' }, navs: { tab: 'roles', hash: 'navs' }, archive: { tab: 'label', hash: 'export' } }
 
 export function activeSettingsItem(pathname, search, isAdmin) {
   const tab = new URLSearchParams(search).get('tab')
   if (pathname === '/settings' || pathname.startsWith('/settings/')) {
     const all = [...MY_ITEMS, ...LABEL_ITEMS]
-    return (all.find((i) => i.id === tab && !i.path) || MY_ITEMS[0]).id
+    const id = TAB_ALIASES[tab]?.tab || tab
+    return (all.find((i) => i.id === id && !i.path) || MY_ITEMS[0]).id
   }
   for (const i of LABEL_ITEMS) if (i.path && (pathname === i.path || pathname.startsWith(i.path + '/'))) return i.id
   return null

@@ -435,6 +435,15 @@ thresholds (60-day gap, 90/60/30) are constants at the top of the lib.
 Chase), an Interns department and John's title. Do not port; Cadence tenants
 add their own people through People.
 
+## 36. Settings rails folded: 6 → 4 and 9 → 6 — PORT
+
+`components/SettingsShell.jsx` (items + `TAB_ALIASES`), `pages/Settings.jsx`
+(`Fold` sections: theme under Profile, mailbox under Notifications & mail,
+export under Label; the sandbox card in Integrations; alias `Navigate`),
+`components/OrgEditor.jsx` (department navs as a fourth section),
+`routes/mail.js` (personal OAuth returns to `tab=notifications`), tour
+`settings`, settings-dom. Apply after §7 and §32.
+
 ## Suggested order for Cadence
 
 1. Sections 3, 4, 7 (sidebar, presets, Settings) — they define the shape

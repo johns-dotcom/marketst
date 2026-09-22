@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react'
 import { Users, Plus, Trash2, X, Loader, CheckCircle2, Check, SlidersHorizontal, Sun, Moon, Monitor, Archive, Download, FileSpreadsheet, FolderArchive, AlertTriangle, EyeOff, Search, ChevronRight, ChevronDown, UserCircle2, KeyRound, Bell, Building2, Plug, ScrollText, Send, ExternalLink, LogOut } from 'lucide-react'
 import api from '../api'
 import { NAV_PAGES, NAV_GROUPS } from '../navConfig'
-import { Link, useSearchParams } from 'react-router-dom'
+import { Link, Navigate, useSearchParams } from 'react-router-dom'
+import { TAB_ALIASES } from '../components/SettingsShell'
 import { refreshLabel } from '../hooks/useLabel'
 import MailCard, { MyMailbox } from '../components/MailCard'
 import QuickBooksCard from '../components/QuickBooksCard'
@@ -12,7 +13,7 @@ import { useAuth } from '../context/AuthContext'
 import { useTheme } from '../context/ThemeContext'
 import PageHeader from '../components/PageHeader'
 import useHotkeys from '../hooks/useHotkeys'
-import { NavGrid, DepartmentNavsTab } from '../components/NavEditors'
+import { NavGrid } from '../components/NavEditors'
 import PasswordInput from '../components/PasswordInput'
 
 // Groupings mirror the sidebar nav (Layout.jsx) so what an admin sees in
@@ -224,6 +225,7 @@ function ThemeTab() {
           return (
             <button
               key={opt.id}
+              data-theme-option={opt.id}
               onClick={() => applyTheme(opt.id)}
               className={`flex flex-col items-center gap-3 p-6 rounded-xl border-2 transition-all ${
                 active
@@ -385,25 +387,31 @@ function ArchiveTab() {
 // The rail (components/SettingsShell.jsx) owns navigation; this renders the
 // tab named by ?tab= and a heading that says what the tab is for.
 const TAB_META = {
-  profile:       ['Profile', 'How your name appears across the app.'],
+  profile:       ['Profile', 'How your name appears across the app, and how the app looks to you.'],
   signin:        ['Sign-in', 'Your password and where you are signed in.'],
-  notifications: ['Notifications', 'Which events email you, once a Team mailbox is connected.'],
-  mailbox:       ['My mailbox', 'Send as yourself from the app.'],
-  theme:         ['Theme', 'Light, dark, or follow the system.'],
+  notifications: ['Notifications & mail', 'Which events email you, and the mailbox you send from.'],
   mynav:         ['My Nav', 'Which pages appear in your sidebar.'],
-  label:         ['Label', 'What prints on invoices, NDAs and waivers.'],
-  integrations:  ['Integrations', 'What is connected, and what each one powers.'],
-  roles:         ['Roles & teams', 'Roles, presets and departments — what each can do, which pages a bundle grants, and what a new person in a department starts with.'],
-  navs:          ['Navs', 'What each department sees: the pages a group gets, and which stay off the sidebar.'],
-  archive:       ['Archive', 'Archived releases and artists.'],
+  label:         ['Label', 'What prints on invoices, NDAs and waivers; who hears the alerts; the full export.'],
+  integrations:  ['Integrations', 'What is connected, what each one powers, and the vendor-form sandbox.'],
+  roles:         ['Roles & teams', 'Roles, presets, departments and each department\'s nav — what people can do, which pages they get, and what a new person starts with.'],
 }
+// A small heading for a section folded into a tab (2026-09-22).
+const Fold = ({ id, title, sub, children }) => (
+  <section id={id} className="mt-10 pt-6 border-t border-divider" data-fold={id}>
+    <h2 className="text-base font-bold text-gray-900 tracking-tight">{title}</h2>
+    {sub && <p className="text-sm text-gray-500 mt-0.5 mb-4">{sub}</p>}
+    {children}
+  </section>
+)
 export default function Settings() {
   const { user, refreshUser } = useAuth()
   const currentUserRole = user?.role
   const isAdmin = currentUserRole === 'Admin' || currentUserRole === 'Superadmin'
   const [searchParams] = useSearchParams()
   const wanted = searchParams.get('tab') || 'profile'
-  const allowed = new Set(['profile', 'signin', 'notifications', 'mailbox', 'theme', 'mynav', ...(isAdmin ? ['label', 'integrations', 'roles'] : []), ...(currentUserRole === 'Superadmin' ? ['archive', 'navs'] : [])])
+  // The folded tabs keep working: ?tab=mailbox opens Notifications & mail at its mailbox section.
+  if (TAB_ALIASES[wanted]) { const a = TAB_ALIASES[wanted]; const rest = new URLSearchParams(searchParams); rest.set('tab', a.tab); return <Navigate replace to={`/settings?${rest.toString()}#${a.hash}`} /> }
+  const allowed = new Set(['profile', 'signin', 'notifications', 'mynav', ...(isAdmin ? ['label', 'integrations', 'roles'] : [])])
   const tab = allowed.has(wanted) ? wanted : 'profile'
   const [title, subtitle] = TAB_META[tab]
   return (
@@ -412,17 +420,13 @@ export default function Settings() {
         <h1 className="text-xl font-bold text-gray-900 tracking-tight">{title}</h1>
         <p className="text-sm text-gray-500 mt-0.5">{subtitle}</p>
       </div>
-      {tab === 'profile'       && <ProfileTab onSaved={() => refreshUser && refreshUser()} />}
+      {tab === 'profile'       && <><ProfileTab onSaved={() => refreshUser && refreshUser()} /><Fold id="theme" title="Theme" sub="Light, dark, or follow the system."><ThemeTab /></Fold></>}
       {tab === 'signin'        && <SignInTab />}
-      {tab === 'notifications' && <NotificationsTab />}
-      {tab === 'mailbox'       && <MyMailbox />}
-      {tab === 'theme'         && <ThemeTab />}
+      {tab === 'notifications' && <><NotificationsTab /><Fold id="mailbox" title="My mailbox" sub="Send as yourself from the app."><MyMailbox /></Fold></>}
       {tab === 'mynav'         && <MyNavTab />}
-      {tab === 'label'         && isAdmin && <LabelTab />}
+      {tab === 'label'         && isAdmin && <><LabelTab />{currentUserRole === 'Superadmin' && <Fold id="export" title="Full export" sub="One ZIP of the ledger, every document and the roster — Superadmin only."><ArchiveTab /></Fold>}</>}
       {tab === 'roles'         && isAdmin && <RolesTab currentUserRole={currentUserRole} />}
       {tab === 'integrations'  && isAdmin && <IntegrationsTab />}
-      {tab === 'archive'       && currentUserRole === 'Superadmin' && <ArchiveTab />}
-      {tab === 'navs'          && currentUserRole === 'Superadmin' && <DepartmentNavsTab />}
     </div>
   )
 }
@@ -565,6 +569,14 @@ function IntegrationsTab() {
       <MailCard />
       <QuickBooksCard />
       <DocuSignCard />
+      <div className="card p-4 flex items-start gap-3" data-sandbox-link>
+        <Send size={16} className="text-gray-400 mt-0.5 flex-shrink-0" />
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-semibold text-gray-900">Vendor form sandbox</p>
+          <p className="text-xs text-gray-500">The public vendor form as vendors see it, submitting to a dry run that writes nothing. Build a change there, then promote it.</p>
+        </div>
+        <a href="/admin/vendor-lab" target="_blank" rel="noopener noreferrer" className="text-xs font-semibold text-boom-700 hover:underline inline-flex items-center gap-1 flex-shrink-0">Open <ExternalLink size={11} /></a>
+      </div>
       <p className="text-xs text-gray-500 mb-3">{off ? `${off} of ${rows.length} not configured. ` : 'Everything is configured. '}Read from the server's environment; nothing here accepts a key. Keys are set on Railway.</p>
       <ul className="divide-y divide-divider border border-rule rounded-lg">
         {rows.map((r) => (

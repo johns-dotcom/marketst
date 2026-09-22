@@ -67,7 +67,7 @@ async function main() {
   const tabs = [...host.querySelectorAll('[data-tab]')].map((t) => t.getAttribute('data-tab'))
   if (scenario === 'user') {
     assert('a User sees only My settings', sections.join(',') === 'My settings' && !tabs.includes('people') && !tabs.includes('label'))
-    assert('with six tabs', tabs.join(',') === 'profile,signin,notifications,mailbox,theme,mynav')
+    assert('with four tabs — theme folded into Profile, the mailbox into Notifications & mail', tabs.join(',') === 'profile,signin,notifications,mynav')
     // A User who accepted the invite by signing in with Google: no password yet.
     click(host.querySelector('[data-tab="signin"]')); await sleep(250)
     const pf = host.querySelector('[data-password-form]')
@@ -83,9 +83,10 @@ async function main() {
   }
   assert('the rail has two groups: My settings and Label settings', sections.join(',') === 'My settings,Label settings')
   assert('the rail is a single left column, not stacked strips', !!host.querySelector('[data-settings-shell] aside') && host.querySelectorAll('[data-settings-shell] nav').length === 2)
-  assert('the label group has People, Label, Integrations, Activity, Admin docs, Sandbox, Archive, Navs', ['people', 'label', 'integrations', 'activity', 'admin', 'sandbox', 'archive', 'navs'].every((t) => tabs.includes(t)))
+  assert('the label group is People, Roles & teams, Label, Integrations, Activity, Admin docs — in that order', tabs.slice(4).join(',') === 'people,roles,label,integrations,activity,admin')
+  assert('Navs, Archive and Sandbox left the rail (folded, not deleted)', !tabs.includes('navs') && !tabs.includes('archive') && !tabs.includes('sandbox'))
+  assert('Profile carries the theme section', !!host.querySelector('[data-fold="theme"] [data-theme-option="dark"]'))
   assert('People and Activity are links to their own pages (paths unchanged)', host.querySelector('[data-tab="people"]')?.getAttribute('href') === '/team' && host.querySelector('[data-tab="activity"]')?.getAttribute('href') === '/activity')
-  assert('Sandbox opens in a new window', host.querySelector('[data-tab="sandbox"]')?.getAttribute('href') === '/admin/vendor-lab' && host.querySelector('[data-tab="sandbox"]')?.getAttribute('target') === '_blank')
   assert('no Users or Permissions tab remains', !tabs.includes('users') && !tabs.includes('permissions'))
 
   say('\nPROFILE')
@@ -108,6 +109,7 @@ async function main() {
   assert('saved prefs are reflected (payments due on)', nt.querySelector('[data-notify="payments_due"]')?.checked === true && nt.querySelector('[data-notify="tasks_assigned"]')?.checked === false)
   click(nt.querySelector('[data-notify="tasks_assigned"]')); await sleep(150)
   assert('toggling PUTs the whole set', calls.put.some((c) => c.url === '/settings/me/notifications' && c.body.tasks_assigned === true && c.body.payments_due === true))
+  assert('My mailbox sits below on the same tab', !!host.querySelector('[data-fold="mailbox"] [data-my-mailbox]'))
 
   say('\nLABEL')
   click(host.querySelector('[data-tab="label"]')); await sleep(200)
@@ -125,6 +127,7 @@ async function main() {
   const put = calls.put.find((c) => c.url === '/label')
   assert('saving PUTs the plain fields and the typed account number, never a stored one', !!put && put.body.legal_name === 'market.st Records LLC' && put.body.bank_account_number === '000123456789' && !('ein' in put.body))
   assert('after saving, the account number field is cleared and status reads ending 6789', lb.querySelector('[data-secret-field="bank_account_number"]')?.value === '' && /ending 6789/.test(textOf(lb.querySelector('[data-secret-status="bank_account_number"]'))))
+  assert('the full export sits at the foot of Label for a Superadmin', /Full Archive Export/.test(textOf(host.querySelector('[data-fold="export"]'))))
 
   say('\nINTEGRATIONS')
   click(host.querySelector('[data-tab="integrations"]')); await sleep(200)
@@ -132,6 +135,7 @@ async function main() {
   assert('the QuickBooks and DocuSign cards render (unconnected, with the label signer line)', !!it?.querySelector('[data-quickbooks-card][data-connected="0"]') && !!it?.querySelector('[data-docusign-card][data-connected="0"]') && /no email yet/.test(it?.querySelector('[data-ds-signer]')?.textContent || ''))
   assert('integrations list status, what each powers, and a detail', it?.querySelector('[data-integration="gmail"]')?.getAttribute('data-configured') === '0' && it?.querySelector('[data-integration="storage"]')?.getAttribute('data-configured') === '1' && /bucket ms-files/.test(textOf(it)))
   assert('no key is rendered anywhere', !/[A-Za-z0-9]{32,}/.test(textOf(it)))
+  assert('the vendor-form sandbox is a link inside Integrations, opening in a new window', it?.querySelector('[data-sandbox-link] a')?.getAttribute('href') === '/admin/vendor-lab' && it?.querySelector('[data-sandbox-link] a')?.getAttribute('target') === '_blank')
   // ── Roles & teams: roles, presets and departments are editable data ──
   click(host.querySelector('[data-tab="roles"]')); await sleep(250)
   const oe = host.querySelector('[data-org-editor]')
@@ -161,11 +165,12 @@ async function main() {
   assert('My Nav renders the shared grid over the pages this person can open', !!mn && mn.querySelectorAll('[data-nav-page]').length > 5)
   click(mn.querySelector('[data-nav-page="/calendar"] [data-nav-show]')); await sleep(150)
   assert('unticking a page PUTs nav_hidden to /settings/me (not localStorage alone)', calls.put.some((c) => c.url === '/settings/me' && JSON.stringify(c.body.nav_hidden) === '["/calendar"]'))
-  // ── Navs (Superadmin): a department's nav IS its page list ──
-  click(host.querySelector('[data-tab="navs"]')); await sleep(250)
-  const dn = host.querySelector('[data-department-navs]')
+  // ── Department navs (Superadmin) — inside Roles & teams since 2026-09-22 ──
+  click(host.querySelector('[data-tab="roles"]')); await sleep(250)
+  click(host.querySelector('[data-org-toggle="navs"]')); await sleep(300)
+  const dn = host.querySelector('[data-org-section="navs"] [data-department-navs]')
   const chip = (d) => [...dn.querySelectorAll('[data-dept]')].find((b) => b.getAttribute('data-dept') === d)   // an & in a CSS attribute selector trips jsdom
-  assert('the Navs tab lists the departments, marking which are saved', !!dn && chip('Marketing')?.getAttribute('data-saved') === '1' && chip('A&R')?.getAttribute('data-saved') === '0')
+  assert('the Department navs section lists the departments, marking which are saved', !!dn && chip('Marketing')?.getAttribute('data-saved') === '1' && chip('A&R')?.getAttribute('data-saved') === '0')
   click(chip('Marketing')); await sleep(200)
   assert('the saved Marketing nav loads: /campaigns granted and shown, /messages granted but off the sidebar, /deals not in the nav', dn.querySelector('[data-nav-page="/campaigns"]')?.getAttribute('data-granted') === '1' && dn.querySelector('[data-nav-page="/campaigns"]')?.getAttribute('data-shown') === '1' && dn.querySelector('[data-nav-page="/messages"]')?.getAttribute('data-shown') === '0' && dn.querySelector('[data-nav-page="/deals"]')?.getAttribute('data-granted') === '0')
   assert('members are listed, with who customised their own sidebar', /Rosa Lind · own sidebar/.test(textOf(dn.querySelector('[data-navs-members]'))) && /Dev Patel/.test(textOf(dn.querySelector('[data-navs-members]'))) && !!dn.querySelector('[data-navs-force]'))

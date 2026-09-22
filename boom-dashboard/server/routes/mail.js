@@ -75,7 +75,7 @@ router.get('/oauth/callback', async (req, res) => {
     let st; try { st = jwt.verify(String(state || ''), process.env.JWT_SECRET); } catch { return back({ tab: 'integrations', mail: 'badstate' }); }
     if (st.t !== 'mail_connect') return back({ tab: 'integrations', mail: 'badstate' });
     const tok = await postForm('oauth2.googleapis.com', '/token', { code: String(code), client_id: process.env.GMAIL_CLIENT_ID, client_secret: process.env.GMAIL_CLIENT_SECRET, redirect_uri: redirectUri(), grant_type: 'authorization_code' });
-    if (!tok.refresh_token) { console.error('[mail] no refresh token in exchange:', tok.error || tok); return back({ tab: st.kind === 'personal' ? 'mailbox' : 'integrations', mail: 'norefresh' }); }
+    if (!tok.refresh_token) { console.error('[mail] no refresh token in exchange:', tok.error || tok); return back({ tab: st.kind === 'personal' ? 'notifications' : 'integrations', mail: 'norefresh' }); }
     const info = await getJson('https://www.googleapis.com/oauth2/v3/userinfo', tok.access_token);
     const address = String(info.email || '').toLowerCase();
     if (!address) return back({ tab: 'integrations', mail: 'noemail' });
@@ -94,7 +94,7 @@ router.get('/oauth/callback', async (req, res) => {
       if (st.kind === 'shared') await mail.claimUnassignedPurposes(id);
     }
     mail.tokenCache.delete(id);
-    return back({ tab: st.kind === 'personal' ? 'mailbox' : 'integrations', mail: 'connected', address });
+    return back({ tab: st.kind === 'personal' ? 'notifications' : 'integrations', mail: 'connected', address });
   } catch (err) { console.error('mail callback error:', err); return back({ tab: 'integrations', mail: 'error' }); }
 });
 

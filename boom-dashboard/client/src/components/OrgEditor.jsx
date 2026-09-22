@@ -13,6 +13,7 @@ import api from '../api'
 import { NAV_PAGES } from '../navConfig'
 import useOrg from '../hooks/useOrg'
 import { NavGrid } from './NavEditors'
+import { DepartmentNavsTab } from './NavEditors'
 
 const ROLE_TONE = { Superadmin: 'bg-purple-50 text-purple-700 border-purple-200', Admin: 'bg-blue-50 text-blue-700 border-blue-200', Approver: 'bg-emerald-50 text-emerald-700 border-emerald-200', User: 'bg-gray-100 text-gray-700 border-gray-200' }
 const Lines = ({ value, onChange, placeholder, rows = 4, testId }) => (
@@ -41,6 +42,7 @@ export default function OrgEditor({ currentUserRole }) {
       <Section id="roles" title="Roles" sub={isSuper ? 'Superadmin edits · base tiers stay' : 'read-only for Admins'} count={org.roles.length}><RolesSection org={org} canEdit={isSuper} /></Section>
       <Section id="presets" title="Presets" sub="bundles of pages; departments and roles point at them" count={org.presets.length}><PresetsSection org={org} canEdit /></Section>
       <Section id="departments" title="Departments" sub="default presets and level for new people" count={org.departments.length}><DepartmentsSection org={org} canEdit /></Section>
+      {isSuper && <div id="navs"><Section id="navs" title="Department navs" sub="what each department sees — the nav IS the group's page list" count={org.departments.length}><DepartmentNavsTab /></Section></div>}
       <div className="card p-4" data-role-axes>
         <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Four things that are not the same</p>
         <dl className="grid sm:grid-cols-[140px_minmax(0,1fr)] gap-x-4 gap-y-2 text-xs">{org.axes.map(([k, v]) => <div key={k} className="contents"><dt className="font-semibold text-gray-900">{k}</dt><dd className="text-gray-600">{v}</dd></div>)}</dl>

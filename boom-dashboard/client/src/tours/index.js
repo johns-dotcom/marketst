@@ -109,10 +109,9 @@ const PAGE_TOURS = [
   {
     id: 'settings', title: 'Settings', path: '/settings', version: '2026-09-22',
     steps: [
-      { target: '[data-settings-shell] aside', title: 'Two halves', body: "My settings is yours: profile, sign-in, notifications, your own mailbox, theme, sidebar. Label settings is the label's: people, the label record, integrations, roles, activity, admin docs, archive — admins only. Roles explains what a Superadmin, Admin, Approver and User can each do." },
-      { target: '[data-settings-content]', title: 'The page', body: 'Each rail item is its own page here. My Nav hides sidebar pages you never use; Notifications chooses which events email you; My mailbox connects your own address.' },
-      { target: '[data-settings-shell] aside a[href*="tab=navs"], [data-tour="settings-label-group"], [data-settings-shell] aside', title: 'Navs (Superadmin)', body: 'What each department sees. In nav grants a page to the group; the green tick keeps it on their sidebar. Save with Apply and every User and Approver in the department gets exactly that list; people who customised their own sidebar keep it unless you force it.', roles: ['Superadmin'] },
-      { target: '[data-tour="settings-label-group"], [data-settings-shell] aside', title: 'Label settings', body: 'Label is what prints on invoices and documents. Integrations connects mail, QuickBooks and DocuSign. Roles is the reference for who can do what.', roles: ['Admin', 'Superadmin'] },
+      { target: '[data-settings-shell] aside', title: 'Two halves', body: "My settings is yours: Profile (with the theme), Sign-in, Notifications & mail (what emails you, and the mailbox you send from), My Nav. Label settings is the label's — admins only." },
+      { target: '[data-settings-content]', title: 'The page', body: 'Each rail item is its own page here; folded sections sit below the main one. My Nav hides sidebar pages you never use.' },
+      { target: '[data-tour="settings-label-group"], [data-settings-shell] aside', title: 'Label settings', body: 'People is the directory. Roles & teams holds roles, presets, departments and — for a Superadmin — each department\'s nav. Label is what prints on documents, who hears the alerts, and the full export. Integrations connects mail, QuickBooks and DocuSign and links to the vendor-form sandbox. Activity and Admin docs are their own pages.', roles: ['Admin', 'Superadmin'] },
     ],
   },
   {

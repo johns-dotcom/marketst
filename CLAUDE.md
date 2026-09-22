@@ -1148,6 +1148,23 @@ Authoritative project guide: **`boom-dashboard/CLAUDE.md`** — read it before m
   (a data: module cannot resolve a relative JSON import). Not done: per-role
   capability toggles beyond the four tiers (that is code), ordering, a
   department's own nav being edited from here (it is on the Navs tab).
+- **Settings, folded (2026-09-22, John: "some of these pages can be combined /
+  folded into each other"; his picks: Label rail 9 → 6, My settings 6 → 4).**
+  `components/SettingsShell.jsx`: MY_ITEMS = Profile (+ Theme below,
+  `data-fold="theme"`) · Sign-in · Notifications & mail (+ My mailbox below,
+  `data-fold="mailbox"`) · My Nav; LABEL_ITEMS = People · Roles & teams ·
+  Label · Integrations · Activity · Admin docs. **Nothing was deleted:** the
+  department navs are the fourth section of `OrgEditor` (Superadmin,
+  `data-org-section="navs"`, still `DepartmentNavsTab`); the full export is
+  the foot of Label (Superadmin, `data-fold="export"`, still `ArchiveTab`);
+  the vendor-form sandbox is a card inside Integrations (`data-sandbox-link`,
+  opens in a new window). **Old `?tab=` ids still resolve** — `TAB_ALIASES`
+  (mailbox → notifications#mailbox, theme → profile#theme, navs → roles#navs,
+  archive → label#export): Settings `Navigate`s with `replace`, the rail
+  lights the new item, and `routes/mail.js` now returns a personal-mailbox
+  OAuth to `tab=notifications`. Paths unchanged, grants unchanged.
+  settings-dom (56) asserts the four and six, the folds, and that the three
+  left the rail; tour `settings` rewritten (three steps).
 - **The CEO's list (2026-09-22) — phase 2, contract terms.** `server/lib/
   contract-terms.js`: `contracts` gained `options_total`, `options_exercised`,
   `term_years`, `marketing_budget`, `deal_id`, `signature_status`
