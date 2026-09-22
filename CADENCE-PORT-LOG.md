@@ -113,3 +113,4 @@ HOUSEKEEPING = nothing to port.
 | 74 | 2026-09-22 | a26a12b | Settings folded: My settings 6 → 4, Label settings 9 → 6 — nothing deleted, old tab links still land | PORT | 36 | todo |
 | 75 | 2026-09-22 | 3c19462 | Roles & teams as flat cards: How access works · Permissions per member · Presets · Departments · Department navs | PORT (config) | 37 | todo |
 | 76 | 2026-09-22 | 36636b6 | Song campaigns: the reopen reason names the invoices that actually arrived late | PORT | 27 | todo |
+| 77 | 2026-09-22 | 8b8e4ec | Teams: a department and the pages it starts people with, in one card | PORT (config) | 38 | todo |
