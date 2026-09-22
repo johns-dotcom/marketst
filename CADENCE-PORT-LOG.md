@@ -108,3 +108,4 @@ HOUSEKEEPING = nothing to port.
 | 69 | 2026-09-22 | e1e9196 | Passwords: a show/hide eye on every password field | PORT | 31 | todo |
 | 70 | 2026-09-22 | d2c9b19 | Roles, presets and departments are editable data: custom roles on a base tier, presets as page bundles, departments with defaults | PORT | 32 | todo |
 | 71 | 2026-09-22 | 6584868 | The label is written market.st — lowercase, a dot between — everywhere it shows | LABEL | 1 | skip — label name |
+| 72 | 2026-09-22 | fd5d309 | Contract terms: deliverables, options and periods, splits, budget, signature status; releases count toward the deal and carry a status; deal Priority removed | PORT | 33 | todo |
