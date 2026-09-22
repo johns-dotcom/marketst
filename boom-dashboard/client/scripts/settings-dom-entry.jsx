@@ -8,6 +8,8 @@ import Settings from '../src/pages/Settings'
 import Team from '../src/pages/Team'
 import SettingsShell from '../src/components/SettingsShell'
 import { calls, BOOKKEEPER_PAGES } from './settings-api-stub.js'
+import { NAV_PAGES } from '../src/navConfig'
+import { PRESETS } from '../src/lib/navPresets'
 import { ThemeProvider } from '../src/context/ThemeContext'
 import { ToastProvider } from '../src/context/ToastContext'
 import { BoomRepsProvider } from '../src/context/BoomRepsContext'
@@ -136,32 +138,56 @@ async function main() {
   assert('integrations list status, what each powers, and a detail', it?.querySelector('[data-integration="gmail"]')?.getAttribute('data-configured') === '0' && it?.querySelector('[data-integration="storage"]')?.getAttribute('data-configured') === '1' && /bucket ms-files/.test(textOf(it)))
   assert('no key is rendered anywhere', !/[A-Za-z0-9]{32,}/.test(textOf(it)))
   assert('the vendor-form sandbox is a link inside Integrations, opening in a new window', it?.querySelector('[data-sandbox-link] a')?.getAttribute('href') === '/admin/vendor-lab' && it?.querySelector('[data-sandbox-link] a')?.getAttribute('target') === '_blank')
-  // ── Roles & teams: roles, presets and departments are editable data ──
+  // ── Roles & teams: roles, and teams with their page bundles, as editable data ──
   click(host.querySelector('[data-tab="roles"]')); await sleep(250)
   const oe = host.querySelector('[data-org-editor]')
-  assert('the page is flat cards: How access actually works (folded) · Permissions · Presets · Departments · Department navs (folded)', [...oe.querySelectorAll('[data-org-section]')].map((c) => `${c.getAttribute('data-org-section')}:${c.getAttribute('data-open')}`).join(',') === 'roles:0,permissions:1,presets:1,departments:1,navs:0')
+  assert('the page is flat cards: How access actually works (folded) · Permissions · Teams · Department navs (folded)', [...oe.querySelectorAll('[data-org-section]')].map((c) => `${c.getAttribute('data-org-section')}:${c.getAttribute('data-open')}`).join(',') === 'roles:0,permissions:1,teams:1,navs:0')
   const pm = oe.querySelector('[data-permissions]')
   assert('Permissions lists every member with role, department and access, and Configure opens their Access tab', pm?.querySelectorAll('[data-perm-row]').length === 3 && /Full access/.test(textOf(pm.querySelector('[data-perm-row="1"] [data-perm-access]'))) && new RegExp(`${BOOKKEEPER_PAGES.length} pages`).test(textOf(pm.querySelector('[data-perm-row="2"] [data-perm-access]'))) && pm.querySelector('[data-perm-configure="2"]')?.getAttribute('href') === '/team/2' && pm.querySelectorAll('[data-perm-select] option').length === 4)
+  // Folding one card must not remount the others (Card is module-level): before
+  // that, Permissions refetched the directory on every toggle and a save's note
+  // was wiped by the refresh that follows it.
+  const peopleReads = () => calls.get.filter((u) => u === '/settings/people').length
+  const readsBefore = peopleReads()
+  click(oe.querySelector('[data-org-toggle="teams"]')); await sleep(120)
+  click(oe.querySelector('[data-org-toggle="teams"]')); await sleep(120)
+  assert('folding another card leaves Permissions mounted — no refetch of the directory', peopleReads() === readsBefore && oe.querySelectorAll('[data-perm-row]').length === 3)
   click(oe.querySelector('[data-org-toggle="roles"]')); await sleep(150)
-  assert('the Roles & teams tab renders the editor with three sections and the four base roles', !!oe && ['roles', 'presets', 'departments'].every((k) => oe.querySelector(`[data-org-section="${k}"]`)) && oe.querySelectorAll('[data-role-card]').length === 4 && oe.querySelector('[data-role-card="Admin"]')?.getAttribute('data-builtin') === '1')
+  assert('the Roles & teams tab renders the editor with its sections and the four base roles', !!oe && ['roles', 'teams', 'navs'].every((k) => oe.querySelector(`[data-org-section="${k}"]`)) && oe.querySelectorAll('[data-role-card]').length === 4 && oe.querySelector('[data-role-card="Admin"]')?.getAttribute('data-builtin') === '1')
   click(oe.querySelector('[data-role-new]')); await sleep(100)
   const rf = oe.querySelector('[data-role-form="new"]')
   type(rf.querySelector('[data-role-label]'), 'Bookkeeper'); setValue(rf.querySelector('[data-role-base]'), 'Approver'); type(rf.querySelector('[data-role-short]'), 'Approves and pays, no people'); click(rf.querySelector('[data-role-preset="bookkeeper"]')); await sleep(40); rf.dispatchEvent(new window.Event('submit', { bubbles: true, cancelable: true })); await sleep(250)
   const rp = calls.post.find((c) => c.url === '/settings/org/roles')
   assert('a new role POSTs its name, base tier, description and starting presets', !!rp && rp.body.label === 'Bookkeeper' && rp.body.base_role === 'Approver' && rp.body.presets.includes('bookkeeper'))
-  assert('the presets section lists the five built-ins with page counts and which departments default to them', oe.querySelectorAll('[data-preset-row]').length === 5 && /Every page/.test(textOf(oe.querySelector('[data-preset-row="ops"] [data-preset-count]'))) && /default for Marketing/.test(textOf(oe.querySelector('[data-preset-row="marketing"]'))))
-  click(oe.querySelector('[data-preset-new]')); await sleep(100)
-  const pf2 = oe.querySelector('[data-preset-form="new"]')
-  type(pf2.querySelector('[data-preset-label]'), 'Interns'); click(pf2.querySelector('[data-nav-page="/releases"] [data-nav-grant]')); click(pf2.querySelector('[data-nav-page="/catalog"] [data-nav-grant]')); await sleep(40); pf2.dispatchEvent(new window.Event('submit', { bubbles: true, cancelable: true })); await sleep(250)
-  const pp = calls.post.find((c) => c.url === '/settings/org/presets')
-  assert('a new preset POSTs its label and the ticked pages', !!pp && pp.body.label === 'Interns' && pp.body.paths.includes('/releases') && pp.body.paths.includes('/catalog') && pp.body.paths.length === 2)
-  assert('the departments section lists the five as rows with people counts, preset chips and a sorts-first badge on the lowest level', oe.querySelectorAll('[data-department-row]').length === 5 && /2 people/.test(textOf(oe.querySelector('[data-department-row="Marketing"] [data-department-members]'))) && !!oe.querySelector('[data-department-row="Marketing"] [data-department-preset-chip="marketing"]') && !!oe.querySelector('[data-department-row="Executive"] [data-department-first]') && !oe.querySelector('[data-department-row="Marketing"] [data-department-first]'))
+  assert('…and the confirmation survives the refresh that follows the save', /Created Bookkeeper/.test(textOf(oe.querySelector('[data-org-section="roles"] [data-org-note]'))))
+  // ── Teams: the department row carries the pages it starts people with ──
+  // The count the row prints is NAV_PAGES ∩ the bundle — the same walk the card does.
+  const MARKETING_PAGES = NAV_PAGES.filter((p) => (PRESETS.find((x) => x.key === 'marketing')?.paths || []).includes(p.path)).length
+  const team = (n) => oe.querySelector(`[data-department-row="${n}"]`)
+  assert('Teams lists the five departments with people counts, the pages each starts with, and a sorts-first badge on the lowest level', oe.querySelectorAll('[data-department-row]').length === 5 && /2 people/.test(textOf(team('Marketing')?.querySelector('[data-department-members]'))) && !!team('Executive')?.querySelector('[data-department-first]') && !team('Marketing')?.querySelector('[data-department-first]'))
+  assert('…the pages line counts the bundle, and reads Every page for Operations', new RegExp(`^${MARKETING_PAGES} pages — `).test(textOf(team('Marketing').querySelector('[data-department-pages]'))) && /^Every page/.test(textOf(team('Operations').querySelector('[data-department-pages]'))))
+  assert('presets are no longer a second list of the same thing — every bundle is a team default, so no extras render', !oe.querySelector('[data-extra-bundles]') && oe.querySelectorAll('[data-preset-row]').length === 0)
+  // editing a team edits the bundle's pages in the same form
+  click(team('Marketing').querySelector('[data-department-edit="Marketing"]')); await sleep(150)
+  const mf = oe.querySelector('[data-department-form="Marketing"]')
+  assert('the team form opens on its bundle with the pages ticked', !!mf && !!mf.querySelector('[data-team-pages]') && mf.querySelector('[data-nav-page="/campaigns"] [data-nav-grant]')?.checked === true)
+  click(mf.querySelector('[data-nav-page="/deals"] [data-nav-grant]')); await sleep(40)
+  mf.dispatchEvent(new window.Event('submit', { bubbles: true, cancelable: true })); await sleep(300)
+  const bundlePut = calls.put.find((c) => c.url === '/settings/org/presets/marketing')
+  const deptPut = calls.put.find((c) => c.url === '/settings/org/departments/Marketing')
+  assert('saving the team writes the bundle\'s pages AND the team, in that order', !!bundlePut && bundlePut.body.paths.includes('/deals') && bundlePut.body.paths.includes('/campaigns') && !!deptPut && deptPut.body.presets.includes('marketing'))
+  // a new team can be given its own page set, created as a bundle in the same save
   type(oe.querySelector('[data-department-draft]'), 'Publishing')
-  click(oe.querySelector('[data-department-new]')); await sleep(100)
+  click(oe.querySelector('[data-department-new]')); await sleep(150)
   const df = oe.querySelector('[data-department-form="new"]')
-  type(df.querySelector('[data-department-name]'), 'Publishing'); click(df.querySelector('[data-department-preset="anr"]')); type(df.querySelector('[data-department-level]'), '3'); await sleep(40); df.dispatchEvent(new window.Event('submit', { bubbles: true, cancelable: true })); await sleep(250)
+  type(df.querySelector('[data-department-name]'), 'Publishing'); type(df.querySelector('[data-department-level]'), '3')
+  click(df.querySelector('[data-department-own]')); await sleep(60)
+  click(df.querySelector('[data-nav-page="/releases"] [data-nav-grant]')); click(df.querySelector('[data-nav-page="/catalog"] [data-nav-grant]')); await sleep(40)
+  df.dispatchEvent(new window.Event('submit', { bubbles: true, cancelable: true })); await sleep(300)
+  const pp = calls.post.find((c) => c.url === '/settings/org/presets')
   const dp = calls.post.find((c) => c.url === '/settings/org/departments')
-  assert('a new department POSTs its name, default presets and level', !!dp && dp.body.name === 'Publishing' && dp.body.presets.includes('anr') && dp.body.default_level === 3)
+  assert('its own page set POSTs as a bundle named after the team', !!pp && pp.body.label === 'Publishing' && pp.body.paths.includes('/releases') && pp.body.paths.includes('/catalog') && pp.body.paths.length === 2)
+  assert('and the team POSTs with that bundle, its name and level', !!dp && dp.body.name === 'Publishing' && dp.body.default_level === 3 && dp.body.presets.includes('publishing'))
   // ── My Nav saves to the ACCOUNT ──
   click(host.querySelector('[data-tab="mynav"]')); await sleep(200)
   const mn = host.querySelector('[data-mynav]')
@@ -183,6 +209,13 @@ async function main() {
   assert('Save PUTs the page list with /deals added, hidden kept, apply on — and reports what happened', !!navPut && navPut.body.pages.includes('/deals') && navPut.body.hidden.includes('/messages') && navPut.body.apply === true && /applied to 1 member/.test(textOf(dn.querySelector('[data-navs-note]'))) && /1 kept their own sidebar/.test(textOf(dn.querySelector('[data-navs-note]'))))
   click(chip('A&R')); await sleep(200)
   assert('an unsaved department starts from its code preset (A&R has /artists, not /bk/approvals)', dn.querySelector('[data-nav-page="/artists"]')?.getAttribute('data-granted') === '1' && dn.querySelector('[data-nav-page="/bk/approvals"]')?.getAttribute('data-granted') === '0')
+  // ── A folded tab's old ?tab= id lands ON the section, not above it ──
+  const deep = mount('/settings?tab=navs', <Route path="/settings" element={<SettingsShell><Settings /></SettingsShell>} />)
+  await sleep(500)
+  assert('?tab=navs redirects to Roles & teams AND unfolds the Department navs card', deep.querySelector('[data-settings-content]')?.getAttribute('data-settings-content') === 'roles' && deep.querySelector('[data-org-section="navs"]')?.getAttribute('data-open') === '1' && deep.querySelector('[data-org-section="roles"]')?.getAttribute('data-open') === '0')
+  const deep2 = mount('/settings?tab=roles#roles', <Route path="/settings" element={<SettingsShell><Settings /></SettingsShell>} />)
+  await sleep(500)
+  assert('…and #roles (the person form\'s "All roles compared") unfolds the roles card', deep2.querySelector('[data-org-section="roles"]')?.getAttribute('data-open') === '1')
   assert('nothing threw', errors.length === 0)
   if (errors.length) say('  ' + errors.join('\n  '))
   say('DONE'); globalThis.__DONE__ = true

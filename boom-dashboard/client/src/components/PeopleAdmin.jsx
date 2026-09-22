@@ -369,7 +369,7 @@ export function PersonModal({ user, onClose, onSaved, currentUserRole }) {
               </select>
               <p className="text-[11px] text-gray-500 mt-1.5 leading-snug" data-role-help>
                 {roleById(form.role, org.roles)?.short}{' '}
-                <Link to="/settings?tab=roles" className="text-boom-700 hover:underline">All roles compared</Link>
+                <Link to="/settings?tab=roles#roles" className="text-boom-700 hover:underline">All roles compared</Link>
               </p>
             </div>
             <div>

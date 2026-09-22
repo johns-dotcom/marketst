@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { Users, Plus, Trash2, X, Loader, CheckCircle2, Check, SlidersHorizontal, Sun, Moon, Monitor, Archive, Download, FileSpreadsheet, FolderArchive, AlertTriangle, EyeOff, Search, ChevronRight, ChevronDown, UserCircle2, KeyRound, Bell, Building2, Plug, ScrollText, Send, ExternalLink, LogOut } from 'lucide-react'
 import api from '../api'
 import { NAV_PAGES, NAV_GROUPS } from '../navConfig'
-import { Link, Navigate, useSearchParams } from 'react-router-dom'
+import { Link, Navigate, useLocation, useSearchParams } from 'react-router-dom'
 import { TAB_ALIASES } from '../components/SettingsShell'
 import { refreshLabel } from '../hooks/useLabel'
 import MailCard, { MyMailbox } from '../components/MailCard'
@@ -408,7 +408,20 @@ export default function Settings() {
   const currentUserRole = user?.role
   const isAdmin = currentUserRole === 'Admin' || currentUserRole === 'Superadmin'
   const [searchParams] = useSearchParams()
+  const location = useLocation()
   const wanted = searchParams.get('tab') || 'profile'
+  // A fragment names a folded section (#mailbox, #theme, #export — TAB_ALIASES sends
+  // the old ?tab= ids here). A client-side navigation never scrolls on its own, so do
+  // it; the section renders with the tab, hence the wait. #roles and #navs are
+  // OrgEditor's cards: it unfolds them itself, and scrolling to them from here is
+  // the same element either way.
+  // ABOVE the early return below — the hook must run on every render.
+  useEffect(() => {
+    const id = (location.hash || '').replace('#', '')
+    if (!id) return undefined
+    const t = setTimeout(() => { try { document.getElementById(id)?.scrollIntoView({ block: 'start', behavior: 'smooth' }) } catch { /* jsdom */ } }, 60)
+    return () => clearTimeout(t)
+  }, [location.hash, location.search])
   // The folded tabs keep working: ?tab=mailbox opens Notifications & mail at its mailbox section.
   if (TAB_ALIASES[wanted]) { const a = TAB_ALIASES[wanted]; const rest = new URLSearchParams(searchParams); rest.set('tab', a.tab); return <Navigate replace to={`/settings?${rest.toString()}#${a.hash}`} /> }
   const allowed = new Set(['profile', 'signin', 'notifications', 'mynav', ...(isAdmin ? ['label', 'integrations', 'roles'] : [])])

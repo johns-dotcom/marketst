@@ -1175,12 +1175,29 @@ Authoritative project guide: **`boom-dashboard/CLAUDE.md`** — read it before m
   — and a Configure link to `/team/:id`; a member select navigates there
   too. Nothing is edited on this card: the Access editor stays the ONE
   writer of page rows) · **Presets** (open; pencil/trash icons, built-ins'
-  trash disabled) · **Departments** (open; rows with preset chips, `N people`,
-  a `sorts first` badge on the lowest default level, pencil/trash, and an
-  inline "New department + Add" that opens the form with the name filled) ·
-  **Department navs** (Superadmin, folded). `data-org-section` carries
-  `data-open`. settings-dom (58) asserts the card order and fold state, the
-  Permissions rows, and the department rows.
+  trash disabled) · **Departments** · **Department navs** (Superadmin,
+  folded). `data-org-section` carries `data-open`.
+  **Presets and Departments were folded into ONE "Teams" card (2026-09-22,
+  John: "departments and presets should be combined").** Still two tables —
+  a bundle can be shared by two departments and a person who does two jobs
+  holds two of them (`navPresets.js`: ADDITIVE, not exclusive) — but the page
+  is one list: a row per department with **the pages it starts people with**
+  underneath it (`pagesOf` / `pagesLine`, naming what is DISTINCTIVE — the
+  pages every team shares are left out, or all six rows read "Home, My Work,
+  Messages…"), level, members, `sorts first`. The pencil opens `TeamForm`,
+  which edits the name, level, bundle chips AND — when the team is on exactly
+  one bundle — that bundle's pages inline (PUT the preset, then the
+  department); a team on none can be given **its own page set**, POSTed as a
+  bundle named after the team in the same save. A bundle no team claims is
+  listed under **Extra bundles** (`data-extra-bundles`) with "New bundle on
+  its own"; with the seed as shipped there are none, so that block does not
+  render. `PresetForm` stays for those. **`Card` is MODULE-LEVEL** — declared
+  in the render body it remounted every other card on each fold, refetching
+  `/settings/people` and wiping a save's note. A `#hash` naming a section
+  unfolds it and scrolls to it (Settings' `TAB_ALIASES`, and PersonModal's
+  "All roles compared" → `?tab=roles#roles`). settings-dom (65) asserts the
+  card order and fold state, the Permissions rows, the pages line, the
+  no-remount property, the inline bundle write and the own-page-set create.
 - **The CEO's list (2026-09-22) — phase 2, contract terms.** `server/lib/
   contract-terms.js`: `contracts` gained `options_total`, `options_exercised`,
   `term_years`, `marketing_budget`, `deal_id`, `signature_status`

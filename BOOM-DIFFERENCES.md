@@ -369,7 +369,10 @@ the sweep's `syncStatuses()` call, `/team/my-work` `campaigns_due`;
 `lib/campaigns.js`, the Recoupments READY panel, nav (`/campaigns` in the
 artist-spend family, NAV_PAGES 50), Marketing preset, tours, shortcuts,
 `campaigns-dom`. Nothing label-shaped; Boom's Campaigns page is the read-only
-settled/committed view this sits beside.
+settled/committed view this sits beside. `syncStatuses()` sorts the late
+invoices newest-first before the reopen reason names three of them — the
+ledger query has no ORDER BY, so without it the sentence named an arbitrary
+three of however many arrived.
 
 ## 28. Superadmin controls sidebars and department navs — PORT
 
@@ -450,7 +453,28 @@ export under Label; the sandbox card in Integrations; alias `Navigate`),
 rows + inline add), settings-dom. Cadence already has this shape; what ports
 is the pieces it lacks — the custom-role card inside "How access actually
 works", the Presets card, the department preset chips and the Department navs
-fold. Apply after §32 and §36.
+fold. Apply after §32 and §36. **Superseded in part by §38** — the Presets and
+Departments cards became one; port §38 with it rather than after it.
+
+## 38. Presets and departments are one "Teams" card — PORT (config)
+
+`components/OrgEditor.jsx` (`TeamsSection`, `TeamForm`, `pagesOf` /
+`pagesLine`, `PresetForm` kept for unclaimed bundles), `settings-dom`.
+Still two tables — a bundle can be shared by two departments and a person who
+does two jobs holds two of them — but one list on screen: a row per
+department with the pages it starts people with underneath it, edited on the
+team. A team on no bundle can be given its own page set, POSTed as a bundle
+named after the team in the same save; a bundle no team claims falls to an
+"Extra bundles" block that does not render when there are none. No server
+change: the same `/settings/org` routes, the same seed.
+
+Three fixes ride along, each of which Cadence will have if it has §37:
+`Card` must be MODULE-LEVEL (declared in the render body it remounts every
+other card on each fold — refetching `/settings/people`, discarding an open
+form, and wiping the note a save just set); a `#hash` naming a section must
+unfold and scroll to it, because Settings' `TAB_ALIASES` redirect to one and
+a client-side navigation never scrolls on its own; and PersonModal's "All
+roles compared" link needs `#roles` or it lands on a folded card.
 
 ## Suggested order for Cadence
 
