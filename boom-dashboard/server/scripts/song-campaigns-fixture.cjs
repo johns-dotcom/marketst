@@ -73,6 +73,11 @@ const ARTIST = `${TAG} Artist`; const SONG = `${TAG} Song`;
     check('the items upload for recoupment through the existing bulk route', up.status === 200, JSON.stringify(up.body).slice(0, 120));
     const after = await call('GET', `/campaigns/${c.id}`, B);
     check('…and the campaign becomes uploaded on the next read', after.body.data.status === 'uploaded' && !!after.body.data.uploaded_at, after.body.data.status);
+    // The confirmation has to sit BETWEEN the rows already on the campaign and the
+    // late one — backdating only the campaign left every row (seeded seconds ago)
+    // "arrived after confirmation", so the reason named three of four and the late
+    // vendor fell off the end of it.
+    await pool.query(`UPDATE expenses SET created_at = NOW() - INTERVAL '2 hours' WHERE id = ANY($1)`, [made.expenses.slice()]);
     await pool.query(`UPDATE song_campaigns SET confirmed_at = NOW() - INTERVAL '1 hour' WHERE id = $1`, [c.id]);
     const late = await exp({ payee: `${TAG} Late Vendor`, amount: 75, paid: false });
     const re = await call('GET', `/campaigns/${c.id}`, M);
