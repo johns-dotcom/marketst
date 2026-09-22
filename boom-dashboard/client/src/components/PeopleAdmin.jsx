@@ -8,6 +8,7 @@ import { Link } from 'react-router-dom'
 import { roleById } from '../lib/roles'
 import { Plus, Pencil, Trash2, X, Loader, Check, ChevronRight, ChevronDown, Search, AlertTriangle } from 'lucide-react'
 import api from '../api'
+import { SidebarEditor } from './NavEditors'
 import { NAV_PAGES } from '../navConfig'
 import { PRESETS, DEPARTMENTS, DEPARTMENT_LEVEL, presetsForDepartment, unionPaths, addPaths } from '../lib/navPresets'
 import { useBoomReps, useBoomRepsContext } from '../context/BoomRepsContext'
@@ -669,6 +670,7 @@ export function AccessEditor({ person, currentUserRole, onSaved }) {
         ))}
       </div>
       {error && <p className="text-xs text-rose-600 mt-2">{error}</p>}
+      <SidebarEditor person={person} currentUserRole={currentUserRole} />
     </div>
   )
 }

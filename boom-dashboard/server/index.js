@@ -1577,7 +1577,12 @@ await pool.query(`ALTER TABLE expenses ADD COLUMN IF NOT EXISTS ai_scan JSONB`).
     )`).catch(err => console.error('user_invites migration failed:', err.message));
 
   // My settings (2026-09-19): profile fields and notification preferences.
-  for (const col of [`title TEXT`, `phone TEXT`, `notification_prefs JSONB`, `tours_done JSONB`]) {
+  // nav_hidden (2026-09-22): the person's sidebar — pages they (or a Superadmin, on
+  // their behalf) took off the rail. Lived in localStorage before, so nobody could set it for anyone else.
+  await pool.query(`CREATE TABLE IF NOT EXISTS department_navs (
+    department TEXT PRIMARY KEY, pages JSONB NOT NULL DEFAULT '[]'::jsonb, hidden JSONB NOT NULL DEFAULT '[]'::jsonb,
+    updated_by INTEGER REFERENCES users(id) ON DELETE SET NULL, updated_at TIMESTAMPTZ DEFAULT NOW())`).catch(err => console.error('department_navs CREATE TABLE failed:', err.message));
+  for (const col of [`title TEXT`, `phone TEXT`, `notification_prefs JSONB`, `tours_done JSONB`, `nav_hidden JSONB`]) {
     await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS ${col}`)
       .catch(err => console.error(`users.${col.split(' ')[0]} migration failed:`, err.message));
   }

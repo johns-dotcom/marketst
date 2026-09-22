@@ -71,7 +71,7 @@ async function main() {
   }
   assert('the rail has two groups: My settings and Label settings', sections.join(',') === 'My settings,Label settings')
   assert('the rail is a single left column, not stacked strips', !!host.querySelector('[data-settings-shell] aside') && host.querySelectorAll('[data-settings-shell] nav').length === 2)
-  assert('the label group has People, Label, Integrations, Activity, Admin docs, Sandbox, Archive', ['people', 'label', 'integrations', 'activity', 'admin', 'sandbox', 'archive'].every((t) => tabs.includes(t)))
+  assert('the label group has People, Label, Integrations, Activity, Admin docs, Sandbox, Archive, Navs', ['people', 'label', 'integrations', 'activity', 'admin', 'sandbox', 'archive', 'navs'].every((t) => tabs.includes(t)))
   assert('People and Activity are links to their own pages (paths unchanged)', host.querySelector('[data-tab="people"]')?.getAttribute('href') === '/team' && host.querySelector('[data-tab="activity"]')?.getAttribute('href') === '/activity')
   assert('Sandbox opens in a new window', host.querySelector('[data-tab="sandbox"]')?.getAttribute('href') === '/admin/vendor-lab' && host.querySelector('[data-tab="sandbox"]')?.getAttribute('target') === '_blank')
   assert('no Users or Permissions tab remains', !tabs.includes('users') && !tabs.includes('permissions'))
@@ -120,6 +120,26 @@ async function main() {
   assert('the QuickBooks and DocuSign cards render (unconnected, with the label signer line)', !!it?.querySelector('[data-quickbooks-card][data-connected="0"]') && !!it?.querySelector('[data-docusign-card][data-connected="0"]') && /no email yet/.test(it?.querySelector('[data-ds-signer]')?.textContent || ''))
   assert('integrations list status, what each powers, and a detail', it?.querySelector('[data-integration="gmail"]')?.getAttribute('data-configured') === '0' && it?.querySelector('[data-integration="storage"]')?.getAttribute('data-configured') === '1' && /bucket ms-files/.test(textOf(it)))
   assert('no key is rendered anywhere', !/[A-Za-z0-9]{32,}/.test(textOf(it)))
+  // ── My Nav saves to the ACCOUNT ──
+  click(host.querySelector('[data-tab="mynav"]')); await sleep(200)
+  const mn = host.querySelector('[data-mynav]')
+  assert('My Nav renders the shared grid over the pages this person can open', !!mn && mn.querySelectorAll('[data-nav-page]').length > 5)
+  click(mn.querySelector('[data-nav-page="/calendar"] [data-nav-show]')); await sleep(150)
+  assert('unticking a page PUTs nav_hidden to /settings/me (not localStorage alone)', calls.put.some((c) => c.url === '/settings/me' && JSON.stringify(c.body.nav_hidden) === '["/calendar"]'))
+  // ── Navs (Superadmin): a department's nav IS its page list ──
+  click(host.querySelector('[data-tab="navs"]')); await sleep(250)
+  const dn = host.querySelector('[data-department-navs]')
+  const chip = (d) => [...dn.querySelectorAll('[data-dept]')].find((b) => b.getAttribute('data-dept') === d)   // an & in a CSS attribute selector trips jsdom
+  assert('the Navs tab lists the departments, marking which are saved', !!dn && chip('Marketing')?.getAttribute('data-saved') === '1' && chip('A&R')?.getAttribute('data-saved') === '0')
+  click(chip('Marketing')); await sleep(200)
+  assert('the saved Marketing nav loads: /campaigns granted and shown, /messages granted but off the sidebar, /deals not in the nav', dn.querySelector('[data-nav-page="/campaigns"]')?.getAttribute('data-granted') === '1' && dn.querySelector('[data-nav-page="/campaigns"]')?.getAttribute('data-shown') === '1' && dn.querySelector('[data-nav-page="/messages"]')?.getAttribute('data-shown') === '0' && dn.querySelector('[data-nav-page="/deals"]')?.getAttribute('data-granted') === '0')
+  assert('members are listed, with who customised their own sidebar', /Rosa Lind · own sidebar/.test(textOf(dn.querySelector('[data-navs-members]'))) && /Dev Patel/.test(textOf(dn.querySelector('[data-navs-members]'))) && !!dn.querySelector('[data-navs-force]'))
+  click(dn.querySelector('[data-nav-page="/deals"] [data-nav-grant]')); await sleep(100)
+  click(dn.querySelector('[data-navs-save]')); await sleep(300)
+  const navPut = calls.put.find((c) => /\/settings\/department-navs\/Marketing/.test(c.url))
+  assert('Save PUTs the page list with /deals added, hidden kept, apply on — and reports what happened', !!navPut && navPut.body.pages.includes('/deals') && navPut.body.hidden.includes('/messages') && navPut.body.apply === true && /applied to 1 member/.test(textOf(dn.querySelector('[data-navs-note]'))) && /1 kept their own sidebar/.test(textOf(dn.querySelector('[data-navs-note]'))))
+  click(chip('A&R')); await sleep(200)
+  assert('an unsaved department starts from its code preset (A&R has /artists, not /bk/approvals)', dn.querySelector('[data-nav-page="/artists"]')?.getAttribute('data-granted') === '1' && dn.querySelector('[data-nav-page="/bk/approvals"]')?.getAttribute('data-granted') === '0')
   assert('nothing threw', errors.length === 0)
   if (errors.length) say('  ' + errors.join('\n  '))
   say('DONE'); globalThis.__DONE__ = true

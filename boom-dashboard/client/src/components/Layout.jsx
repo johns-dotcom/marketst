@@ -510,11 +510,23 @@ function LayoutInner() {
     }
   }, [isMobile, sidebarOpen])
   // User's personal nav preferences — hide pages they don't want to see
+  // Stored on the ACCOUNT (users.nav_hidden) since 2026-09-22, so a Superadmin can
+  // set it for someone else and it follows the person across devices. localStorage
+  // is a cache for the first paint and the migration source for accounts that
+  // never saved to the server.
   const [hiddenNavPages, setHiddenNavPages] = useState(() => {
     try {
       return JSON.parse(localStorage.getItem('nav_hidden_pages') || '[]')
     } catch { return [] }
   })
+  useEffect(() => {
+    if (!user) return
+    if (Array.isArray(user.nav_hidden)) { setHiddenNavPages(user.nav_hidden); try { localStorage.setItem('nav_hidden_pages', JSON.stringify(user.nav_hidden)) } catch { /* private mode */ } }
+    else if (user.nav_hidden === null || user.nav_hidden === undefined) {
+      let local = []; try { local = JSON.parse(localStorage.getItem('nav_hidden_pages') || '[]') } catch { local = [] }
+      if (Array.isArray(local) && local.length) api.put('/settings/me', { nav_hidden: local }).catch(() => {})
+    }
+  }, [user?.id, JSON.stringify(user?.nav_hidden || null)]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Re-read when navigating (Settings page writes to localStorage)
   useEffect(() => {

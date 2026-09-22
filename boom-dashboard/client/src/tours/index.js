@@ -104,10 +104,11 @@ const PAGE_TOURS = [
     ],
   },
   {
-    id: 'settings', title: 'Settings', path: '/settings', version: '2026-09-20',
+    id: 'settings', title: 'Settings', path: '/settings', version: '2026-09-22',
     steps: [
       { target: '[data-settings-shell] aside', title: 'Two halves', body: "My settings is yours: profile, sign-in, notifications, your own mailbox, theme, sidebar. Label settings is the label's: people, the label record, integrations, roles, activity, admin docs, archive — admins only. Roles explains what a Superadmin, Admin, Approver and User can each do." },
       { target: '[data-settings-content]', title: 'The page', body: 'Each rail item is its own page here. My Nav hides sidebar pages you never use; Notifications chooses which events email you; My mailbox connects your own address.' },
+      { target: '[data-settings-shell] aside a[href*="tab=navs"], [data-tour="settings-label-group"], [data-settings-shell] aside', title: 'Navs (Superadmin)', body: 'What each department sees. In nav grants a page to the group; the green tick keeps it on their sidebar. Save with Apply and every User and Approver in the department gets exactly that list; people who customised their own sidebar keep it unless you force it.', roles: ['Superadmin'] },
       { target: '[data-tour="settings-label-group"], [data-settings-shell] aside', title: 'Label settings', body: 'Label is what prints on invoices and documents. Integrations connects mail, QuickBooks and DocuSign. Roles is the reference for who can do what.', roles: ['Admin', 'Superadmin'] },
     ],
   },
@@ -488,10 +489,11 @@ const WELCOME = {
 const V_DETAIL = '2026-09-21'
 export const DETAIL_TOURS = [
   {
-    id: 'team-member', title: "A person's page", path: '/team', match: /^\/team\/\d+/, sample: '/team/1', version: V_DETAIL,
+    id: 'team-member', title: "A person's page", path: '/team', match: /^\/team\/\d+/, sample: '/team/1', version: '2026-09-22',
     steps: [
       { target: '[data-tour="person-page"]', title: 'One person', body: 'Their open tasks, what they are assigned on, and their activity. Admins see an Access tab: presets, page grants, view-as, force sign-out.' },
       { target: '[data-tour="person-page"] table, [data-tour="person-page"] ul, [data-tour="person-page"]', title: 'Tasks', body: 'Everything assigned to them. Add one from here and it lands in their My Work; reassigning moves it.' },
+      { target: '[data-sidebar-editor], [data-access-editor], [data-tour="person-page"]', title: 'Their sidebar', body: 'Under Access: which of their granted pages the rail draws. Set it for them, or take the department nav\'s sidebar in one click.', roles: ['Admin', 'Superadmin'] },
     ],
   },
   {

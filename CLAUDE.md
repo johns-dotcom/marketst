@@ -1043,6 +1043,41 @@ Authoritative project guide: **`boom-dashboard/CLAUDE.md`** — read it before m
   per-campaign currency other than USD on the budget bar (usdOf converts),
   auto-suggesting which invoice fulfils a line (the menu lists this song's
   unlinked invoices; the person picks).
+- **Superadmin controls sidebars and department navs (2026-09-22, John: "i
+  want superadmin to be able to control other users and user group navs" —
+  his calls: edit another person's sidebar layout · department navs stored in
+  the database · the group nav IS the page list).** **My Nav moved to the
+  ACCOUNT**: `users.nav_hidden JSONB` (array of paths), written by `PUT
+  /settings/me { nav_hidden }`, carried by `/auth/me` and `/settings/me`;
+  Layout paints from `user.nav_hidden`, keeps localStorage
+  (`nav_hidden_pages`) as the first-paint cache, and migrates a browser-only
+  list to the server once when the account has none. **Another person's
+  sidebar**: `GET/PUT /settings/users/:id/nav` (adminOnly; an Admin's own
+  sidebar is Superadmin-only), rendered as `SidebarEditor` under the Access
+  grid on `/team/:id` — which of THEIR granted pages the rail draws, "Use the
+  <department> nav", "Show all" (null). **Department navs**: table
+  `department_navs (department PK, pages, hidden, updated_by)`;
+  `GET /settings/department-navs` (adminOnly: rows + members per department
+  with `customised` = nav_hidden set), `PUT /settings/department-navs/:dept`
+  (Superadmin; `hidden` trimmed to pages in the nav; `apply: true` rewrites
+  every User/Approver member's `user_page_permissions` to exactly `pages` and
+  sets `nav_hidden` for members who never customised — `apply: 'force'`
+  overrides those too; Admins and Superadmins are NEVER touched, their rows
+  bind), DELETE. **`POST /settings/users` prefers the department nav** over
+  the client's preset union for a new User/Approver (pages + starting
+  sidebar; `pages_from_department_nav` in the response); a new Admin is not
+  bound. Settings › Label settings › **Navs** (`?tab=navs`, Superadmin;
+  `DepartmentNavsTab` in `components/NavEditors.jsx`): department chips (· =
+  not saved, shows the code preset from navPresets), the shared `NavGrid`
+  with an "in nav" (grant) box and a green "shown" tick per page, members
+  with who customised, Save with "Apply to N members now", and a force link.
+  Presets in `lib/navPresets.js` stay as the STARTING point and the fallback
+  for unsaved departments. Harnesses: `server/scripts/nav-control-fixture.cjs`
+  (20), settings-dom grew My Nav (PUT to the account) and the Navs walk;
+  tours `settings` (a Superadmin-only Navs step) and `team-member` bumped;
+  roles.js gained the line. Not done: reordering (the sidebar order is the
+  nav's), a lock that stops a person changing their own sidebar, named
+  groups beyond departments.
 - **Bank-statement heuristics were tuned on Boom's Bank of America statements.** The own-name lists (`statements.js` stop-words, `funding-pairs.js` account-trailer strip) now say Market Street, but the layout parsers have not seen a Market Street statement yet. Expect the AI fallback to do the work until they do.
 
 ## Commands (run from `boom-dashboard/`)

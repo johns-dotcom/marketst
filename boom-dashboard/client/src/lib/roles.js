@@ -11,6 +11,7 @@ export const ROLES = [
     can: [
       'Create, edit, remove and sign out Admin and Superadmin accounts, and grant any role',
       'Set page access for Admins',
+      'Edit any person\'s sidebar, and each department\'s nav — the page list a group gets (Settings › Navs)',
       'Write the label\'s EIN and bank account number (Settings › Label); everyone else sees them masked',
       'View the app as another person (View as), and send from anyone\'s personal mailbox',
       'Read, create and edit Restricted admin documents',

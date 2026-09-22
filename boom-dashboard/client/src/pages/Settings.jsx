@@ -12,6 +12,7 @@ import { useAuth } from '../context/AuthContext'
 import { useTheme } from '../context/ThemeContext'
 import PageHeader from '../components/PageHeader'
 import useHotkeys from '../hooks/useHotkeys'
+import { NavGrid, DepartmentNavsTab } from '../components/NavEditors'
 
 // Groupings mirror the sidebar nav (Layout.jsx) so what an admin sees in
 // Permissions / My Nav lines up with the structure they navigate every day.
@@ -160,84 +161,39 @@ function NotificationsTab() {
 // ─── My Nav Tab ──────────────────────────────────────────────────────────────
 
 function MyNavTab() {
-  const { canView } = useAuth()
+  const { user, canView, refreshUser } = useAuth()
+  // On the ACCOUNT since 2026-09-22 (users.nav_hidden) — a Superadmin can set it
+  // for you, and it follows you across devices. localStorage is the cache the
+  // sidebar paints from before /auth/me answers.
   const [hiddenPages, setHiddenPages] = useState(() => {
+    if (Array.isArray(user?.nav_hidden)) return user.nav_hidden
     try { return JSON.parse(localStorage.getItem('nav_hidden_pages') || '[]') } catch { return [] }
   })
-
-  const togglePage = (path) => {
-    setHiddenPages(prev => {
-      const next = prev.includes(path) ? prev.filter(p => p !== path) : [...prev, path]
-      localStorage.setItem('nav_hidden_pages', JSON.stringify(next))
-      return next
-    })
+  const [note, setNote] = useState('')
+  const write = async (next) => {
+    setHiddenPages(next)
+    try { localStorage.setItem('nav_hidden_pages', JSON.stringify(next)) } catch { /* private mode */ }
+    try { await api.put('/settings/me', { nav_hidden: next }); refreshUser && refreshUser(); setNote('Saved') } catch (e) { setNote(e?.response?.data?.error || 'Could not save') }
+    setTimeout(() => setNote(''), 2000)
   }
-  const resetAll = () => {
-    setHiddenPages([])
-    localStorage.setItem('nav_hidden_pages', '[]')
-  }
-
-  // Only pages the sidebar actually DRAWS for this person: hidden pages
-  // (Financials, People, Activity, Sandbox…) are reached from elsewhere, so
-  // offering to hide them here would be a switch wired to nothing. A tabbed
-  // family's children are listed under the family's name (Releases › Pipeline)
-  // so it is clear that unticking every child removes the family row.
-  const familyOf = {}
-  for (const g of NAV_GROUPS) for (const i of g.items) if (i.tabbed) for (const c of i.children) familyOf[c.path] = i.label
+  const togglePage = (path) => write(hiddenPages.includes(path) ? hiddenPages.filter((p) => p !== path) : [...hiddenPages, path])
+  const resetAll = () => write([])
   const drawn = ALL_PAGES.filter(p => !p.hidden && canView(p.path))
-  const groups = {}
-  drawn.forEach(p => {
-    if (!groups[p.group]) groups[p.group] = []
-    groups[p.group].push(p)
-  })
-
   const visibleCount = drawn.filter(p => !hiddenPages.includes(p.path)).length
-  const totalCount = drawn.length
-
   return (
-    <div>
+    <div data-mynav>
       <div className="flex items-center justify-between mb-5">
         <div>
-          <p className="text-sm text-gray-500">{visibleCount} of {totalCount} pages shown in your nav.</p>
-          <p className="text-[11px] text-gray-400 mt-0.5">Untick a page to take it off your sidebar. Pages reached from Settings or from other pages are not listed; they stay reachable.</p>
+          <p className="text-sm text-gray-500">{visibleCount} of {drawn.length} pages shown in your nav.</p>
+          <p className="text-[11px] text-gray-400 mt-0.5">Untick a page to take it off your sidebar. Pages reached from Settings or from other pages are not listed; they stay reachable. Saved to your account.{note ? ` ${note}.` : ''}</p>
         </div>
         {hiddenPages.length > 0 && (
-          <button onClick={resetAll} className="text-xs font-semibold text-boom-600 hover:text-boom-700 px-3 py-1.5 rounded-lg border border-boom-200 hover:bg-boom-50 transition-colors">
+          <button onClick={resetAll} className="text-xs font-semibold text-boom-600 hover:text-boom-700 px-3 py-1.5 rounded-lg border border-boom-200 hover:bg-boom-50 transition-colors" data-mynav-showall>
             Show all
           </button>
         )}
       </div>
-
-      <div className="space-y-6">
-        {Object.entries(groups).map(([groupName, pages]) => (
-          <div key={groupName}>
-            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">{groupName}</p>
-            <div className="grid grid-cols-2 gap-2">
-              {pages.map(page => {
-                const checked = !hiddenPages.includes(page.path)
-                return (
-                  <label
-                    key={page.path}
-                    className={`flex items-center gap-3 px-4 py-3 rounded-xl border cursor-pointer transition-all ${
-                      checked
-                        ? 'border-boom-200 bg-boom-50/50 text-boom-800'
-                        : 'border-rule bg-card text-gray-400 hover:border-gray-300'
-                    }`}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={checked}
-                      onChange={() => togglePage(page.path)}
-                      style={{ accentColor: '#334155', width: 16, height: 16 }}
-                    />
-                    <span className={`text-sm font-medium ${checked ? 'text-boom-700' : 'text-gray-400'}`}>{familyOf[page.path] ? <><span className="text-gray-400 font-normal">{familyOf[page.path]} › </span>{page.label}</> : page.label}</span>
-                  </label>
-                )
-              })}
-            </div>
-          </div>
-        ))}
-      </div>
+      <NavGrid pages={drawn} granted={null} hidden={new Set(hiddenPages)} onShow={togglePage} testId="mynav" />
     </div>
   )
 }
@@ -432,6 +388,7 @@ const TAB_META = {
   label:         ['Label', 'What prints on invoices, NDAs and waivers.'],
   integrations:  ['Integrations', 'What is connected, and what each one powers.'],
   roles:         ['Roles', 'What each role can do — and what only a Superadmin can.'],
+  navs:          ['Navs', 'What each department sees: the pages a group gets, and which stay off the sidebar.'],
   archive:       ['Archive', 'Archived releases and artists.'],
 }
 export default function Settings() {
@@ -440,7 +397,7 @@ export default function Settings() {
   const isAdmin = currentUserRole === 'Admin' || currentUserRole === 'Superadmin'
   const [searchParams] = useSearchParams()
   const wanted = searchParams.get('tab') || 'profile'
-  const allowed = new Set(['profile', 'signin', 'notifications', 'mailbox', 'theme', 'mynav', ...(isAdmin ? ['label', 'integrations', 'roles'] : []), ...(currentUserRole === 'Superadmin' ? ['archive'] : [])])
+  const allowed = new Set(['profile', 'signin', 'notifications', 'mailbox', 'theme', 'mynav', ...(isAdmin ? ['label', 'integrations', 'roles'] : []), ...(currentUserRole === 'Superadmin' ? ['archive', 'navs'] : [])])
   const tab = allowed.has(wanted) ? wanted : 'profile'
   const [title, subtitle] = TAB_META[tab]
   return (
@@ -459,6 +416,7 @@ export default function Settings() {
       {tab === 'roles'         && isAdmin && <RolesTab />}
       {tab === 'integrations'  && isAdmin && <IntegrationsTab />}
       {tab === 'archive'       && currentUserRole === 'Superadmin' && <ArchiveTab />}
+      {tab === 'navs'          && currentUserRole === 'Superadmin' && <DepartmentNavsTab />}
     </div>
   )
 }

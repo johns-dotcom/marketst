@@ -3,6 +3,7 @@ const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 const pool = require('../db');
 const authMiddleware = require('../middleware/auth');
+const { logSecurityEvent } = require('../middleware/securityAudit');
 const { sendWelcomeEmail } = require('../services/email');
 const { prepareEmail: prepareEmailPayload } = require('../services/emailDispatch');
 const { clearForeignKeyRefs } = require('../lib/fkSweep');
@@ -107,9 +108,18 @@ router.post('/users', adminOnly, async (req, res) => {
     //
     // Best-effort: a failure here must not lose the account that was just
     // created — the admin can still open the matrix and set them by hand.
-    if (Array.isArray(req.body?.pages) && req.body.pages.length) {
+    // A department nav saved in Settings › Navs IS the page list for a new User or
+    // Approver in that department — it wins over the client's preset union, and
+    // its `hidden` becomes their starting sidebar.
+    let deptNav = null;
+    if (!isAdminOrSuperadmin(newUser.role)) {
+      const { rows: [dn] } = await pool.query('SELECT pages, hidden FROM department_navs WHERE department = $1', [newUser.department]).catch(() => ({ rows: [] }));
+      if (dn && Array.isArray(dn.pages) && dn.pages.length) { deptNav = dn; await pool.query('UPDATE users SET nav_hidden = $2::jsonb WHERE id = $1', [newUser.id, JSON.stringify(dn.hidden || [])]).catch(() => {}); }
+    }
+    const startingPages = deptNav ? deptNav.pages : req.body?.pages;
+    if (Array.isArray(startingPages) && startingPages.length) {
       try {
-        const clean = [...new Set(req.body.pages
+        const clean = [...new Set(startingPages
           .map((p) => String(p || '').trim())
           .filter((p) => p.startsWith('/') && p.length <= 120))];
         for (const page of clean) {
@@ -119,6 +129,7 @@ router.post('/users', adminOnly, async (req, res) => {
           );
         }
         newUser.pages_granted = clean.length;
+        newUser.pages_from_department_nav = !!deptNav;
       } catch (err) {
         console.error('preset page grant failed for new user', newUser.id, err.message);
         newUser.pages_granted = 0;
@@ -486,7 +497,7 @@ const NOTIFY_KEYS = ['approvals_waiting', 'payments_due', 'tasks_assigned', 'ren
 router.get('/me', authMiddleware, async (req, res) => {
   try {
     const { rows: [u] } = await pool.query(
-      'SELECT id, name, email, role, department, title, phone, notification_prefs, tours_done, created_at FROM users WHERE id = $1', [req.user.id]);
+      'SELECT id, name, email, role, department, title, phone, notification_prefs, tours_done, nav_hidden, created_at FROM users WHERE id = $1', [req.user.id]);
     if (!u) return res.status(404).json({ success: false, error: 'User not found' });
     res.json({ success: true, data: u });
   } catch (err) { console.error('settings/me error:', err); res.status(500).json({ success: false, error: 'Internal server error' }); }
@@ -498,13 +509,17 @@ router.put('/me', authMiddleware, async (req, res) => {
     const str = (v) => (v === undefined ? undefined : (v === null ? null : (String(v).trim() || null)));
     const name = str(b.name);
     if (name === null) return res.status(400).json({ success: false, error: 'Name cannot be empty' });
+    // My Nav: the pages this person took off their own sidebar (an array of paths).
+    const navHidden = b.nav_hidden === undefined ? undefined : cleanPaths(b.nav_hidden);
+    if (b.nav_hidden !== undefined && navHidden === null) return res.status(400).json({ success: false, error: 'nav_hidden must be an array of page paths' });
     const { rows: [u] } = await pool.query(
       `UPDATE users SET
          name  = COALESCE($2, name),
          title = CASE WHEN $3::boolean THEN $4 ELSE title END,
-         phone = CASE WHEN $5::boolean THEN $6 ELSE phone END
-       WHERE id = $1 RETURNING id, name, email, role, department, title, phone, notification_prefs`,
-      [req.user.id, name ?? null, b.title !== undefined, str(b.title) ?? null, b.phone !== undefined, str(b.phone) ?? null]);
+         phone = CASE WHEN $5::boolean THEN $6 ELSE phone END,
+         nav_hidden = CASE WHEN $7::boolean THEN $8::jsonb ELSE nav_hidden END
+       WHERE id = $1 RETURNING id, name, email, role, department, title, phone, notification_prefs, nav_hidden`,
+      [req.user.id, name ?? null, b.title !== undefined, str(b.title) ?? null, b.phone !== undefined, str(b.phone) ?? null, navHidden !== undefined, navHidden === undefined ? null : JSON.stringify(navHidden)]);
     res.json({ success: true, data: u });
   } catch (err) { console.error('settings/me update error:', err); res.status(500).json({ success: false, error: 'Internal server error' }); }
 });
@@ -560,6 +575,87 @@ router.delete('/me/tours', authMiddleware, async (req, res) => {
 // last sign-in and open-task count. Presets are a CLIENT vocabulary
 // (lib/navPresets.js), so the rows are returned raw and the client names
 // which presets they add up to.
+// An array of page paths, deduped, or null when the body is not one.
+const cleanPaths = (v) => (Array.isArray(v) ? [...new Set(v.map((p) => String(p || '').trim()).filter((p) => p.startsWith('/') && p.length <= 120))] : null);
+const canTouch = (actor, target) => isSuperadmin(actor.role) || !isAdminOrSuperadmin(target.role);
+
+// ── Another person's sidebar (2026-09-22, John: "superadmin to be able to control
+//    other users … navs"). The same column My Nav writes, set on their behalf.
+router.get('/users/:id/nav', adminOnly, async (req, res) => {
+  try {
+    const { rows: [u] } = await pool.query('SELECT id, role, department, nav_hidden FROM users WHERE id = $1', [req.params.id]);
+    if (!u) return res.status(404).json({ success: false, error: 'User not found' });
+    const { rows: pages } = await pool.query('SELECT page FROM user_page_permissions WHERE user_id = $1 ORDER BY page', [u.id]);
+    const { rows: [dn] } = await pool.query('SELECT * FROM department_navs WHERE department = $1', [u.department]).catch(() => ({ rows: [] }));
+    res.json({ success: true, data: { hidden: u.nav_hidden || null, pages: pages.map((r) => r.page), department: u.department, department_nav: dn || null } });
+  } catch (err) { console.error('user nav read:', err); res.status(500).json({ success: false, error: 'Internal server error' }); }
+});
+router.put('/users/:id/nav', adminOnly, async (req, res) => {
+  try {
+    const { rows: [u] } = await pool.query('SELECT id, role FROM users WHERE id = $1', [req.params.id]);
+    if (!u) return res.status(404).json({ success: false, error: 'User not found' });
+    if (!canTouch(req.user, u)) return res.status(403).json({ success: false, error: "Only a Superadmin edits an Admin's sidebar" });
+    const hidden = req.body?.hidden === null ? null : cleanPaths(req.body?.hidden);
+    if (hidden === undefined || (hidden === null && req.body?.hidden !== null)) return res.status(400).json({ success: false, error: 'hidden must be an array of page paths, or null to clear' });
+    const { rows: [out] } = await pool.query('UPDATE users SET nav_hidden = $2::jsonb WHERE id = $1 RETURNING id, nav_hidden', [u.id, hidden === null ? null : JSON.stringify(hidden)]);
+    logSecurityEvent({ event_type: 'nav_changed', severity: 'info', user_id: req.user.id, user_name: req.user.name, ip: req.ip, user_agent: req.get('user-agent'), endpoint: req.originalUrl, details: `set sidebar for user ${u.id}: ${hidden ? `${hidden.length} hidden` : 'cleared'}` }).catch(() => {});
+    res.json({ success: true, data: { hidden: out.nav_hidden } });
+  } catch (err) { console.error('user nav write:', err); res.status(500).json({ success: false, error: 'Internal server error' }); }
+});
+
+// ── Department navs: what a GROUP sees. The nav IS the page list (John's call):
+//    pages in it are granted to members, pages not in it are not; `hidden` are
+//    granted pages kept off the sidebar. Saving with apply=true rewrites every
+//    User/Approver member's page rows and gives the group's sidebar to members
+//    who never customised theirs (apply='force' overrides customised ones too).
+//    Admins are never touched: their rows bind only once curated by a Superadmin.
+router.get('/department-navs', adminOnly, async (req, res) => {
+  try {
+    const { rows: navs } = await pool.query('SELECT n.*, u.name AS updated_by_name FROM department_navs n LEFT JOIN users u ON u.id = n.updated_by ORDER BY department').catch(() => ({ rows: [] }));
+    const { rows: members } = await pool.query(`SELECT id, name, role, department, (nav_hidden IS NOT NULL) AS customised FROM users WHERE department IS NOT NULL ORDER BY name`);
+    const byDept = {};
+    for (const m of members) { (byDept[m.department] = byDept[m.department] || []).push(m); }
+    res.json({ success: true, data: { navs, members: byDept } });
+  } catch (err) { console.error('department navs read:', err); res.status(500).json({ success: false, error: 'Internal server error' }); }
+});
+router.put('/department-navs/:department', adminOnly, async (req, res) => {
+  try {
+    if (!isSuperadmin(req.user.role)) return res.status(403).json({ success: false, error: 'Only a Superadmin edits a department nav' });
+    const department = String(req.params.department || '').trim();
+    if (!department || department.length > 60) return res.status(400).json({ success: false, error: 'department required' });
+    const pages = cleanPaths(req.body?.pages); const hidden = cleanPaths(req.body?.hidden ?? []);
+    if (!pages || !hidden) return res.status(400).json({ success: false, error: 'pages and hidden must be arrays of page paths' });
+    const hiddenIn = hidden.filter((h) => pages.includes(h));
+    await pool.query(
+      `INSERT INTO department_navs (department, pages, hidden, updated_by, updated_at) VALUES ($1, $2::jsonb, $3::jsonb, $4, NOW())
+       ON CONFLICT (department) DO UPDATE SET pages = EXCLUDED.pages, hidden = EXCLUDED.hidden, updated_by = EXCLUDED.updated_by, updated_at = NOW()`,
+      [department, JSON.stringify(pages), JSON.stringify(hiddenIn), req.user.id]);
+    const apply = req.body?.apply === true || req.body?.apply === 'force';
+    const result = { applied: 0, sidebar_set: 0, customised_kept: 0, admins_untouched: 0 };
+    if (apply) {
+      const { rows: members } = await pool.query(`SELECT id, role, nav_hidden FROM users WHERE department = $1`, [department]);
+      for (const m of members) {
+        if (isAdminOrSuperadmin(m.role)) { result.admins_untouched += 1; continue; }
+        await pool.query('DELETE FROM user_page_permissions WHERE user_id = $1', [m.id]);
+        for (const page of pages) await pool.query('INSERT INTO user_page_permissions (user_id, page) VALUES ($1, $2) ON CONFLICT DO NOTHING', [m.id, page]);
+        result.applied += 1;
+        if (m.nav_hidden === null || req.body.apply === 'force') { await pool.query('UPDATE users SET nav_hidden = $2::jsonb WHERE id = $1', [m.id, JSON.stringify(hiddenIn)]); result.sidebar_set += 1; }
+        else result.customised_kept += 1;
+      }
+    }
+    logSecurityEvent({ event_type: 'department_nav_changed', severity: 'warning', user_id: req.user.id, user_name: req.user.name, ip: req.ip, user_agent: req.get('user-agent'), endpoint: req.originalUrl, details: `${department}: ${pages.length} pages, ${hiddenIn.length} hidden${apply ? `, applied to ${result.applied}` : ''}` }).catch(() => {});
+    const { rows: [saved] } = await pool.query('SELECT * FROM department_navs WHERE department = $1', [department]);
+    res.json({ success: true, data: saved, ...result });
+  } catch (err) { console.error('department nav write:', err); res.status(500).json({ success: false, error: 'Internal server error' }); }
+});
+router.delete('/department-navs/:department', adminOnly, async (req, res) => {
+  try {
+    if (!isSuperadmin(req.user.role)) return res.status(403).json({ success: false, error: 'Only a Superadmin edits a department nav' });
+    await pool.query('DELETE FROM department_navs WHERE department = $1', [String(req.params.department || '').trim()]);
+    res.json({ success: true });
+  } catch (err) { console.error('department nav delete:', err); res.status(500).json({ success: false, error: 'Internal server error' }); }
+});
+
 router.get('/people', adminOnly, async (req, res) => {
   try {
     const { rows: users } = await pool.query(

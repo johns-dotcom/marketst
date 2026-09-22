@@ -371,6 +371,16 @@ artist-spend family, NAV_PAGES 50), Marketing preset, tours, shortcuts,
 `campaigns-dom`. Nothing label-shaped; Boom's Campaigns page is the read-only
 settled/committed view this sits beside.
 
+## 28. Superadmin controls sidebars and department navs — PORT
+
+`users.nav_hidden` + `department_navs` (index.js), `routes/settings.js`
+(`/me` nav_hidden, `/users/:id/nav`, `/department-navs`, POST /users seeding),
+`routes/auth.js` (/me carries nav_hidden), `components/NavEditors.jsx`
+(`NavGrid`, `SidebarEditor`, `DepartmentNavsTab`), Settings My Nav → account,
+Navs tab + rail entry, PeopleAdmin's Access tab, Layout, roles.js, tours,
+`nav-control-fixture.cjs`. Nothing label-shaped; Boom's My Nav is still
+localStorage, so port the migration too.
+
 ## Suggested order for Cadence
 
 1. Sections 3, 4, 7 (sidebar, presets, Settings) — they define the shape
