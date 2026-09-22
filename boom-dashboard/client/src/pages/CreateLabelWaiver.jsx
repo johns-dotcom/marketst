@@ -6,7 +6,7 @@ import Skeleton from '../components/Skeleton'
 import useLabel from '../hooks/useLabel'
 import { SendForSignatureButton, useEnvelopes } from '../components/SendForSignature'
 
-// Market Street defaults — pre-fill the standing values so most waivers
+// market.st defaults — pre-fill the standing values so most waivers
 // only require the deal-specific fields (artist names, song, label,
 // release date, royalty %). The COO defaults match the template's
 // signature block; override per-document if needed.
@@ -42,7 +42,7 @@ function formatLongDate(s) {
 // it. Section headers (LABEL WAIVER REQUEST + the signature block) are
 // rendered specially in the preview / PDF — getHeadingLevel decides.
 function buildBodyText(form) {
-  const boomArtist = (form.boom_artist || 'MARKET STREET ARTIST').trim()
+  const boomArtist = (form.boom_artist || 'MARKET.ST ARTIST').trim()
   const label = (form.releasing_label || 'RELEASING LABEL').trim()
   const otherArtist = (form.other_label_artist || 'OTHER LABEL ARTIST').trim()
   const song = (form.song_title || 'SONG').trim()
@@ -54,16 +54,16 @@ function buildBodyText(form) {
   const sigTitle = (form.signatory_title || BOOM_DEFAULTS.signatory_title).trim()
 
   const paragraphs = [
-    `This correspondence shall confirm that Market Street agrees to waive its exclusivity in relation to "${boomArtist}" ("Co-Primary artist") performance on "${label}" ("Label") & "${otherArtist}" ("Artist") recording entitled "${song}" (the "Master"). Market Street has no objection to the release of the recording on one (1) ${format} on ${releaseDate} provided that you agree and accept the following terms.`,
-    `• "${label}" shall account to Market Street for ${royalty}% royalties due half-yearly within 90 days of 30th June and 31st December in each year following the release of the Master and shall provide Market Street with detailed statements and calculations. Copies of statements shall be sent to ${contact}.`,
-    `• Upon giving not less than four weeks prior notice and no more than once in each calendar year Market Street shall be entitled to inspect ${label}'s books and records of account and to copy relevant extracts to verify the accuracy of payments made to Market Street. Such inspection may be commenced no later than three years after the date of each statement.`,
-    `• A courtesy credit shall be provided as follows "${boomArtist} appears courtesy of Market Street."`,
+    `This correspondence shall confirm that market.st agrees to waive its exclusivity in relation to "${boomArtist}" ("Co-Primary artist") performance on "${label}" ("Label") & "${otherArtist}" ("Artist") recording entitled "${song}" (the "Master"). market.st has no objection to the release of the recording on one (1) ${format} on ${releaseDate} provided that you agree and accept the following terms.`,
+    `• "${label}" shall account to market.st for ${royalty}% royalties due half-yearly within 90 days of 30th June and 31st December in each year following the release of the Master and shall provide market.st with detailed statements and calculations. Copies of statements shall be sent to ${contact}.`,
+    `• Upon giving not less than four weeks prior notice and no more than once in each calendar year market.st shall be entitled to inspect ${label}'s books and records of account and to copy relevant extracts to verify the accuracy of payments made to market.st. Such inspection may be commenced no later than three years after the date of each statement.`,
+    `• A courtesy credit shall be provided as follows "${boomArtist} appears courtesy of market.st."`,
     `• ${label} shall have the right to use Artist's professional name and approved likeness solely for the purposes of promoting and exploiting the Master and the right to credit Artist as a so-called "primary artist" on digital streaming platforms.`,
-    `• ${label} shall have the right to third party licensing with mutual written approval from Market Street.`,
-    `• ${label} shall have the right to include the recording in any "greatest hits/compilations" with mutual approval from Market Street.`,
-    `• ${label} shall have the right to digital exploitation (including ringtone & mastertones) of the recording with mutual written approval from Market Street.`,
-    `• ${label} shall have the right to remixes of the recording with mutual approval from Market Street.`,
-    `• ${label} shall not have the right to exploit the Master via synchronisation, sample licences, compilations or any other form of licensing without Market Street's prior written approval.`,
+    `• ${label} shall have the right to third party licensing with mutual written approval from market.st.`,
+    `• ${label} shall have the right to include the recording in any "greatest hits/compilations" with mutual approval from market.st.`,
+    `• ${label} shall have the right to digital exploitation (including ringtone & mastertones) of the recording with mutual written approval from market.st.`,
+    `• ${label} shall have the right to remixes of the recording with mutual approval from market.st.`,
+    `• ${label} shall not have the right to exploit the Master via synchronisation, sample licences, compilations or any other form of licensing without market.st's prior written approval.`,
     `• ${label} shall not have the right to exploit the Master in any manner except those granted above.`,
     `Please note that the rights granted above are subject to Artist's approval with regard to the use of Artist's performance(s) and their name and/or likeness.`,
     `In the event of a conflict between the terms of this email and any other agreement(s) with Artist, the terms of this agreement shall control.`,
@@ -147,7 +147,7 @@ export default function CreateLabelWaiver() {
   // form-field changes stop auto-overwriting their text. Cleared by
   // "Reset to template" or by starting a fresh form / different waiver.
   const [bodyDirty, setBodyDirty] = useState(false)
-  // Roster — fed into a <datalist> so the Market Street Artist input
+  // Roster — fed into a <datalist> so the market.st Artist input
   // autocompletes to a known artist name. The server uses an
   // exact-name lookup (LOWER(name) match) to attach the generated
   // PDF to the artist's Documents tab; a typo there leaves the
@@ -219,7 +219,7 @@ export default function CreateLabelWaiver() {
     e.preventDefault()
     setSaveError('')
     if (!form.effective_date || !form.boom_artist || !form.releasing_label || !form.song_title) {
-      setSaveError('Effective date, Market Street artist, releasing label, and song title are required.')
+      setSaveError('Effective date, market.st artist, releasing label, and song title are required.')
       return
     }
     setCreating(true)
@@ -361,7 +361,7 @@ export default function CreateLabelWaiver() {
           <p className="text-sm text-gray-500 mb-6">
             {editing
               ? `Editing waiver for ${editing.boom_artist} on ${editing.releasing_label}`
-              : 'Fill in the deal-specific fields; signatory + contact email default to Market Street.'}
+              : 'Fill in the deal-specific fields; signatory + contact email default to market.st.'}
           </p>
 
           <form data-tour="waiver-form" onSubmit={handleCreate} className="space-y-4">
@@ -378,14 +378,14 @@ export default function CreateLabelWaiver() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Market Street Artist *</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">market.st Artist *</label>
                 <input
                   type="text"
                   required
                   list="marketst-artist-roster"
                   value={form.boom_artist}
                   onChange={e => setField('boom_artist', e.target.value)}
-                  placeholder="The Market Street-signed artist featured"
+                  placeholder="The market.st-signed artist featured"
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-boom-500 focus:border-boom-500 outline-none"
                 />
                 <datalist id="marketst-artist-roster">
@@ -555,7 +555,7 @@ export default function CreateLabelWaiver() {
               <thead>
                 <tr className="bg-gray-50 border-b border-rule">
                   <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider px-4 py-3">Effective</th>
-                  <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider px-4 py-3">Market Street Artist</th>
+                  <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider px-4 py-3">market.st Artist</th>
                   <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider px-4 py-3">Song</th>
                   <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider px-4 py-3">Label</th>
                   <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider px-4 py-3">Created</th>

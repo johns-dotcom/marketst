@@ -37,7 +37,7 @@ const { getAccessTokenInfo, credentialsPresent } = require('../lib/google-oauth'
 const { KIND } = require('../lib/report-rows');
 
 const META_KEY = 'reports_spreadsheet_id';
-const SPREADSHEET_TITLE = 'Market Street — Reports';
+const SPREADSHEET_TITLE = 'market.st — Reports';
 
 const MONEY_FORMAT = '"$"#,##0.00;[Red]("$"#,##0.00)';
 const HEADER_RGB = { red: 0x7F / 255, green: 0x1D / 255, blue: 0x1D / 255 };

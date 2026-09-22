@@ -19,7 +19,7 @@ const api = async (method, path, token, body) => {
   let snapshot = null; const made = { users: [] };
   try {
     const { rows: [snap] } = await pool.query('SELECT * FROM label_settings WHERE id = 1'); snapshot = snap;
-    check('the label row exists (seeded on boot)', !!snap && snap.display_name === 'Market Street');
+    check('the label row exists (seeded on boot)', !!snap && snap.display_name === 'market.st');
     const login = await api('POST', '/auth/login', null, { email: 'john@deanst.co', password: process.env.PW_JOHN });
     const T = login.body?.data?.token; check('login', !!T);
     const { rows: [u] } = await pool.query(`INSERT INTO users (name, email, role, password_hash) VALUES ($1, $2, 'User', 'x') RETURNING id, email, name, role`, [`${TAG} User`, `${TAG.toLowerCase()}@example.test`]); made.users.push(u.id);

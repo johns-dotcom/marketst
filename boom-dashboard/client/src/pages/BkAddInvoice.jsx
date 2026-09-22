@@ -32,7 +32,7 @@ export default function BkAddInvoice() {
   const role = (user?.role || '').toLowerCase()
   const isAdminLevel = role === 'admin' || role === 'superadmin' || role === 'approver'
   const BOOM_REPS = useBoomReps()
-  // Market Street rep dropdown options — make sure the current user shows up even if
+  // market.st rep dropdown options — make sure the current user shows up even if
   // they aren't in the canonical BOOM_REPS list, so non-admins can save with
   // their own name as the rep on the entry that lands in approvals.
   const repOptions = user?.name && !BOOM_REPS.includes(user.name)
@@ -1279,7 +1279,7 @@ export default function BkAddInvoice() {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Market Street Rep</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">market.st Rep</label>
                 <select
                   value={form.boom_rep}
                   onChange={e => handleFormChange('boom_rep', e.target.value)}

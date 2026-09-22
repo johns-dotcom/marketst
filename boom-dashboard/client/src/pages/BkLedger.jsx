@@ -82,7 +82,7 @@ function fmtShortDate(dateStr) {
 
 // ── Column definitions ──────────────────────────────────────────────────────
 // Always shown: Date, Payee, Category, Artist, Amount, Notes, Paid?, QB?
-// Toggleable (default visible): Song, Inv #, Currency, Market Street Rep, Method, Reimb?, Recoupable?, UFR?, Cobrand?, Inv, W9, Proof, Receipt
+// Toggleable (default visible): Song, Inv #, Currency, market.st Rep, Method, Reimb?, Recoupable?, UFR?, Cobrand?, Inv, W9, Proof, Receipt
 // Toggleable columns — default visibility set per column
 const TOGGLEABLE_COLS = [
   // Identity
@@ -97,7 +97,7 @@ const TOGGLEABLE_COLS = [
   { key: 'Address',     label: 'Address',     defaultOn: false },
   { key: 'Bank',        label: 'Bank',        defaultOn: false  },
   { key: 'Socials',     label: 'Socials',     defaultOn: false  },
-  { key: 'Market Street Rep',    label: 'Market Street Rep',    defaultOn: false  },
+  { key: 'market.st Rep',    label: 'market.st Rep',    defaultOn: false  },
   // Payment
   { key: 'Method',      label: 'Method',      defaultOn: true  },
   { key: 'Terms',       label: 'Terms',       defaultOn: false },
@@ -3810,7 +3810,7 @@ export default function BkLedger({ bank = false }) {
                 {vis('Address')     && <th style={{ ...TH, maxWidth: 150 }}>Address</th>}
                 {vis('Bank')        && <th style={{ ...TH, maxWidth: 150 }}>Bank</th>}
                 {vis('Socials')     && <th style={{ ...TH, maxWidth: 200 }}>Socials</th>}
-                {vis('Market Street Rep')    && <th style={TH}>Rep</th>}
+                {vis('market.st Rep')    && <th style={TH}>Rep</th>}
                 {/* Payment */}
                 {vis('Method')      && <th style={TH}>Method</th>}
                 {vis('Terms')       && <th style={TH}>Terms</th>}
@@ -4368,8 +4368,8 @@ export default function BkLedger({ bank = false }) {
                       </td>
                     )}
 
-                    {/* Market Street Rep */}
-                    {vis('Market Street Rep') && (
+                    {/* market.st Rep */}
+                    {vis('market.st Rep') && (
                       <td style={{ ...TD, whiteSpace: 'nowrap' }}>
                         {isChild ? '' : (
                           <select

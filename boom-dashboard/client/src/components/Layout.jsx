@@ -148,7 +148,7 @@ function RequestModal({ onClose, currentPage, user }) {
           <div>
             <h3 className="text-sm font-bold text-gray-900">Send a Request</h3>
             <p className="text-xs text-gray-400 mt-0.5">
-              {currentPage ? currentPage : 'Market Street Dashboard'}
+              {currentPage ? currentPage : 'market.st Dashboard'}
             </p>
           </div>
           <button
@@ -747,7 +747,7 @@ function LayoutInner() {
       `}>
         {/* Logo */}
         <div className="h-16 flex items-center justify-between px-5 border-b border-divider">
-          <span className="text-lg font-bold text-gray-900 tracking-tight">Market Street</span>
+          <span className="text-lg font-bold text-gray-900 tracking-tight">market.st</span>
           {isMobile && (
             <button onClick={() => setSidebarOpen(false)} className="p-1 text-gray-400 hover:text-gray-600 lg:hidden">
               <X size={18} />
@@ -922,13 +922,13 @@ function LayoutInner() {
                 <span className="ml-auto text-[10px] text-gray-300 font-normal">Copy link</span>
               )}
             </button>
-            {/* Market Street billing address — one click to paste into a vendor's
+            {/* market.st billing address — one click to paste into a vendor's
                 "bill to" field. Mirrors the invoice remittance block
                 (CreateInvoice BOOM_INFO). */}
             <button
               onClick={() => {
                 // From Settings › Label — the same record the invoice prints.
-                const address = labelAddressLines(labelInfo).map((l) => l.toUpperCase()).join('\n') || 'MARKET STREET'
+                const address = labelAddressLines(labelInfo).map((l) => l.toUpperCase()).join('\n') || 'MARKET.ST'
                 navigator.clipboard.writeText(address).then(() => {
                   setCopiedBilling(true)
                   setTimeout(() => setCopiedBilling(false), 2000)
@@ -940,7 +940,7 @@ function LayoutInner() {
                 ? <Check size={17} strokeWidth={1.5} className="text-emerald-500" />
                 : <Building2 size={17} strokeWidth={1.5} className="text-gray-400 group-hover:text-gray-600" />
               }
-              <span>{copiedBilling ? 'Address copied!' : 'Market Street Billing'}</span>
+              <span>{copiedBilling ? 'Address copied!' : 'market.st Billing'}</span>
               {!copiedBilling && (
                 <span className="ml-auto text-[10px] text-gray-300 font-normal">Copy address</span>
               )}

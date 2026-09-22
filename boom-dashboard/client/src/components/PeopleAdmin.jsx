@@ -1,6 +1,6 @@
 // The admin pieces behind People (2026-09-19): the person modal (create /
 // edit an account, with presets and starting pages), the delete confirm, the
-// Market Street reps panel, and AccessEditor — presets + page checkboxes for an
+// market.st reps panel, and AccessEditor — presets + page checkboxes for an
 // EXISTING person, saved to /settings/permissions/:id. Extracted verbatim from
 // Settings.jsx when Users and the Permissions matrix retired into /team.
 import { useState, useEffect } from 'react'
@@ -21,8 +21,8 @@ const ALL_ROLES = ['Superadmin', 'Admin', 'Approver', 'User']
 const ROLES = ['Admin', 'User'] // shown to regular Admins
 const PAGE_GROUPS = [...new Set(ALL_PAGES.map(p => p.group))]
 
-// ─── Market Street Reps management panel ─────────────────────────────────────────────
-// Curate the list of reps used by every "Market Street Rep" dropdown in the app
+// ─── market.st Reps management panel ─────────────────────────────────────────────
+// Curate the list of reps used by every "market.st Rep" dropdown in the app
 // (Approvals filter, Payments filter, Ledger inline edit, user assignment,
 // vendor submit form, etc.). Deactivating a rep just hides them from new
 // dropdowns — historical entries that reference the name still work.
@@ -76,9 +76,9 @@ export function BoomRepsPanel() {
     <div className="mt-8 pt-6 border-t border-rule">
       <div className="flex items-center justify-between mb-3">
         <div>
-          <h3 className="text-sm font-bold text-gray-800">Market Street Reps</h3>
+          <h3 className="text-sm font-bold text-gray-800">market.st Reps</h3>
           <p className="text-xs text-gray-500 mt-0.5">
-            Curates the list that appears in every Market Street Rep dropdown across the app. Deactivate to hide a rep from new entries without affecting historical references.
+            Curates the list that appears in every market.st Rep dropdown across the app. Deactivate to hide a rep from new entries without affecting historical references.
           </p>
         </div>
       </div>
@@ -385,10 +385,10 @@ export function PersonModal({ user, onClose, onSaved, currentUserRole }) {
             </div>
           </div>
 
-          {/* Market Street Rep — two related-but-distinct concepts:
+          {/* market.st Rep — two related-but-distinct concepts:
               1. Identity  — is this user themselves a rep? Ticking the
                  checkbox adds their name to boom_reps so it appears in
-                 every "Market Street Rep" dropdown across the app.
+                 every "market.st Rep" dropdown across the app.
               2. Visibility — which rep's invoices does this user see
                  on Approvals + Payments? Assignable independently. */}
           <div className="border border-rule rounded-xl p-4 space-y-3">
@@ -423,11 +423,11 @@ export function PersonModal({ user, onClose, onSaved, currentUserRole }) {
                 />
                 <div>
                   <div className="text-sm font-semibold text-gray-800">
-                    Market Street Rep
+                    market.st Rep
                     {repToggling && <span className="text-[10px] text-gray-400 italic ml-2">saving…</span>}
                   </div>
                   <p className="text-[11px] text-gray-500 mt-0.5">
-                    Adds their name to every "Market Street Rep" dropdown across the app (Approvals, Payments, Ledger, Vendor Submit). Untick to hide from new entries — historical references still work.
+                    Adds their name to every "market.st Rep" dropdown across the app (Approvals, Payments, Ledger, Vendor Submit). Untick to hide from new entries — historical references still work.
                     {!form.name.trim() && <span className="block text-amber-600 mt-0.5">Enter a name first.</span>}
                   </p>
                 </div>

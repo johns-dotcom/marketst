@@ -14,7 +14,7 @@
  * W9 step on the strength of that badge, and was then refused with "Please
  * upload your W9 or W8 form" — on a page that renders no W9 upload field while
  * the badge is showing. Unfinishable, and the 400 is recorded nowhere, so nobody
- * at Market Street learned the invoice had been attempted.
+ * at market.st learned the invoice had been attempted.
  *
  * This asserts the two endpoints AGREE rather than asserting either is true on
  * its own. That is the property that was broken: each was individually

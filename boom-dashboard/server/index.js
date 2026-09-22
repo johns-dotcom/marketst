@@ -389,12 +389,12 @@ if (process.env.NODE_ENV === 'production') {
       if (!submitHtmlCache) {
         const raw = require('fs').readFileSync(path.join(clientBuildPath, 'index.html'), 'utf8');
         submitHtmlCache = raw
-          .replace(/<title>[^<]*<\/title>/, '<title>Market Street — Vendor Submit</title>')
+          .replace(/<title>[^<]*<\/title>/, '<title>market.st — Vendor Submit</title>')
           .replace('</head>', [
-            '<meta property="og:title" content="Market Street — Vendor Submit" />',
-            '<meta property="og:description" content="Submit your invoice to Market Street — takes about two minutes." />',
+            '<meta property="og:title" content="market.st — Vendor Submit" />',
+            '<meta property="og:description" content="Submit your invoice to market.st — takes about two minutes." />',
             '<meta property="og:url" content="https://marketst-production.up.railway.app/submit" />',
-            '<meta name="description" content="Submit your invoice to Market Street — takes about two minutes." />',
+            '<meta name="description" content="Submit your invoice to market.st — takes about two minutes." />',
             '</head>',
           ].join('\n    '));
       }
@@ -1525,14 +1525,17 @@ await pool.query(`ALTER TABLE expenses ADD COLUMN IF NOT EXISTS ai_scan JSONB`).
       default_payment_terms TEXT DEFAULT 'Net 30',
       updated_at TIMESTAMPTZ DEFAULT NOW(), updated_by INTEGER REFERENCES users(id) ON DELETE SET NULL
     )`).catch(err => console.error('label_settings migration failed:', err.message));
-  await pool.query(`INSERT INTO label_settings (id, display_name, legal_name) VALUES (1, 'Market Street', 'Market Street') ON CONFLICT (id) DO NOTHING`).catch(() => {});
+  await pool.query(`INSERT INTO label_settings (id, display_name, legal_name) VALUES (1, 'market.st', 'market.st') ON CONFLICT (id) DO NOTHING`).catch(() => {});
+  // 2026-09-22 (the CEO): the label is written "market.st", lowercase, a dot between — like the invoice template. A row still carrying the fork's placeholder follows.
+  await pool.query(`UPDATE label_settings SET display_name = 'market.st' WHERE id = 1 AND display_name = 'Market Street'`).catch(() => {});
+  await pool.query(`UPDATE label_settings SET legal_name = 'market.st' WHERE id = 1 AND legal_name = 'Market Street'`).catch(() => {});
 
   // Connected mailboxes (2026-09-19): which address each kind of mail goes from.
   await pool.query(`
     CREATE TABLE IF NOT EXISTS mailboxes (
       id SERIAL PRIMARY KEY,
       address TEXT NOT NULL UNIQUE,
-      display_name TEXT DEFAULT 'Market Street',
+      display_name TEXT DEFAULT 'market.st',
       kind TEXT NOT NULL CHECK (kind IN ('shared','personal')),
       owner_user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
       refresh_token_enc TEXT,
@@ -1590,8 +1593,8 @@ await pool.query(`ALTER TABLE expenses ADD COLUMN IF NOT EXISTS ai_scan JSONB`).
   }
 
 
-  // Market Street Reps registry — the canonical list of reps that appears in
-  // every "Market Street Rep" dropdown (vendor submit, ledger filters, user
+  // market.st Reps registry — the canonical list of reps that appears in
+  // every "market.st Rep" dropdown (vendor submit, ledger filters, user
   // edit modal, payments + approvals filters, etc.). Admins manage
   // this list from the Settings page. Name is the PK because the rest
   // of the schema stores boom_rep as a plain TEXT label (e.g.
@@ -1772,7 +1775,7 @@ await pool.query(`ALTER TABLE expenses ADD COLUMN IF NOT EXISTS ai_scan JSONB`).
     }
   }
 
-  // Market Street-rep assignment — admins map a user to one of the BOOM_REPS
+  // market.st-rep assignment — admins map a user to one of the BOOM_REPS
   // strings to declare "this user IS that rep". Drives implicit
   // visibility on Approvals + Payments (the user always sees rows
   // where boom_rep matches their assignment). NULL = no implicit
@@ -3109,7 +3112,7 @@ await pool.query(`ALTER TABLE expenses ADD COLUMN IF NOT EXISTS ai_scan JSONB`).
   // Seed payroll roster — insert only if missing. Never re-activate or
   // overwrite existing rows: that would resurrect employees the user
   // soft-deleted via the UI and clobber any salary/department edits.
-  // Market Street starts with an empty payroll roster — add employees from
+  // market.st starts with an empty payroll roster — add employees from
   // the Financials page. (The fork removed the previous label's roster.)
   const payroll = [];
   for (const p of payroll) {
@@ -3414,7 +3417,7 @@ await pool.query(`ALTER TABLE expenses ADD COLUMN IF NOT EXISTS ai_scan JSONB`).
   `);
   await pool.query(`CREATE INDEX IF NOT EXISTS idx_bk_audit_entry ON bk_audit_log(entry_id)`);
 
-  // Market Street invoices — generated invoices from Market Street
+  // market.st invoices — generated invoices from market.st
   await pool.query(`
     CREATE TABLE IF NOT EXISTS boom_invoices (
       id              SERIAL PRIMARY KEY,
@@ -3496,7 +3499,7 @@ await pool.query(`ALTER TABLE expenses ADD COLUMN IF NOT EXISTS ai_scan JSONB`).
   await pool.query(`ALTER TABLE boom_invoices ADD COLUMN IF NOT EXISTS payment_terms TEXT DEFAULT 'Due on receipt'`).catch(() => {});
   await pool.query(`ALTER TABLE boom_invoices ADD COLUMN IF NOT EXISTS due_date DATE`).catch(() => {});
 
-  // Market Street NDAs — generated non-disclosure agreements from the Create NDA page.
+  // market.st NDAs — generated non-disclosure agreements from the Create NDA page.
   // Mirrors the boom_invoices pattern (raw form fields + audit columns).
   // PDF rendering happens client-side via jsPDF; only the form values are
   // persisted so a past NDA can be reopened and re-issued. `custom_body`
@@ -3561,8 +3564,8 @@ await pool.query(`ALTER TABLE expenses ADD COLUMN IF NOT EXISTS ai_scan JSONB`).
   `);
   await pool.query(`CREATE INDEX IF NOT EXISTS idx_artist_clearances_artist ON artist_clearances (artist_id)`);
 
-  // Market Street Label Waivers — short side-letter documents waiving Market Street's
-  // exclusivity so a Market Street-signed artist can appear as co-primary artist
+  // market.st Label Waivers — short side-letter documents waiving market.st's
+  // exclusivity so a market.st-signed artist can appear as co-primary artist
   // on another label's release. Same client-side jsPDF rendering pattern
   // as boom_ndas: we persist the structured form fields + the full
   // editable body string, the PDF is generated on-demand.
@@ -4162,7 +4165,7 @@ await pool.query(`ALTER TABLE expenses ADD COLUMN IF NOT EXISTS ai_scan JSONB`).
 
 // One-time import of missing catalog releases from the checklist PDF.
 // Runs once, tracked by _meta.checklist_imported flag.
-// Market Street: data/missing_releases.json is an empty list — the Boom
+// market.st: data/missing_releases.json is an empty list — the Boom
 // checklist was imported into this database on the first deploy by mistake
 // and removed by hand on 2026-09-16. Keep the file empty.
 const importChecklistReleases = async () => {
@@ -4295,7 +4298,7 @@ const server = http.createServer(app);
 require('./lib/realtime').init(server);
 
 server.listen(PORT, () => {
-  console.log(`Market Street Dashboard server running on port ${PORT}`);
+  console.log(`market.st Dashboard server running on port ${PORT}`);
   // Run migrations in background — don't block request handling
   autoSeed().catch(err => console.error('Auto-seed failed:', err.message));
 });

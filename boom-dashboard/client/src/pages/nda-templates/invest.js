@@ -1,4 +1,4 @@
-// Invest NDA — the confidentiality template Market Street executes
+// Invest NDA — the confidentiality template market.st executes
 // with corporate counterparties evaluating a potential investment or
 // transaction. Structured to match the same clause set the "Range
 // Music v2" template introduced, but shipped as a blank template so
@@ -127,7 +127,7 @@ function buildBody(form) {
 const invest = {
   id: 'invest',
   label: 'Invest',
-  description: 'Confidentiality NDA for corporate counterparties evaluating a potential investment or transaction with Market Street. Shipped blank — no counterparty details pre-filled.',
+  description: 'Confidentiality NDA for corporate counterparties evaluating a potential investment or transaction with market.st. Shipped blank — no counterparty details pre-filled.',
   // Filename matches the standard template's — the tab label is
   // internal-only; the counterparty receives a doc named just NDA.
   filenamePrefix: 'NDA',

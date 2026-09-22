@@ -85,7 +85,7 @@ const settles = (p, ms = 4000) => Promise.race([
 ]);
 
 const send = () => sendViaGmailAPI('fake-access-token', {
-  from: 'Market Street <test@deanst.co>', to: 'accounts@salmonstudios.net',
+  from: 'market.st <test@deanst.co>', to: 'accounts@salmonstudios.net',
   subject: 'Payment confirmation — SS-1611', html: '<p>Paid.</p>',
 });
 

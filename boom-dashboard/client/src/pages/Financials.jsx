@@ -1467,7 +1467,7 @@ function FilterBar({ filters, setFilters, options, execFilters }) {
         value={filters.rep}
         onChange={setOne('rep')}
         className="rounded-md border border-rule bg-card px-2 py-1 text-xs font-semibold text-gray-700 max-w-[160px] focus:outline-none focus:ring-1 focus:ring-boom-500"
-        title="Filter to a single Market Street rep"
+        title="Filter to a single market.st rep"
       >
         <option value="">All reps</option>
         {(options.reps || []).map(r => <option key={r} value={r}>{r}</option>)}

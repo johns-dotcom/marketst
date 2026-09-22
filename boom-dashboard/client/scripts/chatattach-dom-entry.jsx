@@ -104,7 +104,7 @@ async function main() {
 
   say('\n  BOT MESSAGES')
   assert('a system message renders its text', /approved/.test(d()) && /Spotify Ads/.test(d()))
-  assert('it is labelled as the bot, not a person', /Market Street/.test(d()) && /Bot/.test(d()))
+  assert('it is labelled as the bot, not a person', /market.st/.test(d()) && /Bot/.test(d()))
   assert('  and carries no author name', !/null/.test(d()))
   // *asterisks* must become real <strong>, not literal asterisks on screen.
   const strongs = [...host.querySelectorAll('strong')].map(textOf)

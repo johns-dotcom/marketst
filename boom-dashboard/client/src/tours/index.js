@@ -189,7 +189,7 @@ const PAGE_TOURS = [
   {
     id: 'create-label-waiver', title: 'Label waivers', path: '/create-label-waiver', version: '2026-09-20',
     steps: [
-      { target: '[data-tour="waiver-form"]', title: 'A waiver for a song', body: 'Pick the Market Street artist from the roster (that is what files the PDF to their Documents), name the other label and their artist, the song, the date, the format and the royalty.' },
+      { target: '[data-tour="waiver-form"]', title: 'A waiver for a song', body: 'Pick the market.st artist from the roster (that is what files the PDF to their Documents), name the other label and their artist, the song, the date, the format and the royalty.' },
       { target: '[data-tour="waiver-preview"], [data-tour="waiver-form"]', title: 'Preview and save', body: 'The body rebuilds from the template until you edit it. Save waiver stores it; saved waivers list below with preview, download, DocuSign and delete.' },
     ],
   },
@@ -471,7 +471,7 @@ function walkSteps() {
 const WELCOME = {
   id: 'welcome', title: 'Welcome to the dashboard', path: '/', version: '2026-09-22', multipage: true,
   steps: [
-    { path: '/', target: null, title: 'Welcome to Market Street', body: 'A walk through every page you can open, each one in full — fifteen minutes or so. Skip a page, a family, or the whole tour at any time; replay any page\'s part later from Walkthrough in the top bar.' },
+    { path: '/', target: null, title: 'Welcome to market.st', body: 'A walk through every page you can open, each one in full — fifteen minutes or so. Skip a page, a family, or the whole tour at any time; replay any page\'s part later from Walkthrough in the top bar.' },
     { path: '/', target: '[data-tour="sidebar"]', prepare: 'sidebar', title: 'Everything is in the sidebar', body: 'Five groups: General, Artists & releases, Money, Reports, Admin. A row with a chevron holds several pages; open it and they appear as tabs across the top. On a phone the ☰ button opens this menu.' },
     { path: '/', target: '[data-tour="search"]', title: 'Search jumps anywhere', body: 'Press / or ⌘K. Type a page, an artist, a vendor or an invoice number.' },
     { path: '/', target: null, title: 'The keyboard', body: 'Press g then a letter to jump to a page (g f is Flags, g a Approvals, g p Payments). On any list j and k move, Enter opens, e edits, x selects, f finds the filter box, n makes a new one. Press ? for the list on the page you are on.' },

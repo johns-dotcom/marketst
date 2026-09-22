@@ -178,7 +178,7 @@ export default function PaymentDetailPanel({
                 options={['', 'Due on receipt', 'Net 15', 'Net 30', 'Net 45', 'Net 60', 'Net 90']} />
               <Editable {...EDP} label="Method" field="payment_method"
                 options={['', 'ACH', 'Wire Domestic', 'Wire International', 'PayPal', 'Check', 'Credit Card']} />
-              <Editable {...EDP} label="Market Street rep" field="boom_rep" />
+              <Editable {...EDP} label="market.st rep" field="boom_rep" />
               <Editable {...EDP} label="Notes" field="notes" />
             </div>
           </div>

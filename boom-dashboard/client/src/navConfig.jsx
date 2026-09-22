@@ -28,7 +28,7 @@ import { AlertTriangle, Ban, Banknote, BarChart2, BookOpen, Briefcase, Building2
 // Deliberately NOT here: the Approvals badge count. It is per-request state, so
 // Layout injects it at render rather than this becoming a live data dependency.
 export const NAV_GROUPS = [
-    // ── Market Street regroup, 2026-09-18 ──────────────────────────────────
+    // ── market.st regroup, 2026-09-18 ──────────────────────────────────
     //
     // 43 sidebar rows became 16. NOT ONE PATH MOVED: every consolidation is a
     // `tabbed` family (one sidebar row, the tabs live in the page chrome), which
@@ -41,11 +41,11 @@ export const NAV_GROUPS = [
     //                  walk — but the sidebar does not draw it. Hiding a row
     //                  and removing a page are different acts; this is the
     //                  first. Seven pages are hidden here because nothing at
-    //                  Market Street produces their data yet (see the plan:
+    //                  market.st produces their data yet (see the plan:
     //                  Financials, Recording Budgets, Salary, Bulk Deals,
     //                  Invoices View, Bookkeeper Reconcile, Analytics).
     //
-    // Boom's nav is untouched by this; it is a Market Street decision.
+    // Boom's nav is untouched by this; it is a market.st decision.
     {
       label: null,
       items: [

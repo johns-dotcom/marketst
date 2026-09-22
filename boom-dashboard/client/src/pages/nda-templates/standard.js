@@ -1,4 +1,4 @@
-// Standard NDA — the historical Market Street mutual-confidentiality
+// Standard NDA — the historical market.st mutual-confidentiality
 // template with optional Non-Circumvention (1-year) and Non-Solicitation
 // (2-year) sections. This is the ONLY template that existed before the
 // registry refactor; anything created before the refactor rolls forward
@@ -114,7 +114,7 @@ function buildBody(form) {
 const standard = {
   id: 'standard',
   label: 'Standard NDA',
-  description: 'Market Street default mutual-confidentiality NDA. Optional non-circumvention and non-solicitation clauses.',
+  description: 'market.st default mutual-confidentiality NDA. Optional non-circumvention and non-solicitation clauses.',
   filenamePrefix: 'NDA',
   // Fields beyond the shared base set (owner, recipient, dates,
   // signatory). Standard has none.

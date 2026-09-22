@@ -194,7 +194,7 @@ const paymentCrypto = require('../lib/payment-crypto');
 // We need *direct* payment info on the document (ACH, wire, PayPal address,
 // Venmo/Zelle, CashApp, or check). A bare "click here to pay" link to an
 // external portal (Stripe Checkout, QBO invoice link, generic "Pay Now"
-// button) does NOT count — Market Street's AP team needs to push funds, not log in
+// button) does NOT count — market.st's AP team needs to push funds, not log in
 // to a third-party portal.
 //
 // Returns { ok, ...fields }:
@@ -356,7 +356,7 @@ router.post('/validate-invoice', aiValidationLimiter, aiDailyLimiter, singleUplo
     // mega-prompt, and the cached document means /submit's later focused
     // call is essentially free.
     const [result, payInfo] = await Promise.all([
-      validateWithAI(req.file.buffer, req.file.originalname, `You are validating an invoice submitted to Market Street (a record label). Check this document and return ONLY valid JSON:
+      validateWithAI(req.file.buffer, req.file.originalname, `You are validating an invoice submitted to market.st (a record label). Check this document and return ONLY valid JSON:
 {
   "valid": true or false,
   "issues": ["list of problems found"],
@@ -370,7 +370,7 @@ router.post('/validate-invoice', aiValidationLimiter, aiDailyLimiter, singleUplo
 
 REQUIREMENTS — the document MUST:
 1. Be an actual invoice or receipt (not bank instructions, a screenshot of a conversation, a random document, etc.)
-2. Be billed/addressed to "Market Street", "Market.st", "Market St", "Market Street Records", or similar
+2. Be billed/addressed to "market.st", "Market.st", "Market St", "market.st Records", or similar
 3. Include an invoice number or receipt reference
 4. Include a date
 5. Include a total amount
@@ -425,7 +425,7 @@ router.post('/validate-w9', aiValidationLimiter, aiDailyLimiter, singleUpload, a
       year: 'numeric', month: 'long', day: 'numeric',
     });
 
-    const result = await validateWithAI(req.file.buffer, req.file.originalname, `You are validating a W-9 or W-8 tax form submitted to Market Street.
+    const result = await validateWithAI(req.file.buffer, req.file.originalname, `You are validating a W-9 or W-8 tax form submitted to market.st.
 
 TODAY'S DATE IS ${todayHuman} (ISO: ${todayISO}). Treat this as authoritative — do NOT use your own internal notion of "today." A signing date is only in the future if it is strictly AFTER ${todayISO}. Any date on or before ${todayISO} is in the past or present and is VALID.
 
@@ -632,7 +632,7 @@ IMPORTANT: A document IS attached and you CAN read it. Read every visible field 
 });
 
 // GET /api/vendor/roster
-// Returns the full Market Street roster (artist names only) so the vendor submit
+// Returns the full market.st roster (artist names only) so the vendor submit
 // form can render a type-to-filter picker. Public — no auth, no ids or
 // contract data exposed. Ordered case-insensitively so "aXbY" sorts next
 // to "AXBY". 5-minute browser cache: roster changes rarely and every
@@ -683,7 +683,7 @@ router.get('/roster', async (_req, res) => {
 // is what the badge unlocks), and then refused with "Please upload your W9 or W8
 // form" — on a page that renders no W9 upload field at all while the badge is
 // showing. The submission could not be completed by any route, and the 400 is
-// not recorded anywhere, so nobody at Market Street learned it had been attempted.
+// not recorded anywhere, so nobody at market.st learned it had been attempted.
 //
 // Two smaller divergences rode along: the gate matched LOWER(payee) where the
 // badge matched LOWER(TRIM(payee)), and the gate required w9_filename to be
@@ -1159,7 +1159,7 @@ router.post('/submit', sandboxAuth, fileFieldsSafe, async (req, res) => {
     if (!inv.invoice_number) bad('Please enter your invoice number.');
     if (!inv.artist)        bad('Please enter the artist or project name.');
     if (!inv.category)      bad('Please select a category.');
-    if (!inv.boom_rep)      bad('Please select your Market Street Rep.');
+    if (!inv.boom_rep)      bad('Please select your market.st Rep.');
     if (!inv.amount || inv.amount <= 0) bad('Please enter the invoice amount.');
     if (!inv.song)          bad('Please enter a song / track for every artist row.');
     // Every row that names an artist must also name a song. The breakdown is the
@@ -1901,7 +1901,7 @@ router.post('/submit', sandboxAuth, fileFieldsSafe, async (req, res) => {
 // Stores discrepancies in the ai_scan JSONB column on the expense row.
 async function scanInvoiceForDiscrepancies(entryId, formData, invoiceB64, filename) {
   if (!invoiceB64) return; // No file to scan; nothing to write.
-  const prompt = `You are an invoice auditor for a record label called Market Street. A vendor submitted an invoice along with a form. Compare the submitted document against the form data and identify any discrepancies.
+  const prompt = `You are an invoice auditor for a record label called market.st. A vendor submitted an invoice along with a form. Compare the submitted document against the form data and identify any discrepancies.
 
 FORM DATA SUBMITTED BY VENDOR:
 - Vendor Name: ${formData.vendorName}
@@ -1959,7 +1959,7 @@ IMPORTANT: A document IS attached and you CAN read it. Read every visible field 
 // Stores results in the w9_scan JSONB column.
 async function scanW9ForDiscrepancies(entryId, formData, w9B64, filename) {
   if (!w9B64) return; // No file to scan; nothing to write.
-  const prompt = `You are auditing a W-9 or W-8 tax form submitted by a vendor to Market Street. Compare the form against the vendor's submitted information and identify any discrepancies.
+  const prompt = `You are auditing a W-9 or W-8 tax form submitted by a vendor to market.st. Compare the form against the vendor's submitted information and identify any discrepancies.
 
 VENDOR SUBMITTED INFO:
 - Legal Name: ${formData.vendorName}

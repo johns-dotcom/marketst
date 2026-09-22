@@ -31,7 +31,7 @@ export default function SetPassword() {
     <div className="min-h-screen bg-surface-50 flex items-center justify-center p-4">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <span className="text-2xl font-bold text-gray-900 tracking-tight">Market Street</span>
+          <span className="text-2xl font-bold text-gray-900 tracking-tight">market.st</span>
           <p className="text-sm text-gray-500 mt-1">{who ? `Welcome, ${who.name.split(' ')[0]}. Set your password.` : 'Set your password'}</p>
         </div>
         <div className="card p-6" data-set-password>

@@ -106,7 +106,7 @@ const JOBS = {
       const paid = await q(`SELECT COUNT(*)::int AS n, COALESCE(SUM(amount),0) AS total FROM expenses WHERE payment_status = 'Paid' AND payment_date >= CURRENT_DATE - 7 AND parent_id IS NULL`);
       const rel = await q(`SELECT COUNT(*)::int AS n FROM releases WHERE release_date BETWEEN CURRENT_DATE AND CURRENT_DATE + 30 AND (archived = false OR archived IS NULL)`);
       const signed = await q(`SELECT COUNT(*)::int AS n FROM artists WHERE signed_at >= NOW() - INTERVAL '7 days'`);
-      return sendTo(users, 'notification', 'Your week at Market Street',
+      return sendTo(users, 'notification', 'Your week at market.st',
         wrap('This week', `<ul style="padding-left:18px;"><li>${paid.n} payment${paid.n === 1 ? '' : 's'} made, ${usd(paid.total)}</li><li>${a.n} awaiting approval · ${p.n} approved and unpaid</li><li>${rel.n} release${rel.n === 1 ? '' : 's'} in the next 30 days</li><li>${signed.n} artist${signed.n === 1 ? '' : 's'} signed this week</li></ul><p><a href="${APP_URL}/">Open Home</a></p>`));
     },
   },

@@ -88,7 +88,7 @@ router.get('/oauth/callback', async (req, res) => {
     } else {
       const { rows: [mb] } = await pool.query(
         `INSERT INTO mailboxes (address, display_name, kind, owner_user_id, refresh_token_enc, source, status, connected_by, connected_at)
-         VALUES ($1, 'Market Street', $2, $3, $4, 'oauth', 'active', $5, NOW()) RETURNING id`,
+         VALUES ($1, 'market.st', $2, $3, $4, 'oauth', 'active', $5, NOW()) RETURNING id`,
         [address, st.kind, st.kind === 'personal' ? st.uid : null, paymentCrypto.encrypt(tok.refresh_token), st.uid]);
       id = mb.id;
       if (st.kind === 'shared') await mail.claimUnassignedPurposes(id);
@@ -118,7 +118,7 @@ router.put('/mailboxes/:id(\\d+)', authMiddleware, async (req, res) => {
     const mb = await mail.mailboxById(req.params.id);
     if (!mb) return res.status(404).json({ success: false, error: 'Mailbox not found' });
     if (!(isAdmin(req.user.role) || Number(mb.owner_user_id) === Number(req.user.id))) return res.status(403).json({ success: false, error: 'Not yours' });
-    const name = String(req.body?.display_name || '').trim().slice(0, 80) || 'Market Street';
+    const name = String(req.body?.display_name || '').trim().slice(0, 80) || 'market.st';
     await pool.query('UPDATE mailboxes SET display_name = $2, updated_at = NOW() WHERE id = $1', [mb.id, name]);
     res.json({ success: true, data: { ...publicBox(mb, true), display_name: name } });
   } catch (err) { console.error('mailbox rename error:', err); res.status(500).json({ success: false, error: 'Internal server error' }); }

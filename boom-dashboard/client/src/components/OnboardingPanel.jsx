@@ -109,7 +109,7 @@ export default function OnboardingPanel({ artistId, refreshKey = 0, onArtistChan
   const canType = PAY_ROLES.has(user?.role)
   const formLink = `${window.location.origin}/submit`
   const mailto = data.email
-    ? `mailto:${encodeURIComponent(data.email)}?subject=${encodeURIComponent('Payment details for Market Street')}&body=${encodeURIComponent(`Hi ${data.name},\n\nSo we can pay you, please fill in your payment details and upload your W-9 here:\n${formLink}\n\nUse "${data.name}" as the payee name and this email address. There is no invoice to attach for this step — put "Advance" in the invoice number field if it asks.\n\nThanks,\nMarket Street`)}`
+    ? `mailto:${encodeURIComponent(data.email)}?subject=${encodeURIComponent('Payment details for market.st')}&body=${encodeURIComponent(`Hi ${data.name},\n\nSo we can pay you, please fill in your payment details and upload your W-9 here:\n${formLink}\n\nUse "${data.name}" as the payee name and this email address. There is no invoice to attach for this step — put "Advance" in the invoice number field if it asks.\n\nThanks,\nmarket.st`)}`
     : null
   const copyLink = async () => {
     try { await navigator.clipboard.writeText(formLink); setNote('Link copied') } catch { setNote(formLink) }

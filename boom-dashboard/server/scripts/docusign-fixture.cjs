@@ -72,7 +72,7 @@ const made = { artists: [], contracts: [], files: [], envelopes: [], ndas: [] };
     check('refresh on a completed envelope is a no-op (no second signed file)', r3.body.data.signed_file_id === r2.body.data.signed_file_id && (await pool.query(`SELECT COUNT(*)::int AS n FROM entity_files WHERE entity_type = 'artist' AND entity_id = $1`, [artist.id])).rows[0].n === 1);
 
     // an NDA: the browser renders the PDF and sends it along; void it
-    const nda = (await pool.query(`INSERT INTO boom_ndas (effective_date, owner_name, recipient_name, recipient_email, created_by) VALUES (CURRENT_DATE, 'Market Street', $1, 'nda@example.com', 'fx') RETURNING id`, [`${TAG} Artist`])).rows[0]; made.ndas.push(nda.id);
+    const nda = (await pool.query(`INSERT INTO boom_ndas (effective_date, owner_name, recipient_name, recipient_email, created_by) VALUES (CURRENT_DATE, 'market.st', $1, 'nda@example.com', 'fx') RETURNING id`, [`${TAG} Artist`])).rows[0]; made.ndas.push(nda.id);
     const s2 = await sendForm(T, { doc_type: 'nda', doc_id: nda.id }, PDF); if (s2.body?.data) { made.envelopes.push(s2.body.data.id); made.files.push(s2.body.data.source_file_id); }
     check('send: an NDA takes signer name/email from the record and resolves the artist by name', s2.status === 201 && s2.body.data.signer_email === 'nda@example.com' && s2.body.data.artist_id === artist.id, JSON.stringify(s2.body).slice(0, 160));
     check('send: an NDA without the PDF is refused (the page renders it)', (await sendForm(T, { doc_type: 'nda', doc_id: nda.id })).status === 400);

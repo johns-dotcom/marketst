@@ -19,7 +19,7 @@
  *
  * ── Message shape ──
  * A bot message is a normal chat_messages row with user_id = NULL (which is why
- * that column is nullable — there is no fake "Market Street Bot" user to keep in sync
+ * that column is nullable — there is no fake "market.st Bot" user to keep in sync
  * with the roster), is_system = true, and meta = { icon, link }.
  */
 const pool = require('../db');

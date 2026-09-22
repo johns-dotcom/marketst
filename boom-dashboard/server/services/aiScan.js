@@ -52,7 +52,7 @@ async function rescanInvoice(entryId) {
     if (breakdownSum > formAmount) formAmount = breakdownSum;
   }
 
-  const prompt = `You are an invoice auditor for a record label called Market Street. A vendor submitted an invoice along with a form. Compare the submitted document against the form data and identify any discrepancies.
+  const prompt = `You are an invoice auditor for a record label called market.st. A vendor submitted an invoice along with a form. Compare the submitted document against the form data and identify any discrepancies.
 
 FORM DATA SUBMITTED BY VENDOR:
 - Vendor Name: ${entry.payee}
@@ -126,7 +126,7 @@ async function rescanW9(entryId) {
   if (!w9B64) return { ok: false, reason: 'W9/W8 file could not be loaded — the stored object is missing or empty in R2.' };
   console.log(`[rescan] entry ${entryId} W9 file ${entry.w9_filename} loaded (${Math.round(w9B64.length / 1024)}KB base64)`);
 
-  const prompt = `You are auditing a W-9 or W-8 tax form submitted by a vendor to Market Street. Compare the form against the vendor's submitted information and identify any discrepancies.
+  const prompt = `You are auditing a W-9 or W-8 tax form submitted by a vendor to market.st. Compare the form against the vendor's submitted information and identify any discrepancies.
 
 VENDOR SUBMITTED INFO:
 - Legal Name: ${entry.payee}

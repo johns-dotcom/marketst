@@ -3,7 +3,7 @@
  * total as the checksum.
  *
  * ── Why rules and not the AI ──
- * A reimbursement sheet like "Market Street x Dean St — JANUARY 2026" is 20 numbered rows
+ * A reimbursement sheet like "market.st x Dean St — JANUARY 2026" is 20 numbered rows
  * of somebody else's spending: a PayPal subscription, five Grammy ride-shares,
  * eight items for one artist's event, an exec coffee. Filed as ONE expense it is
  * a $2,564.38 blob with a single category and a single artist, which is wrong for

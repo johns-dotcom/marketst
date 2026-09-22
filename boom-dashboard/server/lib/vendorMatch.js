@@ -1,6 +1,6 @@
 // Tiered fuzzy vendor-name matcher, shared by the ledger-diff reconciliation
 // and the bank-statement matcher. External sources (bookkeepers, bank feeds)
-// record vendor names slightly differently than Market Street's ledger:
+// record vendor names slightly differently than market.st's ledger:
 // "10FIFTY LLC (UKG CENTRAL)" vs "10FIFTY LLC", "ACME CO." vs "Acme Co LLC",
 // "Jane M Doe" vs "Doe Jane M". Strongest signal first; every step returns a
 // score so callers can prefer better matches among multiple candidates.
@@ -92,7 +92,7 @@ function vendorsMatch(a, b) {
  */
 
 // Legal-entity noise. Matches the vocabulary vendorsMatch strips above, plus the
-// non-anglophone forms that turn up on Market Street's roster ("Sedyy OÜ", "CW Media
+// non-anglophone forms that turn up on market.st's roster ("Sedyy OÜ", "CW Media
 // Group S.R.L.") — punctuation is already gone by the time this runs, so
 // "S.R.L." arrives as "srl".
 const SQUASH_SUFFIX = new Set([

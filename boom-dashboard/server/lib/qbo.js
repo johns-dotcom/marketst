@@ -256,7 +256,7 @@ async function pushBill(expenseId) {
   const body = {
     VendorRef: { value: vendorId }, TxnDate: dateOnly(root.invoice_date) || dateOnly(root.approved_at) || undefined,
     DueDate: dateOnly(root.scheduled_payment_date) || undefined, DocNumber: root.invoice_number ? String(root.invoice_number).slice(0, 21) : undefined,
-    PrivateNote: `Market Street dashboard expense #${root.id}`.slice(0, 4000), Line: lines,
+    PrivateNote: `market.st dashboard expense #${root.id}`.slice(0, 4000), Line: lines,
     ...(settings.ap_account ? { APAccountRef: { value: settings.ap_account.id } } : {}),
   };
   if (existing) { body.Id = existing.qbo_id; body.SyncToken = existing.sync_token || '0'; body.sparse = true; }
@@ -283,7 +283,7 @@ async function pushPayment(expenseId) {
     VendorRef: { value: vendorId }, PayType: 'Check', TotalAmt: Number(total.toFixed(2)),
     CheckPayment: { BankAccountRef: { value: settings.bank_account.id, name: settings.bank_account.name } },
     TxnDate: dateOnly(root.payment_date) || undefined, DocNumber: root.payment_ref ? String(root.payment_ref).slice(0, 21) : undefined,
-    PrivateNote: `Market Street dashboard payment for expense #${root.id}${root.payment_method ? ` (${root.payment_method})` : ''}`.slice(0, 4000),
+    PrivateNote: `market.st dashboard payment for expense #${root.id}${root.payment_method ? ` (${root.payment_method})` : ''}`.slice(0, 4000),
     Line: [{ Amount: Number(total.toFixed(2)), LinkedTxn: [{ TxnId: bill.qbo_id, TxnType: 'Bill' }] }],
   };
   const p = (await api('POST', '/billpayment', body))?.BillPayment;

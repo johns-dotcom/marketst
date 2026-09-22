@@ -1049,7 +1049,7 @@ export default function BkApprovals() {
                               style={{ ...inputSty, paddingLeft: 10, width: '100%' }} />
                           </div>
                           <div style={{ flex: 1 }}>
-                            <label style={{ fontSize: 10, fontWeight: 700, color: C.textFaint, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 2, display: 'block' }}>Market Street Rep</label>
+                            <label style={{ fontSize: 10, fontWeight: 700, color: C.textFaint, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 2, display: 'block' }}>market.st Rep</label>
                             <select value={editForm.boom_rep} onChange={e => setEditForm(f => ({ ...f, boom_rep: e.target.value }))}
                               style={{ ...selectSty, width: '100%' }}>
                               <option value="">—</option>

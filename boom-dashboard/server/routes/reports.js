@@ -1711,7 +1711,7 @@ async function pnlDetail({ kind, key, keys, month, from, to, artist, drillCatego
   // and that agreement is what this file is arranged around.
   const total = out.reduce((s, r) => s + r.usd, 0);
   // But a deposit is not an expense row. Five of them sat among 500 Marketing
-  // payments as negatives — TAC RECORDS, LVRN, WISE, 1/B1, MARKET STREET — which reads
+  // payments as negatives — TAC RECORDS, LVRN, WISE, 1/B1, MARKET.ST — which reads
   // as money going out. They come out of the list and are reported as their own
   // line, which the client can expand; the arithmetic is unchanged either way.
   const recoveryRows = out.filter((r) => r.is_recovery);
@@ -4457,7 +4457,7 @@ async function buildPack(from, to, basis) {
   const cover = wb.addWorksheet('Cover', { views: [{ showGridLines: false }] });
   cover.columns = [{ width: 28 }, { width: 70 }];
   const line = (a, bv, bold = false) => { const r = cover.addRow([a, bv]); if (bold) r.font = { bold: true }; return r; };
-  line(label.display_name || label.legal_name || 'Market Street', 'Accountant pack', true).font = { bold: true, size: 14 };
+  line(label.display_name || label.legal_name || 'market.st', 'Accountant pack', true).font = { bold: true, size: 14 };
   line('Period', `${from} to ${to}`);
   line('Basis', `${BASIS_LABEL[b]} — ${b === 'bank' ? 'every bank line once; the ledger supplies categories. Paid invoices no statement vouches for are listed, not counted.' : b === 'ledger' ? 'every approved row marked Paid, by payment date, whether or not a bank statement covers it.' : 'every approved row by invoice date, paid or not (commitments).'}`);
   line('Bank reconciled through', recon[0]?.month_key || 'no month reconciled yet');
@@ -4477,7 +4477,7 @@ async function buildPack(from, to, basis) {
   line('Month reassignments', `${pnl.reassigned?.count || 0} moved in, ${pnl.reassigned?.moved_out?.count || 0} moved out`);
   cover.addRow([]);
   line('Sheets', 'P&L · Balance sheet · Spend by artist · Spend by vendor · Spend by rep · Dismissed');
-  line('Prepared by', 'Market Street dashboard — every figure opens to its rows on the Reports page');
+  line('Prepared by', 'market.st dashboard — every figure opens to its rows on the Reports page');
 
   renderExcel(wb, 'P&L', pnlRows(pnl, { from, to, artist: null }));
   if (!bs.error) renderExcel(wb, 'Balance sheet', balanceSheetRows(bs, { as_of: to }));

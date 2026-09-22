@@ -589,7 +589,7 @@ export default function Contracts() {
                       </div>
                     </div>
                     <div className="rounded-lg border border-boom-100 bg-boom-50/40 px-3 py-2.5">
-                      <p className="text-xs text-boom-500 mb-1">Market Street</p>
+                      <p className="text-xs text-boom-500 mb-1">market.st</p>
                       <div className="flex items-baseline gap-1">
                         <span className="text-xl font-bold text-boom-600">{100 - selectedContract.royalty_split}</span>
                         <span className="text-sm font-semibold text-boom-400">%</span>
@@ -972,9 +972,9 @@ export default function Contracts() {
                           <span className="text-sm font-semibold text-gray-400">%</span>
                         </div>
                       </div>
-                      {/* Market Street box */}
+                      {/* market.st box */}
                       <div className="rounded-lg border border-boom-100 bg-boom-50/40 px-3 py-2.5">
-                        <p className="text-xs text-boom-500 mb-1">Market Street</p>
+                        <p className="text-xs text-boom-500 mb-1">market.st</p>
                         <div className="flex items-baseline gap-1">
                           <span className="text-xl font-bold text-boom-600">
                             {boomPct != null ? boomPct : '—'}
@@ -1381,7 +1381,7 @@ export default function Contracts() {
                 <th className="table-header">Status</th>
                 <th className="table-header">Signed</th>
                 <th className="table-header">Expires</th>
-                <th className="table-header">Artist / Market Street</th>
+                <th className="table-header">Artist / market.st</th>
                 <th className="table-header w-10">Doc</th>
                 <th className="table-header w-10"></th>
               </tr>

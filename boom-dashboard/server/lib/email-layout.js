@@ -1,4 +1,4 @@
-// The one email frame — Market Street's look, in email-safe HTML.
+// The one email frame — market.st's look, in email-safe HTML.
 //
 // The public vendor form's theme (client/src/styles/marketst-form.css) is the
 // reference: warm paper, a green MARKET ST street sign, flat colour bars
@@ -37,7 +37,7 @@ async function refreshLabel() {
 const labelInfo = () => labelCache;
 setTimeout(() => refreshLabel().catch(() => {}), 5000);
 setInterval(() => refreshLabel().catch(() => {}), 5 * 60 * 1000).unref?.();
-const labelName = (l) => l?.display_name || l?.legal_name || 'Market Street';
+const labelName = (l) => l?.display_name || l?.legal_name || 'market.st';
 
 // A key/value table in the house style — used by most templates.
 function rows(pairs, { valueStyle = '' } = {}) {
@@ -68,7 +68,7 @@ ${preheader ? `<div style="display:none;max-height:0;overflow:hidden;opacity:0;c
     <tr><td style="padding:0 0 14px;">
       <table role="presentation" cellpadding="0" cellspacing="0"><tr>
         <td style="background:${PALETTE.sign};padding:9px 16px 8px;border:2px solid #16543d;">
-          <span style="font-family:${MONO};font-size:15px;font-weight:700;letter-spacing:3px;color:#fff;text-transform:uppercase;">${esc(name.toUpperCase() === 'MARKET STREET' ? 'MARKET ST' : name)}</span>
+          <span style="font-family:${MONO};font-size:15px;font-weight:700;letter-spacing:3px;color:#fff;text-transform:uppercase;">${esc(name.toUpperCase() === 'MARKET.ST' ? 'MARKET ST' : name)}</span>
         </td>
         <td style="width:10px;"></td>
         <td style="font-family:${MONO};font-size:11px;letter-spacing:2px;text-transform:uppercase;color:${PALETTE.muted};">${esc(eyebrow || 'Label dashboard')}</td>

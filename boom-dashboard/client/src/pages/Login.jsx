@@ -52,7 +52,7 @@ export default function Login() {
             <div className="w-10 h-10 bg-boom-600 rounded-xl flex items-center justify-center">
               <span className="text-white font-bold text-lg">B</span>
             </div>
-            <span className="text-2xl font-bold text-gray-900 tracking-tight">Market Street</span>
+            <span className="text-2xl font-bold text-gray-900 tracking-tight">market.st</span>
           </div>
           <p className="text-sm text-gray-500">Sign in to your dashboard</p>
         </div>
@@ -60,7 +60,7 @@ export default function Login() {
         {/* Sign-in Card */}
         <div className="card p-6 flex flex-col items-center gap-4">
           <p className="text-xs text-gray-400 text-center">
-            Use your Market Street Google account
+            Use your market.st Google account
           </p>
 
           <GoogleLogin
@@ -116,7 +116,7 @@ export default function Login() {
         </div>
 
         <p className="text-center text-xs text-gray-400 mt-6">
-          Market Street Admin Dashboard
+          market.st Admin Dashboard
         </p>
       </div>
     </div>

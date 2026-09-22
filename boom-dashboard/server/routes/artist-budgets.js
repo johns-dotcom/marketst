@@ -981,7 +981,7 @@ router.get('/:artistKey/export', async (req, res) => {
 
     const money = '#,##0.00';
     const wb = new ExcelJS.Workbook();
-    wb.creator = 'Market Street';
+    wb.creator = 'market.st';
     wb.created = new Date();
 
     const s1 = wb.addWorksheet('Budget vs spent');

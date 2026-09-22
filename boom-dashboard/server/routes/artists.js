@@ -137,7 +137,7 @@ router.get('/export', authMiddleware, async (req, res) => {
 
     const ExcelJS = require('exceljs');
     const wb = new ExcelJS.Workbook();
-    wb.creator = 'Market Street Dashboard';
+    wb.creator = 'market.st Dashboard';
     const ws = wb.addWorksheet('Roster');
 
     ws.columns = [

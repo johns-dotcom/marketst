@@ -119,7 +119,7 @@ async function prepareEmail(kind, ctx = {}) {
       const { name = '', email = '', role = '', department = '' } = ctx;
       return {
         to: email, cc: '',
-        subject: 'Welcome to Market Street Dashboard',
+        subject: 'Welcome to market.st Dashboard',
         html: buildWelcomeHtml({ name, email, role, department }),
         attachmentLabels: [],
       };
@@ -129,7 +129,7 @@ async function prepareEmail(kind, ctx = {}) {
       const { name = '', email = '', password = '', role = '' } = ctx;
       return {
         to: email, cc: '',
-        subject: 'Your Market Street demo account is ready',
+        subject: 'Your market.st demo account is ready',
         html: buildTestUserInvitationHtml({ name, email, password, role }),
         attachmentLabels: [],
       };

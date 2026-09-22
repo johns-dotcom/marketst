@@ -51,7 +51,7 @@ const ENTRY = {
   currency: 'USD',
   vendor_submitted: true,
   artist: 'nikko',
-  song: '4 music videos / song promos for Market Street',
+  song: '4 music videos / song promos for market.st',
   category: 'Marketing',
   status: 'pending',
   invoice_filename: null,

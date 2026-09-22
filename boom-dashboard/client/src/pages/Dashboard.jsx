@@ -382,7 +382,7 @@ export default function Dashboard() {
       <div>
         <h1 className="text-3xl font-black text-gray-900 tracking-tight">{greeting(user?.name)}</h1>
         <div className="flex flex-wrap items-center gap-2 mt-1">
-          <p className="text-sm text-gray-400">Here's what's happening at Market Street.</p>
+          <p className="text-sm text-gray-400">Here's what's happening at market.st.</p>
           {/* Books-closed watermark. Self-hiding for anyone who can't see
               statements, so it needs no isAdmin guard here. Links, because
               the only people who see it can open the page. */}

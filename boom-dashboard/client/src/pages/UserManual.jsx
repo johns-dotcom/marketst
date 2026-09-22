@@ -197,7 +197,7 @@ const MANUAL_PAGES = [
       'Automatically tagged as Reimbursement on the ledger',
     ] },
   { path: '/create-invoice',   group: 'Finance — Invoicing', title: 'Create Invoice',
-    intro: 'Generate an invoice FROM Market Street to an external party.',
+    intro: 'Generate an invoice FROM market.st to an external party.',
     tasks: [
       'Add line items with Cmd+Shift+L',
       'Cmd+Enter to save, Cmd+P to print / export PDF',
@@ -369,7 +369,7 @@ const WORKFLOWS = [
     title: 'Vendor invoice → payment',
     requires: ['/bk/approvals', '/bk/payments'],
     steps: [
-      'Vendor submits on marketst-production.up.railway.app/submit (no login needed) — they can list extra emails to be CC\'d on confirmations. The sidebar has one-click copies of both the form link and the Market Street billing address',
+      'Vendor submits on marketst-production.up.railway.app/submit (no login needed) — they can list extra emails to be CC\'d on confirmations. The sidebar has one-click copies of both the form link and the market.st billing address',
       'You review on Approvals — AI flags any discrepancies',
       'Approve (optionally with "Notify vendor") → entry lands on the Ledger',
       'On Payments, mark it paid, or upload the proof and let the AI scan mark it paid with the extracted date + reference',
@@ -597,7 +597,7 @@ export default function UserManual() {
           <ArrowLeft size={14} /> Close
         </button>
         <div style={{ fontSize: 12, color: '#888', display: 'flex', alignItems: 'center', gap: 10 }}>
-          <span>Market Street Dashboard — User Manual</span>
+          <span>market.st Dashboard — User Manual</span>
           <button
             onClick={refreshPermissions}
             disabled={refreshing}
@@ -637,7 +637,7 @@ export default function UserManual() {
 
           {/* Cover */}
           <div style={{ borderBottom: '3px solid #334155', paddingBottom: 24, marginBottom: 24 }}>
-            <p style={{ margin: 0, fontSize: 11, fontWeight: 800, letterSpacing: 2, color: '#334155', textTransform: 'uppercase' }}>Market Street</p>
+            <p style={{ margin: 0, fontSize: 11, fontWeight: 800, letterSpacing: 2, color: '#334155', textTransform: 'uppercase' }}>market.st</p>
             <h1 style={{ margin: '4px 0 12px', fontSize: 32, fontWeight: 900, letterSpacing: -0.5 }}>User Manual</h1>
             <p style={{ margin: '0 0 6px', fontSize: 15 }}>
               Prepared for <strong>{user.name}</strong>
@@ -750,7 +750,7 @@ export default function UserManual() {
           </section>
 
           <div style={{ marginTop: 40, paddingTop: 16, borderTop: '1px solid #e5e5e5', fontSize: 11, color: '#999', textAlign: 'center' }}>
-            Market Street Dashboard · marketst-production.up.railway.app · Manual generated {today}
+            market.st Dashboard · marketst-production.up.railway.app · Manual generated {today}
           </div>
         </article>
       </div>

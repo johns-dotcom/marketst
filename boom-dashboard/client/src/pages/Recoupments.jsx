@@ -184,7 +184,7 @@ export default function Recoupments() {
   const [filterUfr, setFilterUfr] = useState('')
   // Uploaded for recoupment, with nothing on a bank statement behind it.
   //
-  // Marking a row UFR claims to a partner that Market Street spent this money on their
+  // Marking a row UFR claims to a partner that market.st spent this money on their
   // artist. When no bank line matches, the claim has no evidence under it — and
   // until now the page said nothing. 43 live rows / $134,931 across ~9 artists.
   //

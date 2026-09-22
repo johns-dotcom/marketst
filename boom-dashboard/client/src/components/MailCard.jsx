@@ -56,7 +56,7 @@ function BoxRow({ box, mine, onChanged, canManage }) {
           <span className="text-[11px] text-gray-400">{box.kind === 'personal' ? (mine ? 'yours' : 'personal') : 'shared'}{box.source === 'env' ? ' · from the server environment' : ''}</span>
           <span className={`text-[11px] font-semibold ${bad ? 'text-amber-700' : 'text-emerald-700'}`}>{bad ? 'needs reconnecting' : 'active'}</span>
         </div>
-        <p className="text-xs text-gray-500">as “{box.display_name || 'Market Street'}” · connected {ago(box.connected_at)}{box.connected_by_name ? ` by ${box.connected_by_name}` : ''} · last sent {ago(box.last_used_at)}</p>
+        <p className="text-xs text-gray-500">as “{box.display_name || 'market.st'}” · connected {ago(box.connected_at)}{box.connected_by_name ? ` by ${box.connected_by_name}` : ''} · last sent {ago(box.last_used_at)}</p>
         {box.last_error && <p className="text-[11px] text-amber-700 mt-0.5 flex items-center gap-1"><AlertTriangle size={11} /> {box.last_error}</p>}
         {note && <p className="text-[11px] text-gray-600 mt-1" data-box-note>{note}</p>}
       </div>

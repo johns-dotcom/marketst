@@ -4,11 +4,11 @@ export default function EULA() {
       <h1 style={{ fontSize: 28, fontWeight: 800, marginBottom: 8 }}>End-User License Agreement</h1>
       <p style={{ color: '#888', fontSize: 14, marginBottom: 32 }}>Last updated: April 13, 2026</p>
 
-      <p>This End-User License Agreement ("Agreement") is a legal agreement between you ("User") and Market Street ("Market Street," "we," "us," or "our") governing your use of the Market Street Dashboard application and related services (the "Service").</p>
+      <p>This End-User License Agreement ("Agreement") is a legal agreement between you ("User") and market.st ("market.st," "we," "us," or "our") governing your use of the market.st Dashboard application and related services (the "Service").</p>
       <p>By accessing or using the Service, you agree to be bound by this Agreement. If you do not agree, do not use the Service.</p>
 
       <h2 style={{ fontSize: 20, fontWeight: 700, marginTop: 32, marginBottom: 12 }}>1. License Grant</h2>
-      <p>We grant you a limited, non-exclusive, non-transferable, revocable license to access and use the Service for your internal business purposes in connection with Market Street operations. This license does not include the right to:</p>
+      <p>We grant you a limited, non-exclusive, non-transferable, revocable license to access and use the Service for your internal business purposes in connection with market.st operations. This license does not include the right to:</p>
       <ul style={{ paddingLeft: 24 }}>
         <li>Sublicense, sell, or distribute the Service to third parties</li>
         <li>Modify, reverse engineer, or create derivative works of the Service</li>
@@ -44,7 +44,7 @@ export default function EULA() {
       <p>THE SERVICE IS PROVIDED "AS IS" AND "AS AVAILABLE" WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND NON-INFRINGEMENT. WE DO NOT WARRANT THAT THE SERVICE WILL BE UNINTERRUPTED, ERROR-FREE, OR SECURE.</p>
 
       <h2 style={{ fontSize: 20, fontWeight: 700, marginTop: 32, marginBottom: 12 }}>8. Limitation of Liability</h2>
-      <p>TO THE MAXIMUM EXTENT PERMITTED BY LAW, MARKET STREET SHALL NOT BE LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, OR PUNITIVE DAMAGES ARISING OUT OF OR RELATED TO YOUR USE OF THE SERVICE, EVEN IF WE HAVE BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGES. OUR TOTAL LIABILITY SHALL NOT EXCEED THE AMOUNT YOU HAVE PAID US IN THE TWELVE MONTHS PRECEDING THE CLAIM.</p>
+      <p>TO THE MAXIMUM EXTENT PERMITTED BY LAW, MARKET.ST SHALL NOT BE LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, OR PUNITIVE DAMAGES ARISING OUT OF OR RELATED TO YOUR USE OF THE SERVICE, EVEN IF WE HAVE BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGES. OUR TOTAL LIABILITY SHALL NOT EXCEED THE AMOUNT YOU HAVE PAID US IN THE TWELVE MONTHS PRECEDING THE CLAIM.</p>
 
       <h2 style={{ fontSize: 20, fontWeight: 700, marginTop: 32, marginBottom: 12 }}>9. Termination</h2>
       <p>We may suspend or terminate your access to the Service at any time, with or without cause. Upon termination, your license to use the Service ceases immediately. Provisions that by their nature should survive termination shall survive, including ownership, warranty disclaimers, and limitations of liability.</p>
@@ -58,7 +58,7 @@ export default function EULA() {
       <h2 style={{ fontSize: 20, fontWeight: 700, marginTop: 32, marginBottom: 12 }}>12. Contact Us</h2>
       <p>If you have questions about this Agreement, contact us at:</p>
       <p style={{ marginTop: 8 }}>
-        <strong>Market Street</strong><br />
+        <strong>market.st</strong><br />
         1119 Poinsettia Drive, Unit 01<br />
         Los Angeles, CA 90046-5794<br />
         Email: john@deanst.co

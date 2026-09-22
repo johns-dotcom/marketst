@@ -98,7 +98,7 @@ const toISO = (s) => {
 
 // Pull a human payee out of a BofA description line. These are noisy:
 //   "WIRE TYPE:WIRE OUT DATE:240705 TIME:0932 ET TRN:X BNF:EDUARDO ROHSLER..."
-//   "ACME CO     DES:PAYMENTS   ID:12345 INDN:MARKET STREET  CO ID:..."
+//   "ACME CO     DES:PAYMENTS   ID:12345 INDN:MARKET.ST  CO ID:..."
 //   "CHECKCARD 0712 SWEETWATER SOUND 800-2224700 IN 2449..."
 //   "Zelle payment to Jane Doe Conf# abc123"
 function bofaPayee(desc) {
@@ -111,7 +111,7 @@ function bofaPayee(desc) {
   // useless for matching, and these are the advances and distributions.
   m = d.match(/ORIG:\/?([^;]+?)(?:\s+ID:|\s+SND BK:|\s+ORIG BK:|\s{2,}|$)/i);
   if (m && m[1].trim()) return m[1].trim();
-  // "TRANSFER MARKET STREET:LASZEWO LLC Confirmation# 1336263610" — the name
+  // "TRANSFER MARKET.ST:LASZEWO LLC Confirmation# 1336263610" — the name
   // before the colon is OUR account, the counterparty comes after it. Without
   // this the generic tail-split returns the whole descriptor as the payee (there
   // is no double-space, ID: or TRN: to split on), which is worse than what the
@@ -840,7 +840,7 @@ DATE|DIRECTION|AMOUNT|CURRENCY|AMOUNT_USD|PAYEE|EMAIL|REFERENCE|DESCRIPTION
 - AMOUNT_USD: ONLY when CURRENCY is not USD — the US-dollar amount the account was actually debited/credited for that transaction, as printed on the statement (PayPal shows the converted settlement amount). Leave this field EMPTY when CURRENCY is USD. Never estimate it; leave it blank if the statement doesn't print one.
 - PAYEE: the counterparty NAME ONLY (for wires the BNF/beneficiary; for card charges the merchant; for PayPal the recipient's name). Never put an email address here. Leave blank if unknown.
   ACH lines look like "MERCHANT NAME DES:<descriptor> ID:<id> INDN:<person> CO ID:<id> WEB". The PAYEE is the MERCHANT NAME at the START of the line, before "DES:". The INDN field is the individual name on OUR account, not the counterparty — never use it. "ADVICEPAY.COM DES:ADVICEPAY. ID:ST-X INDN:JANE DOE CO ID:123 WEB" is a payment to ADVICEPAY.COM, not to Jane Doe. Taking INDN put real people's names into the vendor ledger, where they read as vendors on a 1099.
-  Internal-transfer lines look like "TRANSFER <our account name>:<counterparty> Confirmation# <digits>", and reversals the same with REVERSAL. The PAYEE is the counterparty AFTER the colon. The name before the colon is OUR OWN account and the confirmation number is not part of anyone's name. "TRANSFER MARKET STREET:Venable LLP Confirmation# 0650505782" is a payment to "Venable LLP" — not to Market Street, and not the whole line. Never return the raw statement line as the payee; if you cannot isolate a name, leave PAYEE blank.
+  Internal-transfer lines look like "TRANSFER <our account name>:<counterparty> Confirmation# <digits>", and reversals the same with REVERSAL. The PAYEE is the counterparty AFTER the colon. The name before the colon is OUR OWN account and the confirmation number is not part of anyone's name. "TRANSFER MARKET.ST:Venable LLP Confirmation# 0650505782" is a payment to "Venable LLP" — not to market.st, and not the whole line. Never return the raw statement line as the payee; if you cannot isolate a name, leave PAYEE blank.
 - EMAIL: the counterparty's email address when the statement shows one (PayPal usually does). Leave blank if none.
 - REFERENCE: transaction/confirmation id. Leave blank if none.
 - DESCRIPTION: the statement line text (replace any | characters in it with /)
@@ -4228,8 +4228,8 @@ async function enrichDetail(st, txns) {
     // the reversal often lands on the next month's statement.
     // REVERSAL and REFUND credits both undo an earlier debit. Payee match:
     // equal names, OR the debit's payee printed inside the credit's
-    // description ("REVERSAL MARKET STREET:Tone Confirmation…" — the
-    // credit's own payee field says MARKET STREET while the twin is Tone).
+    // description ("REVERSAL MARKET.ST:Tone Confirmation…" — the
+    // credit's own payee field says MARKET.ST while the twin is Tone).
     const { rows: revPairs } = await pool.query(`
       SELECT DISTINCT ON (c.id) c.id AS credit_id, d.id AS debit_id,
              c.txn_date AS cdate, d.txn_date AS ddate,
@@ -7315,8 +7315,8 @@ const BOOK_PATTERN_MIN_COVERAGE = 0.75;
 // reaches ROWS:
 //
 //   APPLE.COM/BILL → "CKCD"          41/48 own rows — a bank card abbreviation
-//   Majed LLC      → "MARKET STREET"  17/17 own rows — OUR OWN name, off
-//                                    "…MARKET STREET:Majed…"
+//   Majed LLC      → "MARKET.ST"  17/17 own rows — OUR OWN name, off
+//                                    "…MARKET.ST:Majed…"
 //   TONE           → "SERVICE"        9/9  own rows — generic
 //
 // The test is NOT "does it reach other rows" — measured, that rejected FACEBK
@@ -7339,7 +7339,7 @@ const DESCRIPTOR_NOISE = new Set([
   'COMPANY', 'PENDING', 'AUTHORIZED', 'MERCHANT', 'REFERENCE', 'ACCOUNT', 'CHECKING',
   // Us. It appears on every Zelle and transfer descriptor, so it covers any
   // vendor's rows perfectly and is the worst possible pattern.
-  'MARKET STREET', 'MARKET', 'STREET',
+  'MARKET.ST', 'MARKET', 'STREET',
 ]);
 // ownRows: the rows this pattern has to cover. corpus: every debit as
 // { key, payee, category, hay } so the reach test can be run before anything is

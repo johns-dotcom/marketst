@@ -13,8 +13,8 @@ const CATEGORIES = [
   { key: 'amount_mismatch',       label: 'Amount mismatch',        tone: 'red',    desc: 'Same invoice on both sides, different totals.' },
   { key: 'paid_status_mismatch',  label: 'Paid status differs',    tone: 'red',    desc: 'One side says paid, the other says unpaid.' },
   { key: 'paid_date_mismatch',    label: 'Paid date differs',      tone: 'amber',  desc: 'Both say paid but the recorded date is different.' },
-  { key: 'missing_from_dashboard',label: 'Missing on Market Street',        tone: 'red',    desc: "In the bookkeeper sheet, but Market Street's ledger has no matching row." },
-  { key: 'missing_from_bookkeeper',label: 'Missing on bookkeeper', tone: 'red',    desc: "In Market Street's ledger, but the bookkeeper sheet has no row." },
+  { key: 'missing_from_dashboard',label: 'Missing on market.st',        tone: 'red',    desc: "In the bookkeeper sheet, but market.st's ledger has no matching row." },
+  { key: 'missing_from_bookkeeper',label: 'Missing on bookkeeper', tone: 'red',    desc: "In market.st's ledger, but the bookkeeper sheet has no row." },
   { key: 'vendor_name_variation', label: 'Vendor name variation',  tone: 'gray',   desc: 'Matched on invoice # but the vendor spelling differs — verify it\'s the same vendor.' },
   { key: 'no_invoice_num',        label: 'No invoice #',           tone: 'gray',   desc: 'Bookkeeper row had no parseable invoice # — could not match.' },
   { key: 'matched',               label: 'Clean matches',          tone: 'green',  desc: 'No discrepancies found on these rows.' },
@@ -81,7 +81,7 @@ const ISSUE_TAG_META = {
   paid_date:    { label: 'PAID DATE',      bg: '#FEF3C7', fg: '#A16207', border: '#FDE68A' },
   vendor:       { label: 'VENDOR',         bg: '#EDE9FE', fg: '#6D28D9', border: '#DDD6FE' },
   missing_bk:   { label: 'MISSING ON BK',  bg: '#E5E7EB', fg: '#374151', border: '#D1D5DB' },
-  missing_dash: { label: 'MISSING ON MARKET STREET',bg: '#E5E7EB', fg: '#374151', border: '#D1D5DB' },
+  missing_dash: { label: 'MISSING ON MARKET.ST',bg: '#E5E7EB', fg: '#374151', border: '#D1D5DB' },
   no_invoice:   { label: 'NO INVOICE #',   bg: '#E5E7EB', fg: '#374151', border: '#D1D5DB' },
 }
 
@@ -92,7 +92,7 @@ function parseIssueTags(issues) {
     else if (/^Paid status differs/.test(s))   tags.push('paid_status')
     else if (/^Paid date differs/.test(s))     tags.push('paid_date')
     else if (/^Vendor names differ/.test(s))   tags.push('vendor')
-    else if (/Market Street ledger has this row/i.test(s)) tags.push('missing_bk')
+    else if (/market.st ledger has this row/i.test(s)) tags.push('missing_bk')
     else if (/not in.*ledger/i.test(s) || /not in boom/i.test(s)) tags.push('missing_dash')
     else if (/no invoice/i.test(s))            tags.push('no_invoice')
   }
@@ -242,7 +242,7 @@ export default function LedgerMatching() {
 
   // BK Excel — uses the bookkeeper's source xlsx as a styling template
   // (re-uploaded here from local state) and just replaces the data rows
-  // with Market Street dashboard data. Guarantees pixel-perfect match because the
+  // with market.st dashboard data. Guarantees pixel-perfect match because the
   // theme, fonts, fills, column widths, row heights, and frozen panes
   // come straight from the user's file.
   const handleBkStyle = async () => {
@@ -284,7 +284,7 @@ export default function LedgerMatching() {
   }
 
   // Bookkeeper handoff ZIP — the multi-sheet workbook PLUS every invoice
-  // file, W9 / W8, and proof of payment Market Street has on file for the rows in
+  // file, W9 / W8, and proof of payment market.st has on file for the rows in
   // the diff, organized vendor-first.
   const handleHandoff = async () => {
     if (!diff || handoffBusy) return
@@ -348,7 +348,7 @@ export default function LedgerMatching() {
         <h1 data-tour="reconcile-header" style={{ fontSize: 24, fontWeight: 800, color: C.text, margin: 0 }}>Bookkeeper Reconcile</h1>
         <p style={{ color: '#888', fontSize: 13, margin: '6px 0 0' }}>
           Upload the external bookkeeper's weekly invoice summary. We'll match each row against the
-          Market Street ledger by normalized invoice # + fuzzy vendor name, then flag every difference —
+          market.st ledger by normalized invoice # + fuzzy vendor name, then flag every difference —
           amount mismatches, paid status drift, rows missing on either side, vendor-name variations.
         </p>
         {/* Says what this page is NOT. It was called "Ledger Matching", which
@@ -430,7 +430,7 @@ export default function LedgerMatching() {
               <div style={{ fontSize: 13, fontWeight: 800, color: C.text }}>Send this to the bookkeeper</div>
               <div style={{ fontSize: 11, color: '#777', marginTop: 2 }}>
                 The reconciliation report opens to a Summary tab with drill-downs per discrepancy.
-                BK Excel mirrors the bookkeeper's workbook layout populated with Market Street's data — drop-in
+                BK Excel mirrors the bookkeeper's workbook layout populated with market.st's data — drop-in
                 replacement. The ZIP also includes invoice files, W9s, and proofs of payment.
               </div>
             </div>
@@ -470,7 +470,7 @@ export default function LedgerMatching() {
                 opacity: (bkStyleBusy || reportBusy || handoffBusy) ? 0.6 : 1,
                 display: 'inline-flex', alignItems: 'center', gap: 8, whiteSpace: 'nowrap',
               }}
-              title="Bookkeeper's workbook layout populated with Market Street dashboard data">
+              title="Bookkeeper's workbook layout populated with market.st dashboard data">
               {bkStyleBusy
                 ? <><Loader style={{ width: 14, height: 14 }} className="animate-spin" /> Building…</>
                 : <><FileSpreadsheet style={{ width: 14, height: 14 }} /> BK Excel</>}

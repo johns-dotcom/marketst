@@ -120,7 +120,7 @@ function DropZone({ id, label, required, hint, file, onFile }) {
 }
 
 // ── RosterPicker ─────────────────────────────────────────────────────────────
-// Type-to-filter combobox over the Market Street artist roster with an "Artist not on
+// Type-to-filter combobox over the market.st artist roster with an "Artist not on
 // our roster" escape hatch. Two modes:
 //   • Roster mode (default) — input acts as a search filter over `roster`.
 //     Dropdown lists matches, always closes with a "+ Not on our roster"
@@ -571,8 +571,8 @@ function SuccessScreen({ vendorName, onReset, count = 1 }) {
         <p className="text-sm text-gray-500 mb-1">Thanks, <span className="text-red-600 font-bold">{vendorName}</span>.</p>
         <p className="text-sm text-gray-500 leading-relaxed mb-5">
           {many
-            ? `Your ${count} invoices and documents have been submitted to Market Street and are now under review — each one is reviewed on its own.`
-            : 'Your invoice and documents have been submitted to Market Street and are now under review.'}
+            ? `Your ${count} invoices and documents have been submitted to market.st and are now under review — each one is reviewed on its own.`
+            : 'Your invoice and documents have been submitted to market.st and are now under review.'}
         </p>
         {/* Payment terms, stated to the vendor at the one moment they are
             actually wondering. Not decorative — it is what the submission really
@@ -583,7 +583,7 @@ function SuccessScreen({ vendorName, onReset, count = 1 }) {
 
             Phrased as "on or around" and "once approved" because the stored date
             is a schedule, not a promise — approval is a separate step and this
-            screen must not commit Market Street to a payment it has not reviewed. */}
+            screen must not commit market.st to a payment it has not reviewed. */}
         <div className="text-left bg-gray-50 border border-rule rounded-xl px-4 py-3 mb-6">
           <p className="text-[13px] font-bold text-gray-900 mb-1">Payment terms: Net 30</p>
           <p className="text-[12px] text-gray-500 leading-relaxed">
@@ -621,7 +621,7 @@ export default function VendorSubmit() {
   // server also rewrites the /submit HTML title for link previews).
   useEffect(() => {
     const prev = document.title
-    document.title = 'Market Street — Vendor Submit'
+    document.title = 'market.st — Vendor Submit'
     return () => { document.title = prev }
   }, [])
   const [mode, setMode] = useState('invoice') // 'invoice' | 'reimbursement'
@@ -687,7 +687,7 @@ export default function VendorSubmit() {
 
   // Section 2
   const [artistRows, setArtistRows] = useState([{ artist: '', song: '', amount: '', off_roster: false }])
-  // Market Street artist roster — fetched once on mount for the RosterPicker. Never
+  // market.st artist roster — fetched once on mount for the RosterPicker. Never
   // gates the form: an empty roster (offline, endpoint 500) just means the
   // picker shows an empty list and every row lands as off-roster, which the
   // server re-validates anyway.
@@ -1136,7 +1136,7 @@ export default function VendorSubmit() {
     }, 0)
     if (!total) m.push('the invoice amount')
     if (!category) m.push('a category')
-    if (!boomRep) m.push('your Market Street rep')
+    if (!boomRep) m.push('your market.st rep')
     if (!socialRows.some(r => (r.handle || '').trim())) m.push('a social handle (or "N/A")')
     return m
   })()
@@ -1418,7 +1418,7 @@ export default function VendorSubmit() {
     }
     if (!(invoiceTotal(inv) > 0)) out.push('Please enter the invoice amount.')
     if (!pr.category) out.push('Please select a category.')
-    if (!pr.boomRep) out.push('Please select your Market Street Rep.')
+    if (!pr.boomRep) out.push('Please select your market.st Rep.')
     return out
   }
 
@@ -1819,7 +1819,7 @@ export default function VendorSubmit() {
         {!isReimb ? (
           <div className="ms-note flex gap-2.5 bg-gray-50 border-2 border-rule rounded-xl p-3 mb-5 text-sm text-slate-600 font-semibold">
             <span className="text-gray-400 font-black mt-0.5">i</span>
-            <span>Bill to <strong>Market Street</strong>. Include your invoice number, date, description, total amount, and your payment instructions (bank account + routing number, or PayPal email). A "Pay" link to a portal is not enough.</span>
+            <span>Bill to <strong>market.st</strong>. Include your invoice number, date, description, total amount, and your payment instructions (bank account + routing number, or PayPal email). A "Pay" link to a portal is not enough.</span>
           </div>
         ) : (
           <div className="ms-note flex gap-2.5 bg-blue-50 border-2 border-blue-200 rounded-xl p-3 mb-5 text-sm text-blue-800 font-semibold">
@@ -2306,7 +2306,7 @@ export default function VendorSubmit() {
                       value={row.artist}
                       offRoster={!!row.off_roster}
                       roster={roster}
-                      placeholder={i === 0 ? 'Search Market Street roster or "+ Not on our roster"' : 'Search roster'}
+                      placeholder={i === 0 ? 'Search market.st roster or "+ Not on our roster"' : 'Search roster'}
                       warningRing={looksHandle ? 'border-amber-400 focus:border-amber-500 bg-amber-50' : 'border-rule focus:border-red-500'}
                       onChange={(artist, offRoster) => updateArtistRow(i, { artist, off_roster: offRoster, ...(artist !== row.artist ? { song: '', song_other: false } : {}) })}
                     />
@@ -2385,7 +2385,7 @@ export default function VendorSubmit() {
                 </div>
                 <div className="col-span-2">
                   <label className="block text-xs font-bold uppercase tracking-wide text-gray-500 mb-1.5">
-                    Market Street Rep <span className="text-red-600">*</span>
+                    market.st Rep <span className="text-red-600">*</span>
                   </label>
                   <select
                     value={boomRep}
@@ -2680,7 +2680,7 @@ export default function VendorSubmit() {
                   : isReimb ? 'Submit Reimbursement' : 'Submit Invoice'} <kbd className="ms-enter-key" aria-hidden>Enter</kbd>
             </button>
           </div>
-          <p className="ms-foot text-center text-xs text-gray-300 mt-3">Secure submission — Market Street only</p>
+          <p className="ms-foot text-center text-xs text-gray-300 mt-3">Secure submission — market.st only</p>
           </>)}
 
         </form>

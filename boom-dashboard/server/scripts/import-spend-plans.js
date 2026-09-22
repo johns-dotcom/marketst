@@ -1,5 +1,5 @@
 /**
- * One-off import of the Market Street expense sheet into release spend plans.
+ * One-off import of the market.st expense sheet into release spend plans.
  *
  * Behavior (agreed with John 2026-09-03):
  *   - The sheet holds COMMITMENTS. Nothing here writes to `expenses`, and no

@@ -30,7 +30,7 @@ const api = async (method, path, token, body) => {
     const U = jwt.sign({ id: u.id, email: u.email, name: u.name, role: u.role, tv: 0 }, process.env.JWT_SECRET, { expiresIn: '1h' });
 
     // a shared mailbox as the callback would store it
-    const { rows: [mb] } = await pool.query(`INSERT INTO mailboxes (address, display_name, kind, refresh_token_enc, source, status, connected_by) VALUES ($1, 'Market Street AP', 'shared', $2, 'oauth', 'active', $3) RETURNING id`,
+    const { rows: [mb] } = await pool.query(`INSERT INTO mailboxes (address, display_name, kind, refresh_token_enc, source, status, connected_by) VALUES ($1, 'market.st AP', 'shared', $2, 'oauth', 'active', $3) RETURNING id`,
       [`${TAG.toLowerCase()}-ap@marketst.test`, paymentCrypto.isConfigured() ? paymentCrypto.encrypt('fake-refresh-token') : null, (await pool.query(`SELECT id FROM users WHERE email='john@deanst.co'`)).rows[0].id]); made.mailboxes.push(mb.id);
     const put = await api('PUT', '/mail/purposes', T, { payments: mb.id, team: mb.id });
     check('an admin assigns purposes to a shared mailbox', put.status === 200 && put.body.data.find((p) => p.key === 'payments').mailbox.id === mb.id && put.body.data.find((p) => p.key === 'team').connected === true, JSON.stringify(put.body).slice(0, 160));

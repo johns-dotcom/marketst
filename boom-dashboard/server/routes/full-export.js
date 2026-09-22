@@ -65,7 +65,7 @@ const fmtForCurrency = (cur) => CURRENCY_FMT[cur] || `"${cur || 'USD'} "#,##0.00
 // totalsFor: optional key to sum and emit a per-currency total band.
 async function buildWorkbook({ sheetName, title, subtitle, columns, rows, totalsFor }) {
   const wb = new ExcelJS.Workbook();
-  wb.creator = 'Market Street Dashboard';
+  wb.creator = 'market.st Dashboard';
   wb.created = new Date();
   const ws = wb.addWorksheet(sheetName || 'Sheet1', {
     views: [{ showGridLines: false }],
@@ -279,7 +279,7 @@ router.get('/', async (req, res) => {
 
       incRec(SECTION, await appendWorkbook(archive, `${rootDir}/${SECTION}/Ledger.xlsx`, {
         sheetName: 'Ledger',
-        title: 'Market Street — Ledger (Every Expense)',
+        title: 'market.st — Ledger (Every Expense)',
         subtitle: 'Complete expense register including pending, approved, deleted, and voided entries',
         columns: [
           { key: 'id',                     header: 'ID',              width: 7  },
@@ -322,7 +322,7 @@ router.get('/', async (req, res) => {
           { key: 'status',                 header: 'Approval Status', width: 12 },
           { key: 'approved_by',            header: 'Approved By',     width: 14 },
           { key: 'approved_at',            header: 'Approved At',     width: 18, type: 'datetime' },
-          { key: 'boom_rep',               header: 'Market Street Rep',        width: 13 },
+          { key: 'boom_rep',               header: 'market.st Rep',        width: 13 },
           { key: 'notes',                  header: 'Notes',           width: 30, wrap: true },
           { key: 'parent_id',              header: 'Parent ID',       width: 10 },
           { key: 'deleted',                header: 'Deleted?',        width: 10, type: 'bool' },
@@ -367,7 +367,7 @@ router.get('/', async (req, res) => {
       `);
       incRec(SECTION, await appendWorkbook(archive, `${rootDir}/${SECTION}/Vendors.xlsx`, {
         sheetName: 'Vendors',
-        title: 'Market Street — Vendor Directory',
+        title: 'market.st — Vendor Directory',
         subtitle: 'Distinct vendors aggregated from approved expenses. Aliases captured separately.',
         columns: [
           { key: 'payee',         header: 'Vendor',         width: 32 },
@@ -401,7 +401,7 @@ router.get('/', async (req, res) => {
       `);
       incRec(SECTION, await appendWorkbook(archive, `${rootDir}/${SECTION}/Recoupments.xlsx`, {
         sheetName: 'Recoupments',
-        title: 'Market Street — Recoupable Spend by Artist',
+        title: 'market.st — Recoupable Spend by Artist',
         subtitle: 'Every approved expense marked recoupable, grouped artist → song',
         columns: [
           { key: 'artist',           header: 'Artist',         width: 22 },
@@ -451,7 +451,7 @@ router.get('/', async (req, res) => {
       `);
       incRec(SECTION, await appendWorkbook(archive, `${rootDir}/${SECTION}/Bulk Deals.xlsx`, {
         sheetName: 'Bulk Deals',
-        title: 'Market Street — Bulk Deals',
+        title: 'market.st — Bulk Deals',
         subtitle: `${bulkDeals.length} bulk deal${bulkDeals.length === 1 ? '' : 's'} with ${bulkItems.length} item${bulkItems.length === 1 ? '' : 's'} — items appended after the deal list below`,
         columns: [
           { key: 'id',                  header: 'ID',            width: 7  },
@@ -473,7 +473,7 @@ router.get('/', async (req, res) => {
       }));
       incRec(SECTION, await appendWorkbook(archive, `${rootDir}/${SECTION}/Bulk Deal Items.xlsx`, {
         sheetName: 'Items',
-        title: 'Market Street — Bulk Deal Items',
+        title: 'market.st — Bulk Deal Items',
         subtitle: 'Individual deliverables tied to each bulk deal expense.',
         columns: [
           { key: 'expense_id',   header: 'Deal ID',      width: 9  },
@@ -488,17 +488,17 @@ router.get('/', async (req, res) => {
         rows: bulkItems,
       }));
 
-      // Market Street Invoices (invoices Market Street sent to clients)
+      // market.st Invoices (invoices market.st sent to clients)
       const { rows: boomInvoices } = await pool.query(`
         SELECT id, invoice_number, bill_to, bill_to_address, description, amount,
                purchase_order, due_by, payment_status, line_items, created_by, created_at
           FROM boom_invoices
          ORDER BY invoice_number DESC
       `);
-      incRec(SECTION, await appendWorkbook(archive, `${rootDir}/${SECTION}/Market Street Invoices.xlsx`, {
-        sheetName: 'Market Street Invoices',
-        title: 'Market Street — Outgoing Invoices',
-        subtitle: 'Invoices Market Street issued (the generator on /create-invoice).',
+      incRec(SECTION, await appendWorkbook(archive, `${rootDir}/${SECTION}/market.st Invoices.xlsx`, {
+        sheetName: 'market.st Invoices',
+        title: 'market.st — Outgoing Invoices',
+        subtitle: 'Invoices market.st issued (the generator on /create-invoice).',
         columns: [
           { key: 'invoice_number',  header: 'Invoice #',     width: 12 },
           { key: 'bill_to',         header: 'Bill To',       width: 26 },
@@ -525,7 +525,7 @@ router.get('/', async (req, res) => {
       `);
       incRec(SECTION, await appendWorkbook(archive, `${rootDir}/${SECTION}/Bookkeeping Audit Log.xlsx`, {
         sheetName: 'BK Audit',
-        title: 'Market Street — Bookkeeping Audit Trail',
+        title: 'market.st — Bookkeeping Audit Trail',
         subtitle: 'Field-level change history for the ledger.',
         columns: [
           { key: 'ts',          header: 'Timestamp',     width: 18, type: 'datetime' },
@@ -666,7 +666,7 @@ router.get('/', async (req, res) => {
       `);
       incRec(SECTION, await appendWorkbook(archive, `${rootDir}/${SECTION}/Artists.xlsx`, {
         sheetName: 'Artists',
-        title: 'Market Street — Artist Roster',
+        title: 'market.st — Artist Roster',
         subtitle: 'Every artist with rollups for contracts and releases.',
         columns: [
           { key: 'id',              header: 'ID',          width: 7  },
@@ -721,7 +721,7 @@ router.get('/', async (req, res) => {
       `);
       incRec(SECTION, await appendWorkbook(archive, `${rootDir}/${SECTION}/Contracts.xlsx`, {
         sheetName: 'Contracts',
-        title: 'Market Street — Active Contracts',
+        title: 'market.st — Active Contracts',
         subtitle: 'Signed agreements with their financial obligations.',
         columns: [
           { key: 'artist_name',     header: 'Artist',         width: 24 },
@@ -748,7 +748,7 @@ router.get('/', async (req, res) => {
       `);
       incRec(SECTION, await appendWorkbook(archive, `${rootDir}/${SECTION}/Pending Contracts.xlsx`, {
         sheetName: 'Pending',
-        title: 'Market Street — Pending Contracts',
+        title: 'market.st — Pending Contracts',
         subtitle: 'Deal pipeline before contracts are signed.',
         columns: [
           { key: 'artist_name',header: 'Artist',     width: 24 },
@@ -777,7 +777,7 @@ router.get('/', async (req, res) => {
       `);
       incRec(SECTION, await appendWorkbook(archive, `${rootDir}/${SECTION}/Deals.xlsx`, {
         sheetName: 'Deals',
-        title: 'Market Street — Deal Pipeline',
+        title: 'market.st — Deal Pipeline',
         subtitle: 'A&R prospects at every stage.',
         columns: [
           { key: 'artist_name', header: 'Artist',  width: 24 },
@@ -802,7 +802,7 @@ router.get('/', async (req, res) => {
       `);
       incRec(SECTION, await appendWorkbook(archive, `${rootDir}/${SECTION}/NDAs.xlsx`, {
         sheetName: 'NDAs',
-        title: 'Market Street — Generated NDAs',
+        title: 'market.st — Generated NDAs',
         subtitle: 'NDAs issued via the Create NDA page. PDFs are rendered client-side; only form values persist.',
         columns: [
           { key: 'effective_date',           header: 'Effective Date', width: 14, type: 'date' },
@@ -868,7 +868,7 @@ router.get('/', async (req, res) => {
       `);
       incRec(SECTION, await appendWorkbook(archive, `${rootDir}/${SECTION}/Admin Documents.xlsx`, {
         sheetName: 'Documents',
-        title: 'Market Street — Admin Document Vault',
+        title: 'market.st — Admin Document Vault',
         subtitle: 'Legal, HR, IP, compliance, and policy documents.',
         columns: [
           { key: 'title',           header: 'Title',           width: 30 },
@@ -921,14 +921,14 @@ router.get('/', async (req, res) => {
     const generatedAt = new Date().toISOString();
 
     const readme = [
-      '# Market Street — Full Archive',
+      '# market.st — Full Archive',
       '',
       `**Generated:** ${new Date().toLocaleString('en-US', { dateStyle: 'long', timeStyle: 'short' })}`,
       `**By:** ${exporter}`,
       `**Records exported:** ${totalRecords.toLocaleString()} across ${Object.keys(counts).length} sections`,
       `**Files exported:** ${totalFiles.toLocaleString()}`,
       '',
-      'This archive is a complete snapshot of every business-relevant table and document attachment from the Market Street dashboard (marketst-production.up.railway.app). Each section folder contains one or more `.xlsx` workbooks (styled, filterable, with totals) plus the original PDF / image attachments organized by section.',
+      'This archive is a complete snapshot of every business-relevant table and document attachment from the market.st dashboard (marketst-production.up.railway.app). Each section folder contains one or more `.xlsx` workbooks (styled, filterable, with totals) plus the original PDF / image attachments organized by section.',
       '',
       '## Contents',
       '',
@@ -937,7 +937,7 @@ router.get('/', async (req, res) => {
       '- `Vendors.xlsx` — distinct vendor directory with invoice counts, totals, W9 status, contact info, and aliases.',
       '- `Recoupments.xlsx` — every approved expense flagged recoupable, sorted artist → song.',
       '- `Bulk Deals.xlsx` / `Bulk Deal Items.xlsx` — bulk creator deals and their per-creator deliverables.',
-      '- `Market Street Invoices.xlsx` — invoices Market Street sent out.',
+      '- `market.st Invoices.xlsx` — invoices market.st sent out.',
       '- `Bookkeeping Audit Log.xlsx` — field-level change history.',
       '- `Invoices/`, `Proofs of Payment/`, `W9s and W8s/`, `Receipts/`, `Receipts (Multi-File)/` — original document files, filename-friendly.',
       '',
@@ -974,7 +974,7 @@ router.get('/', async (req, res) => {
       schemaVersion: 1,
       generatedAt,
       exportedBy: { id: req.user.id, name: req.user.name, email: req.user.email, role: req.user.role },
-      app: 'Market Street Dashboard',
+      app: 'market.st Dashboard',
       host: req.get('host') || null,
       totals: { records: totalRecords, files: totalFiles, sections: Object.keys(counts).length },
       sections: counts,

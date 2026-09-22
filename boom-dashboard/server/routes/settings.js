@@ -433,10 +433,10 @@ router.delete('/visible-reps', adminOnly, async (req, res) => {
   }
 });
 
-// ─── Market Street Reps CRUD ─────────────────────────────────────────────────────────
-// Admin/Superadmin manage the canonical Market Street Reps list. The public
+// ─── market.st Reps CRUD ─────────────────────────────────────────────────────────
+// Admin/Superadmin manage the canonical market.st Reps list. The public
 // /api/reps endpoint reads from the same table (active rows only) and
-// is what every "Market Street Rep" dropdown across the app consumes.
+// is what every "market.st Rep" dropdown across the app consumes.
 //
 // Soft deactivate, no hard delete: existing expenses + user assignments
 // still reference the rep by name string, so removing the row would
@@ -724,9 +724,9 @@ router.post('/users/:id(\\d+)/invite', adminOnly, async (req, res) => {
       const { sendMail, runWithMailContext } = require('../lib/mail');
       const url = `${process.env.FRONTEND_URL || 'https://marketst-production.up.railway.app'}${invite.path}`;
       await runWithMailContext({ actor: { id: req.user.id, email: req.user.email, name: req.user.name } }, () => sendMail({
-        kind: 'invite', purpose: 'team', to: t.email, subject: 'Your Market Street dashboard login',
-        html: (() => { const L = require('../lib/email-layout'); return L.layout({ title: `Hi ${t.name.split(' ')[0]}, you're in`, eyebrow: 'Your login', accent: 'forest', preheader: 'Set your password for the Market Street dashboard.',
-          body: L.p(`${req.user.name || 'An admin'} added you to the ${L.labelInfo().display_name || 'Market Street'} dashboard. Set your password and sign in with the button below.`) + L.p('The link works once and expires in 7 days. If it has expired, ask an admin for a new one.', { small: true, muted: true }),
+        kind: 'invite', purpose: 'team', to: t.email, subject: 'Your market.st dashboard login',
+        html: (() => { const L = require('../lib/email-layout'); return L.layout({ title: `Hi ${t.name.split(' ')[0]}, you're in`, eyebrow: 'Your login', accent: 'forest', preheader: 'Set your password for the market.st dashboard.',
+          body: L.p(`${req.user.name || 'An admin'} added you to the ${L.labelInfo().display_name || 'market.st'} dashboard. Set your password and sign in with the button below.`) + L.p('The link works once and expires in 7 days. If it has expired, ask an admin for a new one.', { small: true, muted: true }),
           cta: { label: 'Set my password', href: url } }); })(),
         entity: { type: 'user', id: t.id } }));
       emailed = true;

@@ -693,7 +693,7 @@ export default function CreateNDA() {
           <p className="text-sm text-gray-500 mb-6">
             {editing
               ? `Editing NDA for ${editing.recipient_name}`
-              : 'Fill in the recipient details; Owner / signatory default to Market Street.'}
+              : 'Fill in the recipient details; Owner / signatory default to market.st.'}
           </p>
 
           <form data-tour="nda-form" onSubmit={handleCreate} className="space-y-4">

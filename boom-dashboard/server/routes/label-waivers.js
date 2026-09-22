@@ -1,5 +1,5 @@
-// Market Street Label Waivers — short side-letter documents waiving Market Street's
-// exclusivity so a Market Street-signed artist can appear as co-primary on
+// market.st Label Waivers — short side-letter documents waiving market.st's
+// exclusivity so a market.st-signed artist can appear as co-primary on
 // another label's release. CRUD mirror of routes/ndas.js — PDF
 // rendering still lives client-side via jsPDF, but the client now
 // posts the generated PDF alongside the form values on save. The

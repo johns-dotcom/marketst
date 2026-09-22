@@ -1,8 +1,8 @@
-// Public list of active Market Street reps.
+// Public list of active market.st reps.
 //
 // This endpoint deliberately does NOT require auth so the unauthenticated
 // vendor submit form (/submit, served at /api/vendor/*) can populate its
-// "Which Market Street Rep are you working with?" dropdown without leaking auth
+// "Which market.st Rep are you working with?" dropdown without leaking auth
 // tokens. The data is the same set of names already visible to vendors
 // on the form anyway — not sensitive.
 //

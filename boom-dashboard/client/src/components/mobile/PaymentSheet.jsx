@@ -77,7 +77,7 @@ export default function PaymentSheet({
         <Field label="Invoice #">{entry.invoice_number}</Field>
         <Field label="Method">{entry.payment_method}</Field>
         <Field label="Artist">{entry.artist}</Field>
-        <Field label="Market Street rep">{entry.boom_rep}</Field>
+        <Field label="market.st rep">{entry.boom_rep}</Field>
         <Field label="Terms">{entry.payment_terms}</Field>
         <Field label="Invoice date">{fmtDate(entry.invoice_date)}</Field>
         <Field label="Vendor email">{entry.vendor_email}</Field>

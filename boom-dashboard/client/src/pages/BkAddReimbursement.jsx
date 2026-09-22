@@ -474,7 +474,7 @@ export default function BkAddReimbursement() {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Market Street Rep</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">market.st Rep</label>
                 <select value={form.boom_rep}
                   onChange={e => handleFormChange('boom_rep', e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-boom-600 focus:border-transparent bg-white">

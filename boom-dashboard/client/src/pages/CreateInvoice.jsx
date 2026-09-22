@@ -98,8 +98,8 @@ function shortInvoiceDate(invoice) {
 
 function BoomLogo({ compact }) {
   return (
-    <svg viewBox="0 0 220 50" className={compact ? 'h-8' : 'h-11'} aria-label="Market Street">
-      <text x="0" y="42" fontFamily="-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif" fontSize="34" fontWeight="900" fill="#334155" letterSpacing="-1">MARKET STREET</text>
+    <svg viewBox="0 0 220 50" className={compact ? 'h-8' : 'h-11'} aria-label="market.st">
+      <text x="0" y="42" fontFamily="-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif" fontSize="34" fontWeight="900" fill="#334155" letterSpacing="-1">MARKET.ST</text>
     </svg>
   )
 }
@@ -417,7 +417,7 @@ export default function CreateInvoice() {
     doc.setFont('helvetica', 'bold')
     doc.setFontSize(30)
     setColor(RED)
-    text('MARKET STREET', M, 75)
+    text('MARKET.ST', M, 75)
 
     // INVOICE title
     doc.setFontSize(38)

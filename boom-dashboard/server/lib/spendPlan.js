@@ -74,7 +74,7 @@ const pairKey = (artist, title) => `${matchKey(artist)}␟${matchKey(title)}`;
 //
 // "Who Paid" started as a person and drifted into a payment status. Across 7,218
 // lines it is 2,868 "not yet", 1,663 "paid", and 67 distinct values total; the
-// rows still naming a person (Tyler, Felipe, Market Street, Sergio, Kenny) number about
+// rows still naming a person (Tyler, Felipe, market.st, Sergio, Kenny) number about
 // 40 and all sit in the oldest blocks on the left.
 //
 // John's call: map the status, discard the names as legacy noise. So a BARE name

@@ -177,7 +177,7 @@ async function describe(docType, docId, uploaded) {
 
 async function labelSigner() {
   const { rows: [l] } = await pool.query('SELECT signatory_name, signatory_email, display_name, legal_name FROM label_settings WHERE id = 1').catch(() => ({ rows: [] }));
-  return { name: l?.signatory_name || l?.display_name || l?.legal_name || 'Market Street', email: l?.signatory_email || null };
+  return { name: l?.signatory_name || l?.display_name || l?.legal_name || 'market.st', email: l?.signatory_email || null };
 }
 
 // ─── send ─────────────────────────────────────────────────────────────────

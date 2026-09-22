@@ -1313,7 +1313,7 @@ router.get('/exec', authMiddleware, async (req, res) => {
           ${forecastFilterClause}
       ),
       -- Trailing 4 weeks of new-invoicing $ per week. Uses created_at
-      -- (submission date) since that's when a bill lands in Market Street's
+      -- (submission date) since that's when a bill lands in market.st's
       -- inbox regardless of invoice_date. Avg → weekly rate.
       recent_intake AS (
         SELECT COALESCE(SUM(e.amount / COALESCE(NULLIF(e.fx_rate_to_usd, 0), 1)), 0)::float / 4.0 AS weekly_avg_usd
@@ -2307,7 +2307,7 @@ router.get('/export', authMiddleware, async (req, res) => {
 
     // Build the workbook.
     const wb = new ExcelJS.Workbook();
-    wb.creator = 'Market Street Dashboard';
+    wb.creator = 'market.st Dashboard';
     wb.created = new Date();
     const rangeLabel = rangeFrom && rangeTo ? `${rangeFrom} → ${rangeTo}` : 'All time';
     const subtitle = `Generated ${new Date().toLocaleDateString('en-US', { dateStyle: 'long' })}  ·  Range: ${rangeLabel}  ·  Scope: ${filterLine}`;
@@ -2320,7 +2320,7 @@ router.get('/export', authMiddleware, async (req, res) => {
         { key: 'a', width: 4 }, { key: 'b', width: 30 }, { key: 'c', width: 22 }, { key: 'd', width: 42 },
       ];
       // Title
-      const t = ws.addRow(['', 'Market Street — Financials']);
+      const t = ws.addRow(['', 'market.st — Financials']);
       t.height = 36; t.font = { bold: true, size: 22, color: { argb: XLSX_TITLE_FG } };
       ws.mergeCells('B1:D1');
       const s = ws.addRow(['', subtitle]);
@@ -2387,7 +2387,7 @@ router.get('/export', authMiddleware, async (req, res) => {
         ['By Artist',           'Top artists by paid + unpaid'],
         ['By Song',             'Top songs'],
         ['By Category',         'Top categories'],
-        ['By Rep',              'Which Market Street rep authorized the spend'],
+        ['By Rep',              'Which market.st rep authorized the spend'],
         ['Payment Velocity',    'Days-to-pay histogram + median / mean'],
         ['Payment Methods',     'USD by method + % of paid'],
         ['Recoupment',          'Per-artist spend vs income'],
@@ -2652,7 +2652,7 @@ router.get('/export', authMiddleware, async (req, res) => {
     {
       const ws = wb.addWorksheet('By Rep', { views: [{ showGridLines: false }] });
       const columns = [
-        { key: 'rep',        header: 'Market Street rep',     width: 26 },
+        { key: 'rep',        header: 'market.st rep',     width: 26 },
         { key: 'paid_usd',   header: 'Paid (USD)',   width: 16, type: 'currency' },
         { key: 'unpaid_usd', header: 'Unpaid (USD)', width: 16, type: 'currency' },
         { key: 'total_usd',  header: 'Total (USD)',  width: 16, type: 'currency' },

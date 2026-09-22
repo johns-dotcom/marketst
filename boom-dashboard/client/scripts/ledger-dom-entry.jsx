@@ -64,7 +64,7 @@ async function main() {
     assert('the row count is the ROOT rows (a split child is not a row of its own)', nRows === rows().filter((r) => true).length - 0 || nRows >= 4)
     assert('the nine dropdowns are gone from the toolbar; one Filters button stands in', !!host.querySelector('[data-ledger-filters-button]') && !host.querySelector('[data-tour="ledger-filters"] select'))
     assert('the Recoup label column is named for what it is, not Tone Labels', !/Tone Labels/.test(textOf(host)))
-    assert('the default columns are the core set: Email, Bank, Socials and Rep are off', !/>Email</.test(host.innerHTML.replace(/\s+/g, '')) || ![...host.querySelectorAll('th')].some((th) => /^(Email|Bank|Socials|Market Street Rep)$/.test(textOf(th))))
+    assert('the default columns are the core set: Email, Bank, Socials and Rep are off', !/>Email</.test(host.innerHTML.replace(/\s+/g, '')) || ![...host.querySelectorAll('th')].some((th) => /^(Email|Bank|Socials|market.st Rep)$/.test(textOf(th))))
     // Filters popover → a chip → URL
     click(host.querySelector('[data-ledger-filters-button]')); await sleep(80)
     const pop = host.querySelector('[data-ledger-filters-popover]')

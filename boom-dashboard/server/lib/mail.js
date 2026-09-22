@@ -84,7 +84,7 @@ async function isConnected(purpose, q = pool) {
   return !!mb && mb.status === 'active';
 }
 
-const fromHeaderFor = (mb) => `${(mb.display_name || 'Market Street').replace(/["<>]/g, '')} <${mb.address}>`;
+const fromHeaderFor = (mb) => `${(mb.display_name || 'market.st').replace(/["<>]/g, '')} <${mb.address}>`;
 
 async function sendMail({ purpose, kind, to, cc, subject, html, attachments, from, replyTo, entity }) {
   const ctx = mailContext();
@@ -126,7 +126,7 @@ async function importEnvMailbox() {
     if (rows[0].n > 0) return false;
     const { rows: [mb] } = await pool.query(
       `INSERT INTO mailboxes (address, display_name, kind, source, status, connected_at)
-       VALUES ($1, 'Market Street', 'shared', 'env', 'active', NOW()) RETURNING id`, [String(process.env.GMAIL_USER).toLowerCase()]);
+       VALUES ($1, 'market.st', 'shared', 'env', 'active', NOW()) RETURNING id`, [String(process.env.GMAIL_USER).toLowerCase()]);
     for (const p of PURPOSES) await pool.query('INSERT INTO mailbox_purposes (purpose, mailbox_id) VALUES ($1, $2) ON CONFLICT (purpose) DO NOTHING', [p.key, mb.id]);
     console.log(`[mail] imported the environment sender ${process.env.GMAIL_USER} as the first shared mailbox`);
     return true;

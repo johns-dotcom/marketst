@@ -19,7 +19,7 @@ router.use(auth);
 router.use(requirePagePermission('/artist-campaigns'));
 
 // ─── Excel export styling ────────────────────────────────────────────────────
-// Market Street brand-red palette. Column headers are red-on-white with a dark-red
+// market.st brand-red palette. Column headers are red-on-white with a dark-red
 // accent, section bands are a soft red tint, and the finished/in-progress
 // left rail on section rows uses emerald / red respectively. The rest of
 // the workbook stays cream + slate for legibility since a full red sheet
@@ -944,7 +944,7 @@ router.get('/export', async (req, res) => {
 
     // Build the workbook.
     const wb = new ExcelJS.Workbook();
-    wb.creator = 'Market Street Dashboard';
+    wb.creator = 'market.st Dashboard';
     wb.created = new Date();
 
     for (const a of artists) {

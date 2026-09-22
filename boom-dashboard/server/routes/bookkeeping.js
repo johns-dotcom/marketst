@@ -325,7 +325,7 @@ function termDays(terms) {
   return 30;
 }
 
-// Today's date in Market Street's headquarters timezone (LA), as YYYY-MM-DD.
+// Today's date in market.st's headquarters timezone (LA), as YYYY-MM-DD.
 // Used to anchor "payment date = the day the row was flipped to Paid"
 // across every status-flip path. Postgres-equivalent SQL expression:
 //   (NOW() AT TIME ZONE 'America/Los_Angeles')::DATE
@@ -339,7 +339,7 @@ function todayLA() {
 }
 
 // Compute scheduled_payment_date from a SUBMISSION date + term days. The
-// submission date is when Market Street received the invoice (NOW() at create time
+// submission date is when market.st received the invoice (NOW() at create time
 // == the row's created_at), NOT the invoice_date printed on the document.
 // Anchoring to submission gives a consistent 30-day window regardless of
 // how stale the invoice itself is — a vendor's 90-day-old invoice still
@@ -1184,7 +1184,7 @@ router.post('/entries', async (req, res) => {
     const terms = payment_terms || 'Net 30';
     // Default due date = SUBMISSION date (now) + term days when the caller
     // doesn't supply one. Anchored to submission, not invoice_date, so a
-    // stale invoice still gets a fresh 30-day window from when Market Street got it.
+    // stale invoice still gets a fresh 30-day window from when market.st got it.
     // An explicit scheduled_payment_date passed by the caller still wins.
     const dueDate = scheduled_payment_date || computeDueDate(new Date(), terms);
 
@@ -4165,13 +4165,13 @@ function normalizeIssueArray(value) {
 
 // POST /api/bk/validate-invoice (multipart: file)
 // Mirror of the vendor portal's /validate-invoice check — confirms the
-// uploaded document is actually an invoice, billed to Market Street, has an invoice
+// uploaded document is actually an invoice, billed to market.st, has an invoice
 // number / date / amount / description. Used by the Add Invoice page to
 // flag issues before the entry hits the ledger.
 router.post('/validate-invoice', upload.single('file'), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ valid: false, issues: ['No file uploaded'] });
-    const prompt = `You are validating an invoice submitted to Market Street (a record label). Check this document and return ONLY valid JSON:
+    const prompt = `You are validating an invoice submitted to market.st (a record label). Check this document and return ONLY valid JSON:
 {
   "valid": true or false,
   "issues": ["list of problems found"],
@@ -4185,7 +4185,7 @@ router.post('/validate-invoice', upload.single('file'), async (req, res) => {
 
 REQUIREMENTS — the document MUST:
 1. Be an actual invoice or receipt (not bank instructions, a screenshot of a conversation, a random document, etc.)
-2. Be billed/addressed to "Market Street", "Market Street", "Market Street", or similar
+2. Be billed/addressed to "market.st", "market.st", "market.st", or similar
 3. Include an invoice number or receipt reference
 4. Include a date
 5. Include a total amount
@@ -4230,7 +4230,7 @@ router.post('/validate-w9', upload.single('file'), async (req, res) => {
     const nowDate = new Date();
     const todayISO = nowDate.toISOString().slice(0, 10);
     const todayHuman = nowDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-    const prompt = `You are validating a W-9 or W-8 tax form submitted to Market Street.
+    const prompt = `You are validating a W-9 or W-8 tax form submitted to market.st.
 
 TODAY'S DATE IS ${todayHuman} (ISO: ${todayISO}). Treat this as authoritative — do NOT use your own internal notion of "today." A signing date is only in the future if it is strictly AFTER ${todayISO}. Any date on or before ${todayISO} is in the past or present and is VALID.
 
@@ -5683,7 +5683,7 @@ router.get('/1099/export', async (req, res) => {
 
     const ExcelJS = require('exceljs');
     const wb = new ExcelJS.Workbook();
-    wb.creator = 'Market Street Dashboard';
+    wb.creator = 'market.st Dashboard';
 
     // ── Filing ──
     const ws = wb.addWorksheet('Filing');
@@ -7038,7 +7038,7 @@ router.get('/payments/export', async (req, res) => {
 
     const ExcelJS = require('exceljs');
     const wb = new ExcelJS.Workbook();
-    wb.creator = 'Market Street Dashboard';
+    wb.creator = 'market.st Dashboard';
     const labels = { all: 'All Payments', unpaid: 'Unpaid', overdue: 'Overdue', due_soon: 'Due Soon', paid: 'Paid' };
     const ws = wb.addWorksheet(labels[filter] || 'Payments');
 
@@ -7217,7 +7217,7 @@ router.post('/payments/send-approval-email', async (req, res) => {
     // Build Excel summary
     const ExcelJS = require('exceljs');
     const wb = new ExcelJS.Workbook();
-    wb.creator = 'Market Street Dashboard';
+    wb.creator = 'market.st Dashboard';
     const ws = wb.addWorksheet('Approval Summary');
     ws.columns = [
       { header: 'Invoice Date',   key: 'invoice_date',            width: 14 },
@@ -9223,7 +9223,7 @@ router.get('/export', async (req, res) => {
     const yearTag = new Date().getFullYear();
 
     const wb = new ExcelJS.Workbook();
-    wb.creator = 'Market Street Dashboard';
+    wb.creator = 'market.st Dashboard';
     wb.created = new Date();
 
     // Single helper builds either tab. `paidMode` flips the title + filter +
@@ -9249,7 +9249,7 @@ router.get('/export', async (req, res) => {
       // Row 1 — Big company title, white text on red
       ws.mergeCells(`A1:${lastCol}1`);
       const t1 = ws.getCell('A1');
-      t1.value = 'MARKET STREET';
+      t1.value = 'MARKET.ST';
       t1.font = { bold: true, size: 16, color: { argb: 'FFFFFFFF' } };
       t1.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF334155' } };
       t1.alignment = { horizontal: 'center', vertical: 'middle' };
@@ -9564,7 +9564,7 @@ router.get('/export-lookup', async (req, res) => {
 
     const ExcelJS = require('exceljs');
     const wb = new ExcelJS.Workbook();
-    wb.creator = 'Market Street Dashboard';
+    wb.creator = 'market.st Dashboard';
     wb.created = new Date();
     const ws = wb.addWorksheet('Expense Lookup', {
       views: [{ showGridLines: false }],
@@ -9588,7 +9588,7 @@ router.get('/export-lookup', async (req, res) => {
       { key: 'payment_method', header: 'Payment Method', width: 14 },
       { key: 'payment_date',   header: 'Payment Date',   width: 12 },
       { key: 'payment_status', header: 'Payment Status', width: 14 },
-      { key: 'boom_rep',       header: 'Market Street Rep',       width: 14 },
+      { key: 'boom_rep',       header: 'market.st Rep',       width: 14 },
       { key: 'notes',          header: 'Notes',          width: 30 },
     ];
     ws.columns = cols.map(c => ({ key: c.key, width: c.width }));
@@ -9597,7 +9597,7 @@ router.get('/export-lookup', async (req, res) => {
     // Title block (rows 1–3). Row 1 is the report title; row 2 the timestamp;
     // row 3 surfaces the filters that produced this view so the file is
     // self-explanatory when opened standalone.
-    const titleRow = ws.addRow(['Market Street — Expense Lookup']);
+    const titleRow = ws.addRow(['market.st — Expense Lookup']);
     titleRow.height = 26;
     titleRow.font = { bold: true, size: 16, color: { argb: 'FF111111' } };
     ws.mergeCells(`A1:${lastColLetter}1`);
@@ -11230,7 +11230,7 @@ router.get('/export-recoupments', async (req, res) => {
     // ── Workbook ──
     const ExcelJS = require('exceljs');
     const wb = new ExcelJS.Workbook();
-    wb.creator = 'Market Street Dashboard';
+    wb.creator = 'market.st Dashboard';
     const sheetName = String(artist).replace(/[\\/?*[\]:]/g, '_').slice(0, 31) || 'Recoupments';
     const ws = wb.addWorksheet(sheetName, { views: [{ state: 'frozen', ySplit: 1 }] });
 
@@ -11644,7 +11644,7 @@ const { vendorsMatch } = require('../lib/vendorMatch');
 
 // POST /api/bk/ledger-diff — bookkeeper uploads their weekly invoice
 // summary xlsx. We auto-detect the columns on every relevant sheet
-// (skipping the SUM / totals sheets), pull the Market Street dashboard ledger,
+// (skipping the SUM / totals sheets), pull the market.st dashboard ledger,
 // and return a structured JSON diff so the page can render the
 // reconciliation report inline.
 //
@@ -11658,8 +11658,8 @@ const { vendorsMatch } = require('../lib/vendorMatch');
 //   - amount_mismatch       — same invoice # + matched vendor, different amount
 //   - paid_status_mismatch  — one side paid, the other isn't
 //   - vendor_name_variation — matched but the vendor names differ (informational)
-//   - missing_from_dashboard — invoice # in bookkeeper, not in Market Street's ledger
-//   - missing_from_bookkeeper — invoice # in Market Street's ledger, not in the sheet
+//   - missing_from_dashboard — invoice # in bookkeeper, not in market.st's ledger
+//   - missing_from_bookkeeper — invoice # in market.st's ledger, not in the sheet
 //   - no_invoice_num        — bookkeeper row has no normalizable invoice #
 router.post('/ledger-diff', upload.single('file'), async (req, res) => {
   try {
@@ -11880,7 +11880,7 @@ router.post('/ledger-diff', upload.single('file'), async (req, res) => {
         diffs.push({
           kind: 'missing_from_dashboard', sheet: b.sheet, rowNum: b.rowNum,
           bookkeeper: b, dashboard: null,
-          issues: ['Invoice # not found in the Market Street dashboard ledger.'],
+          issues: ['Invoice # not found in the market.st dashboard ledger.'],
         });
         continue;
       }
@@ -11992,7 +11992,7 @@ router.post('/ledger-diff', upload.single('file'), async (req, res) => {
         sheet: null, rowNum: null,
         bookkeeper: null,
         dashboard: d,
-        issues: ['Market Street ledger has this row; bookkeeper workbook does not.'],
+        issues: ['market.st ledger has this row; bookkeeper workbook does not.'],
       });
     }
 
@@ -12033,8 +12033,8 @@ const DIFF_CATEGORIES = [
   // High-priority action sheets first so the bookkeeper sees them on tab open.
   { key: 'amount_mismatch',        label: 'Amount Mismatches',     priority: 'HIGH', action: 'Reconcile each row — confirm the correct amount with the vendor / receipts.' },
   { key: 'paid_status_mismatch',   label: 'Paid Status Differs',   priority: 'HIGH', action: 'Sync the paid / unpaid state in whichever ledger is wrong.' },
-  { key: 'missing_from_dashboard', label: 'Missing on Market Street',       priority: 'HIGH', action: 'Confirm these were really billed to Market Street; if yes Market Street needs to add them.' },
-  { key: 'missing_from_bookkeeper',label: 'Missing on Bookkeeper', priority: 'HIGH', action: 'Add these rows to your books — Market Street has them in its ledger already.' },
+  { key: 'missing_from_dashboard', label: 'Missing on market.st',       priority: 'HIGH', action: 'Confirm these were really billed to market.st; if yes market.st needs to add them.' },
+  { key: 'missing_from_bookkeeper',label: 'Missing on Bookkeeper', priority: 'HIGH', action: 'Add these rows to your books — market.st has them in its ledger already.' },
   // Medium / informational sheets after.
   { key: 'paid_date_mismatch',     label: 'Paid Date Differs',     priority: 'MED',  action: 'Confirm the correct payment date in either ledger.' },
   { key: 'vendor_name_variation',  label: 'Vendor Name Variations',priority: 'INFO', action: 'Standardize vendor spellings so future weeks reconcile cleanly.' },
@@ -12170,7 +12170,7 @@ function diffParseIssueTags(issues) {
     else if (/^Paid status differs/.test(s))  tags.push('paid_status');
     else if (/^Paid date differs/.test(s))    tags.push('paid_date');
     else if (/^Vendor names differ/.test(s))  tags.push('vendor');
-    else if (/Market Street ledger has this row/i.test(s)) tags.push('missing_bk');
+    else if (/market.st ledger has this row/i.test(s)) tags.push('missing_bk');
     else if (/not in.*ledger/i.test(s) || /not in boom/i.test(s)) tags.push('missing_dash');
     else if (/no invoice/i.test(s))           tags.push('no_invoice');
   }
@@ -12183,7 +12183,7 @@ const DIFF_TAG_META = {
   paid_date:    { label: 'PAID DATE',     color: 'FFA16207' }, // amber-700
   vendor:       { label: 'VENDOR',        color: 'FF6D28D9' }, // violet-700
   missing_bk:   { label: 'MISSING ON BK', color: 'FF374151' },
-  missing_dash: { label: 'MISSING ON MARKET STREET', color: 'FF374151' },
+  missing_dash: { label: 'MISSING ON MARKET.ST', color: 'FF374151' },
   no_invoice:   { label: 'NO INVOICE #',  color: 'FF374151' },
 };
 
@@ -12247,7 +12247,7 @@ function writeDiffSheet(ws, { catRows, title, note, noteColor }) {
   bkBan.font = { bold: true, size: 10, color: { argb: 'FF1E3A8A' } };
   bkBan.alignment = { vertical: 'middle', horizontal: 'center' };
   const dashBan = ws.getCell(`${colLetter(dashStart)}${banner.number}`);
-  dashBan.value = 'MARKET STREET DASHBOARD RECORD';
+  dashBan.value = 'MARKET.ST DASHBOARD RECORD';
   dashBan.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFDF2F2' } };
   dashBan.font = { bold: true, size: 10, color: { argb: 'FF991B1B' } };
   dashBan.alignment = { vertical: 'middle', horizontal: 'center' };
@@ -12377,7 +12377,7 @@ function writeDiffSheet(ws, { catRows, title, note, noteColor }) {
 async function buildDiffWorkbook({ summary, diffs }) {
   const ExcelJS = require('exceljs');
   const wb = new ExcelJS.Workbook();
-  wb.creator = 'Market Street Dashboard';
+  wb.creator = 'market.st Dashboard';
   wb.created = new Date();
   const THIN = { style: 'thin', color: { argb: DIFF_BRAND.BORDER } };
 
@@ -12395,7 +12395,7 @@ async function buildDiffWorkbook({ summary, diffs }) {
     alignment: { vertical: 'middle', horizontal: 'left' },
   });
   ws.getRow(1).height = 34;
-  ws.addRow(['Market Street  ⇄  External Bookkeeper']);
+  ws.addRow(['market.st  ⇄  External Bookkeeper']);
   ws.mergeCells('A2:E2');
   Object.assign(ws.getCell('A2'), {
     font: { italic: true, size: 12, color: { argb: DIFF_BRAND.GRAY } },
@@ -12629,7 +12629,7 @@ router.post('/ledger-diff-handoff', express.json({ limit: '50mb' }), async (req,
     //    rows we'll pull invoice / proof / W9 files for. Bookkeeper-only
     //    rows (missing_from_dashboard) have no dashboard side -> no files
     //    to attach; they're surfaced in the workbook for the bookkeeper to
-    //    push back on Market Street.
+    //    push back on market.st.
     const dashIds = new Set();
     const vendorsLc = new Set();
     for (const r of diff.diffs) {
@@ -12716,7 +12716,7 @@ router.post('/ledger-diff-handoff', express.json({ limit: '50mb' }), async (req,
         if (entries.length === 0) continue;
         const lines = [
           `# ${vendor} — ${entries.length} invoice${entries.length === 1 ? '' : 's'} referenced`,
-          `# (an X means the file is NOT in this folder — original wasn't uploaded to Market Street yet)`,
+          `# (an X means the file is NOT in this folder — original wasn't uploaded to market.st yet)`,
           '',
           'Invoice #              Invoice date    Inv?    Proof?',
         ];
@@ -12772,7 +12772,7 @@ router.post('/ledger-diff-handoff', express.json({ limit: '50mb' }), async (req,
       if (vendorsWithoutW9.length > 0) {
         const note = [
           `# Vendors referenced in the reconciliation with no W9 / W8 on file (${vendorsWithoutW9.length}):`,
-          `# Market Street needs to chase these before remitting future payments.`,
+          `# market.st needs to chase these before remitting future payments.`,
           '',
           ...vendorsWithoutW9.sort().map(v => `- ${v}`),
         ].join('\n') + '\n';
@@ -12782,7 +12782,7 @@ router.post('/ledger-diff-handoff', express.json({ limit: '50mb' }), async (req,
 
     // 6) README at the root explaining the bundle
     const readme = [
-      'MARKET STREET — LEDGER RECONCILIATION HANDOFF',
+      'MARKET.ST — LEDGER RECONCILIATION HANDOFF',
       '=============================================',
       '',
       `Generated:        ${new Date().toLocaleString('en-US', { dateStyle: 'long', timeStyle: 'short' })}`,
@@ -12795,27 +12795,27 @@ router.post('/ledger-diff-handoff', express.json({ limit: '50mb' }), async (req,
       '00 - START HERE - Reconciliation Report.xlsx',
       '    Multi-sheet workbook. Summary tab on open, then one tab per',
       '    discrepancy category in priority order (Amount mismatches,',
-      '    Paid status differs, Missing on Market Street, Missing on bookkeeper,',
+      '    Paid status differs, Missing on market.st, Missing on bookkeeper,',
       '    Paid date differs, Vendor name variations, No invoice number,',
       '    Clean matches).',
       '',
       '01 - Invoices/',
       '    One folder per vendor referenced in the report. Each folder',
-      '    contains the original invoice PDFs Market Street has on file, named',
+      '    contains the original invoice PDFs market.st has on file, named',
       '    "<invoice #> — <invoice date>.<ext>" so they sort by number',
       '    + date when opened. A small _VENDOR_SUMMARY.txt lists every',
       '    referenced invoice for that vendor and notes which are',
-      '    missing their attachment on Market Street\'s side.',
+      '    missing their attachment on market.st\'s side.',
       '',
       '02 - W9s and W8s/',
       '    One W9 / W8 per unique vendor (most recent on file). The',
       '    _MISSING.txt file lists vendors that appear in the report',
-      '    but have no W9 / W8 attached on Market Street\'s side — chase those.',
+      '    but have no W9 / W8 attached on market.st\'s side — chase those.',
       '',
       '03 - Proof of Payment/',
       '    Same vendor folder layout as Invoices. PDFs named',
       '    "<invoice #> — PAID <payment date>.<ext>". Only includes',
-      '    rows that already have a proof of payment uploaded to Market Street.',
+      '    rows that already have a proof of payment uploaded to market.st.',
       '',
       'COUNTS',
       '------',
@@ -12834,7 +12834,7 @@ router.post('/ledger-diff-handoff', express.json({ limit: '50mb' }), async (req,
       '--------------------------',
       '',
       'Reply to john@deanst.co with the specific row reference',
-      '(category sheet + Market Street dashboard id or bookkeeper sheet + row #)',
+      '(category sheet + market.st dashboard id or bookkeeper sheet + row #)',
       'when something needs clarification.',
       '',
     ].filter(Boolean).join('\n');
@@ -12860,7 +12860,7 @@ router.post('/ledger-diff-export', express.json({ limit: '20mb' }), async (req, 
 
     const ExcelJS = require('exceljs');
     const wb = new ExcelJS.Workbook();
-    wb.creator = 'Market Street Dashboard';
+    wb.creator = 'market.st Dashboard';
     wb.created = new Date();
 
     // Use the canonical category def + writeDiffSheet helper so this
@@ -12903,16 +12903,16 @@ router.post('/ledger-diff-export', express.json({ limit: '20mb' }), async (req, 
 // Uses the external bookkeeper's source workbook as a styling TEMPLATE:
 // loads the uploaded BK xlsx, captures row 9's per-column style on each
 // year-data sheet, splices out the bookkeeper's data rows, then writes
-// Market Street dashboard data into the same rows using the captured style.
+// market.st dashboard data into the same rows using the captured style.
 // Guarantees pixel-perfect match — same theme, fonts, fills, widths,
 // heights, frozen panes — because we're starting from the user's file.
 
-// Map a Market Street expenses row to the bookkeeper's column shape. Values that
-// Market Street doesn't structure (HENRY/FAVELA sign-offs, ROUTING/ACCT ENDING
+// Map a market.st expenses row to the bookkeeper's column shape. Values that
+// market.st doesn't structure (HENRY/FAVELA sign-offs, ROUTING/ACCT ENDING
 // when vendor_bank is free text) stay empty per the user's choice to
-// preserve the layout but only populate what Market Street has.
+// preserve the layout but only populate what market.st has.
 function bkRowFromExpense(e) {
-  // W9/W8 detection by filename suffix — Market Street stores both under w9_*.
+  // W9/W8 detection by filename suffix — market.st stores both under w9_*.
   let w9Status = '';
   if (e.w9_filename) {
     w9Status = /w8/i.test(e.w9_filename) ? 'W8 ON FILE' : 'W9 ON FILE';
@@ -12928,7 +12928,7 @@ function bkRowFromExpense(e) {
   }
   // DUE DATE — prefer the stored scheduled_payment_date so manual
   // overrides survive. Otherwise derive from created_at + payment_terms
-  // "Net N" so the BK Excel matches Market Street's submission-anchored policy.
+  // "Net N" so the BK Excel matches market.st's submission-anchored policy.
   let dueDate = null;
   if (e.scheduled_payment_date) {
     dueDate = new Date(e.scheduled_payment_date);
@@ -12963,7 +12963,7 @@ function bkRowFromExpense(e) {
     method:         e.payment_method || '',
     email:          e.vendor_email || '',
     bank:           e.vendor_bank || '',
-    routing:        '', // Market Street stores vendor_bank as free text — no structured routing
+    routing:        '', // market.st stores vendor_bank as free text — no structured routing
     acct:           '',
     w9_status:      w9Status,
     recd_from:      recdFrom,
@@ -12976,7 +12976,7 @@ function bkRowFromExpense(e) {
 // spliceRows() is unreliable on loaded workbooks (it silently no-ops),
 // so we overwrite cell values in place instead: capture row 9's per-
 // column style, then overwrite rows 9..(9 + boomRows.length - 1) with
-// Market Street data using that style, and clear+hide any trailing rows the
+// market.st data using that style, and clear+hide any trailing rows the
 // bookkeeper had beyond our data. Rows 1-8 are left untouched so the
 // banner / subtitle / WEEK ENDING / column headers stay identical.
 // Canonical numFmts the bookkeeper uses across every year + PAID sheet.
@@ -13007,7 +13007,7 @@ function replaceBkDataRows(ws, boomRows, isPaidSheet) {
   // The bookkeeper's source has the row-number column (A) wired as a
   // shared-formula chain (A9=1 literal, A10=A9+1 master at A11 with
   // ref=A11:A74, A12+ clones referencing A11). When we overwrite A11
-  // with a Market Street row index, ExcelJS chokes on save with "Shared Formula
+  // with a market.st row index, ExcelJS chokes on save with "Shared Formula
   // master must exist above and or left of clone for cell A18" because
   // the clones still point at a master that no longer exists. Converting
   // every formula cell in the data region to its precomputed `.result`
@@ -13079,7 +13079,7 @@ function replaceBkDataRows(ws, boomRows, isPaidSheet) {
       }
       row.hidden = false;
     } else {
-      // Excess BK rows beyond what Market Street has — clear values + hide so the
+      // Excess BK rows beyond what market.st has — clear values + hide so the
       // sheet looks clean. ExcelJS persists row.hidden through save.
       for (let col = 1; col <= NUM_COLS; col++) {
         const cell = row.getCell(col);
@@ -13108,7 +13108,7 @@ function replaceBkSumTotals(ws, totals) {
 
 
 // POST /api/bk/bk-style-export — produces an Excel that mirrors the
-// external bookkeeper's workbook EXACTLY, populated with Market Street data.
+// external bookkeeper's workbook EXACTLY, populated with market.st data.
 // The client re-uploads the BK source xlsx so the server can use it
 // as a styling template (preserves theme, fonts, fills, widths, heights,
 // frozen panes). Then we just replace the data rows on each year sheet.
@@ -13751,7 +13751,7 @@ router.get('/export-csv', async (req, res) => {
     const fmtDate = (d) => d ? new Date(d).toLocaleDateString('en-US') : '';
     const headers = ['Date','Payee','Description','Category','Artist','Song','Invoice #',
       'Amount','Currency','Payment Method','Payment Date','Payment Status','Paid By',
-      'Terms','Due Date','QB','QB Date','Stem','Market Street Rep','Cobrand','Reimbursement','Notes','Approved By'];
+      'Terms','Due Date','QB','QB Date','Stem','market.st Rep','Cobrand','Reimbursement','Notes','Approved By'];
     const csvRows = rows.map(r => [
       esc(fmtDate(r.invoice_date)), esc(r.payee), esc(r.description), esc(r.category),
       esc(r.artist), esc(r.song), esc(r.invoice_number),
@@ -14087,10 +14087,10 @@ router.get('/vendor-zip', async (req, res) => {
     archive.pipe(res);
 
     // ── 1) Build the ledger.xlsx — branded, frozen header, currency +
-    // date number formats, banded rows. Same look as the other Market Street
+    // date number formats, banded rows. Same look as the other market.st
     // exports so the output reads like part of the same set.
     const wb = new ExcelJS.Workbook();
-    wb.creator = 'Market Street Dashboard';
+    wb.creator = 'market.st Dashboard';
     const ws = wb.addWorksheet('Ledger', {
       views: [{ showGridLines: false, state: 'frozen', ySplit: 4 }],
       pageSetup: { orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 0 },

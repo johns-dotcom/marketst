@@ -512,7 +512,7 @@ export default function BkPayments() {
 
   // CC-the-rep toggle — persisted in localStorage so the preference sticks
   // across reloads. Default: OFF (reps generally don't want to be CC'd).
-  // Check the box to CC the invoice's assigned Market Street rep on the confirmation.
+  // Check the box to CC the invoice's assigned market.st rep on the confirmation.
   const [ccRep, setCcRep] = useState(() => localStorage.getItem('pay_dash_cc_rep') === 'true')
   useEffect(() => { localStorage.setItem('pay_dash_cc_rep', String(ccRep)) }, [ccRep])
 
@@ -2727,7 +2727,7 @@ export default function BkPayments() {
             <div style={{ border: '1px solid ' + C.border, borderRadius: 10, overflow: 'hidden', marginBottom: 16, background: '#f9f9f9' }}>
               {/* Header banner */}
               <div style={{ background: '#334155', padding: '14px 20px' }}>
-                <p style={{ margin: 0, fontSize: 10, fontWeight: 700, letterSpacing: 2, color: 'rgba(255,255,255,0.7)', textTransform: 'uppercase' }}>Market Street</p>
+                <p style={{ margin: 0, fontSize: 10, fontWeight: 700, letterSpacing: 2, color: 'rgba(255,255,255,0.7)', textTransform: 'uppercase' }}>market.st</p>
                 <h1 style={{ margin: '4px 0 0', fontSize: 18, fontWeight: 700, color: '#fff' }}>Invoices for Approval</h1>
               </div>
               {/* Body (editable) */}
@@ -3565,7 +3565,7 @@ export default function BkPayments() {
               {['All', 'Unpaid', 'Paid', 'Partial'].map(s => <option key={s} value={s}>{s}</option>)}
             </select>
           </FilterField>
-          <FilterField label="Market Street rep">
+          <FilterField label="market.st rep">
             <select value={repFilter} onChange={e => setRepFilter(e.target.value)} className="w-full py-2.5 px-3 rounded-xl border border-rule bg-card text-[13px] text-ink outline-none">
               <option value="All">All</option>
               <option value="No rep">No rep</option>
@@ -4949,7 +4949,7 @@ export default function BkPayments() {
                 stays OFF and still persists in localStorage. */}
             {filtered.some(isPendingConfirmation) && (
               <label
-                title="When checked, each payment-confirmation email CCs the invoice's assigned Market Street rep. Leave unchecked to send only to the vendor."
+                title="When checked, each payment-confirmation email CCs the invoice's assigned market.st rep. Leave unchecked to send only to the vendor."
                 style={{
                   display: 'inline-flex', alignItems: 'center', gap: 6, cursor: 'pointer',
                   fontSize: 12, fontWeight: 600, color: ccRep ? '#1e40af' : C.textMuted,

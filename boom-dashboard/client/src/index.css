@@ -391,7 +391,7 @@
 .dark .border-amber-200 { border-color: rgba(245, 158, 11, 0.2) !important; }
 .dark .text-amber-600, .dark .text-amber-500 { color: #fbbf24 !important; }
 
-/* ── Red/Market Street — backgrounds AND text. The text overrides matter most
+/* ── Red/market.st — backgrounds AND text. The text overrides matter most
  *    for eye comfort: text-boom-600 (#334155) and text-red-600 (#DC2626)
  *    on a dark background read as glaring red — push them down to the
  *    -400 tier so dollar amounts and pill text stay legible without

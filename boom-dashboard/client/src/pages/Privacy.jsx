@@ -4,7 +4,7 @@ export default function Privacy() {
       <h1 style={{ fontSize: 28, fontWeight: 800, marginBottom: 8 }}>Privacy Policy</h1>
       <p style={{ color: '#888', fontSize: 14, marginBottom: 32 }}>Last updated: April 13, 2026</p>
 
-      <p>Market Street ("Market Street," "we," "us," or "our") operates the Market Street Dashboard application (the "Service"). This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our Service.</p>
+      <p>market.st ("market.st," "we," "us," or "our") operates the market.st Dashboard application (the "Service"). This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our Service.</p>
 
       <h2 style={{ fontSize: 20, fontWeight: 700, marginTop: 32, marginBottom: 12 }}>1. Information We Collect</h2>
       <p><strong>Account Information:</strong> When you create an account, we collect your name, email address, and role within the organization.</p>
@@ -68,7 +68,7 @@ export default function Privacy() {
       <h2 style={{ fontSize: 20, fontWeight: 700, marginTop: 32, marginBottom: 12 }}>9. Contact Us</h2>
       <p>If you have questions about this Privacy Policy, contact us at:</p>
       <p style={{ marginTop: 8 }}>
-        <strong>Market Street</strong><br />
+        <strong>market.st</strong><br />
         1119 Poinsettia Drive, Unit 01<br />
         Los Angeles, CA 90046-5794<br />
         Email: john@deanst.co

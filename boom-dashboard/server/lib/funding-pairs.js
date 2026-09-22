@@ -170,7 +170,7 @@ const MIN_ATTRIBUTION = 8;
 // Found 2026-08-19 from John: "not all of this bank activity is for this vendor
 // (paypal netflix.com)". Some ledger vendors and aliases ARE whole bank
 // descriptors — "PURCHASE 0306 Adobe Inc 800-8336687 CA", "PURCHASE 0323
-// ANTHROPIC: CLAUDE TEAM ANTHROPIC.COMCA MARKET STREET ! Account" — and BofA
+// ANTHROPIC: CLAUDE TEAM ANTHROPIC.COMCA MARKET.ST ! Account" — and BofA
 // prefixes every card charge with "PURCHASE". So each of those claimed every
 // purchase on the statement. ANTHROPIC's vendor page was serving 100 of 802 rows
 // totalling $401,568.76: DocuSign, Lyft, Railway, American Air, Netflix.
@@ -203,15 +203,15 @@ const withoutLeadingBoilerplate = (toks) => {
 //
 // A BofA line carries both parties. The payee leads; then come fields describing
 // US — `INDN:` (the ACH individual name) and the account trailer
-// ("MARKET STREET ! Account 325"). Matching a vendor name against those
+// ("MARKET.ST ! Account 325"). Matching a vendor name against those
 // attributes somebody else's payment to them:
 //
 //   "Park Avenue Secu DES:… INDN:LUIS FAVELA"   -> claimed by vendor LUIS FAVELA
 //   "SCOTT SLATTERY DES:SALE ID: INDN:LUIS FAVELA"        (40 of his 43 rows)
-//   "PURCHASE … MARKET STREET ! Account 325" -> claimed by Market Street
+//   "PURCHASE … MARKET.ST ! Account 325" -> claimed by market.st
 //
 // Measured 2026-08-19: 120 rows / $273,935 matched ONLY through INDN, and
-// Market Street plus New Technologies & Associates held 190 more through the
+// market.st plus New Technologies & Associates held 190 more through the
 // account trailer. Every PayPal pull carries "INDN:JACOB ALLEN", so a vendor by
 // that name would have claimed all 154 of them.
 //

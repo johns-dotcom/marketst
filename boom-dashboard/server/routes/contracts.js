@@ -826,7 +826,7 @@ router.post('/generate', authMiddleware, async (req, res) => {
       ? referenceContracts.map((r, i) => `Reference ${i + 1} (${r.type} with ${r.artist_name}): Royalty ${r.royalty_split || 'N/A'}%, Advance ${r.advance || 'N/A'}, Territory ${r.territory || 'N/A'}, Releases ${r.num_releases || 'N/A'}, Terms: ${JSON.stringify(r.financial_terms || [])}`).join('\n')
       : 'No existing contracts on file for reference.';
 
-    const prompt = `You are a music industry contract attorney drafting a contract for Market Street, a record label.
+    const prompt = `You are a music industry contract attorney drafting a contract for market.st, a record label.
 
 EXISTING CONTRACTS ON FILE (use these as reference for style, terms, and structure):
 ${refText}
@@ -834,7 +834,7 @@ ${refText}
 GENERATE A NEW CONTRACT with these specifications:
 - Type: ${type} Agreement
 - Artist: ${artist_name}
-- Label: Market Street
+- Label: market.st
 - Royalty Split: ${royalty_split || 'To be determined'}%
 - Advance: $${advance || '0'}
 - Territory: ${territory || 'Worldwide'}
@@ -844,7 +844,7 @@ ${notes ? `- Additional Notes/Requirements: ${notes}` : ''}
 ${financial_terms && financial_terms.length > 0 ? `- Financial Obligations: ${JSON.stringify(financial_terms)}` : ''}
 
 Generate a professional, complete contract document. Include:
-1. Parties (Market Street and the artist)
+1. Parties (market.st and the artist)
 2. Term and territory
 3. Recording/publishing/distribution obligations (based on contract type)
 4. Financial terms (royalty split, advance, recoupment)

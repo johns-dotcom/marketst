@@ -1,4 +1,4 @@
-// Market Street Reps registry — pulled from /api/reps once on app mount + on tab
+// market.st Reps registry — pulled from /api/reps once on app mount + on tab
 // focus. Replaces the static BOOM_REPS constant from src/constants.js so
 // admins can add or deactivate reps via Settings without a code deploy.
 //

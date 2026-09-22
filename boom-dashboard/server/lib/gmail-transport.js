@@ -12,7 +12,7 @@ const SEND_TIMEOUT_MS = Number(process.env.GMAIL_SEND_TIMEOUT_MS || 120000);
 // Send via Gmail API (raw HTTPS — no SMTP, works on Railway)
 // Supports optional attachments: [{ filename, data (base64), mimeType }]
 function sendViaGmailAPI(accessToken, { from, replyTo, to, cc, subject, html, attachments }) {
-  const fromHeader = from || `Market Street <${process.env.GMAIL_USER}>`;
+  const fromHeader = from || `market.st <${process.env.GMAIL_USER}>`;
   return new Promise((resolve, reject) => {
     let message;
 

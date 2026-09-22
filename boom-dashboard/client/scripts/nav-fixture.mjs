@@ -36,7 +36,7 @@ console.log('1. no page can go missing')
 ok(allPaths.length === 50, `50 paths across ${NAV_GROUPS.length} groups (got ${allPaths.length}) — Boom's 53 minus the five John removed outright on 2026-09-18, plus Brand (2026-09-19), plus Song campaigns (2026-09-21)`)
 ok(new Set(allPaths).size === allPaths.length, 'no path appears twice')
 ok(NAV_PAGES.length === 50, "NAV_PAGES flattens to 50 — Settings' permission matrix renders from it, so a new page must appear here or nobody can ever be granted it")
-// Market Street regroup (2026-09-18): pages leave the SIDEBAR with `hidden`,
+// market.st regroup (2026-09-18): pages leave the SIDEBAR with `hidden`,
 // never by deletion. A hidden page is still grantable, still searchable, and
 // still a known page for the permission walk.
 const hiddenRows = NAV_PAGES.filter(p => p.hidden).map(p => p.path).sort()
@@ -86,7 +86,7 @@ const families = NAV_GROUPS.flatMap(g => g.items.filter(i => i.tabbed).map(i => 
 const navPaths = new Set(NAV_PAGES.map(p => p.path))
 // Bumped from 2 when Vendors became a family (1099 Filing moved under it,
 // 2026-09-02), from 3 when Banking did (2026-09-02), and from 4 to 9 for the
-// Market Street regroup (2026-09-18: releases, contracts, documents, invoices,
+// market.st regroup (2026-09-18: releases, contracts, documents, invoices,
 // artist-spend, settings; the `import` family folded into settings). These
 // counts are canaries on purpose: they caught the 1099 page being ADDED the day
 // before without this file being touched.
@@ -130,9 +130,9 @@ ok(/<Route path="\/recoupments\/2025" element=\{<Recoupments2025 \/>\}/.test(app
    '/recoupments/2025 still routed and still unwrapped')
 ok(!navPaths.has('/recoupments/2025'), 'and still absent from the nav, as it was')
 
-console.log('\n6. the Market Street layout (John, 2026-09-18)')
+console.log('\n6. the market.st layout (John, 2026-09-18)')
 // Boom reverted an August regroup the same day; these are the decisions John
-// made for Market Street with the plan in front of him. Tab labels are short
+// made for market.st with the plan in front of him. Tab labels are short
 // because the tab bar already says which family they are in.
 const labelOf = (p) => NAV_GROUPS.flatMap(flat).find(i => i.path === p)?.label
 const groupOf = (p) => NAV_GROUPS.find(g => flat(g).some(i => i.path === p))?.label

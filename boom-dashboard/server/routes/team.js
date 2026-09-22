@@ -16,7 +16,7 @@ async function notifyTaskAssignment({ assigneeName, assigneeEmail, assignerName,
     await sendMail({
       kind: 'task_assigned',
       to: assigneeEmail,
-      subject: `[Market Street Dashboard] New task from ${assignerName}: ${description.slice(0, 60)}${description.length > 60 ? '…' : ''}`,
+      subject: `[market.st Dashboard] New task from ${assignerName}: ${description.slice(0, 60)}${description.length > 60 ? '…' : ''}`,
       html,
     });
   } catch (err) {

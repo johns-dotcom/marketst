@@ -692,7 +692,7 @@ function SearchResults({ results, onOpen }) {
         >
           <p className="text-[10px] font-bold text-gray-400 truncate">
             {r.channel_type === 'dm' ? (r.dm_peer || 'Direct message') : `#${r.channel_name}`}
-            {' · '}{r.author_name || 'Market Street · Bot'}
+            {' · '}{r.author_name || 'market.st · Bot'}
           </p>
           <p className="text-xs text-gray-700 line-clamp-2">{r.body}</p>
         </button>
@@ -785,7 +785,7 @@ function MessageRow({
               <span className="inline-flex items-center justify-center w-4 h-4 rounded bg-boom-600">
                 <Bot size={10} className="text-white" />
               </span>
-              Market Street
+              market.st
               <span className="px-1 py-px rounded bg-gray-100 text-[9px] font-black uppercase tracking-wide text-gray-500">Bot</span>
             </span>
           ) : (

@@ -3,14 +3,14 @@
 // became a second caller. Same code, same behaviour (a fresh token per call) —
 // the move exists so the two integrations can never drift apart on credentials.
 const { sendMail, isConnected } = require('../lib/mail');
-const L = require('../lib/email-layout'); // the Market Street frame every template renders inside
+const L = require('../lib/email-layout'); // the market.st frame every template renders inside
 
 const APP_URL = process.env.FRONTEND_URL || 'https://marketst-production.up.railway.app';
 
 function buildWelcomeHtml({ name, email, role, department }) {
   return L.layout({
     title: `Welcome, ${name}`, eyebrow: 'Welcome aboard', accent: 'forest',
-    preheader: 'Your Market Street dashboard account is ready.',
+    preheader: 'Your market.st dashboard account is ready.',
     body: L.p(`Your account has been created. Sign in with your Google account (${email}) to get started.`) + L.rows([['Role', role || ''], ['Department', department || '']]),
     cta: { label: 'Open the dashboard', href: APP_URL },
   });
@@ -28,7 +28,7 @@ async function sendWelcomeEmail({ name, email, role, department, htmlOverride, t
         await sendMail({ kind: 'welcome',
       to: toOverride || email,
       cc: ccOverride || undefined,
-      subject: subjectOverride || 'Welcome to Market Street Dashboard',
+      subject: subjectOverride || 'Welcome to market.st Dashboard',
       html,
     });
     console.log(`[email] Welcome email sent to ${toOverride || email}`);
@@ -44,7 +44,7 @@ function buildVendorApprovedHtml({ vendorName, amount, currency, invoiceNumber, 
   const payBy = new Date(submittedDate);
   payBy.setDate(payBy.getDate() + 30);
   const payByStr = payBy.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
-  const name = L.labelInfo().display_name || 'Market Street';
+  const name = L.labelInfo().display_name || 'market.st';
   return L.layout({
     title: 'Invoice approved', eyebrow: 'Accounts payable', accent: 'forest',
     preheader: `Your invoice${invoiceNumber ? ` #${invoiceNumber}` : ''} is approved and scheduled for payment.`,
@@ -353,7 +353,7 @@ function buildTaskAssignmentHtml({ assigneeName, assignerName, description, prio
 
 function buildTaskAssignmentSubject({ assignerName, description }) {
   const d = String(description || '');
-  return `[Market Street Dashboard] New task from ${assignerName}: ${d.slice(0, 60)}${d.length > 60 ? '…' : ''}`;
+  return `[market.st Dashboard] New task from ${assignerName}: ${d.slice(0, 60)}${d.length > 60 ? '…' : ''}`;
 }
 
 async function sendTaskAssignmentEmail({ assigneeName, assigneeEmail, assignerName, description, priority, due_date, htmlOverride, toOverride, ccOverride, subjectOverride }) {
@@ -413,11 +413,11 @@ function buildTestUserInvitationHtml({ name, email, password, role }) {
   return `
       <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:560px;margin:0 auto;color:#111;">
         <div style="background:#334155;padding:20px 28px;border-radius:12px 12px 0 0;">
-          <p style="margin:0;font-size:11px;font-weight:700;letter-spacing:2px;color:rgba(255,255,255,0.7);text-transform:uppercase;">Market Street Dashboard — Demo</p>
+          <p style="margin:0;font-size:11px;font-weight:700;letter-spacing:2px;color:rgba(255,255,255,0.7);text-transform:uppercase;">market.st Dashboard — Demo</p>
           <h1 style="margin:6px 0 0;font-size:20px;font-weight:700;color:#fff;">Welcome, ${escapeHtml(name)}</h1>
         </div>
         <div style="background:#f9f9f9;padding:28px;border:1px solid #e5e5e5;border-top:none;border-radius:0 0 12px 12px;">
-          <p style="margin:0 0 16px;font-size:14px;color:#444;">You've been given a demo account for the Market Street Dashboard. You'll see the ${role === 'Admin' ? 'Admin' : 'User'} experience with sample data — no real company data is accessible from this account.</p>
+          <p style="margin:0 0 16px;font-size:14px;color:#444;">You've been given a demo account for the market.st Dashboard. You'll see the ${role === 'Admin' ? 'Admin' : 'User'} experience with sample data — no real company data is accessible from this account.</p>
           <table style="width:100%;border-collapse:collapse;margin-bottom:20px;">
             <tr>
               <td style="padding:8px 12px;background:#fff;border:1px solid #e5e5e5;font-size:12px;font-weight:600;color:#999;text-transform:uppercase;letter-spacing:0.5px;width:110px;">Email</td>
@@ -451,7 +451,7 @@ async function sendTestUserInvitationEmail({ name, email, password, role, htmlOv
         await sendMail({ kind: 'test_invitation',
       to: toOverride || email,
       cc: ccOverride || undefined,
-      subject: subjectOverride || 'Your Market Street demo account is ready',
+      subject: subjectOverride || 'Your market.st demo account is ready',
       html,
     });
     console.log(`[email] Test-user invitation sent to ${toOverride || email}`);
@@ -487,7 +487,7 @@ function buildChatMentionHtml({ recipientName, actorName, channelLabel, snippet,
 }
 
 function buildChatMentionSubject({ actorName, channelLabel }) {
-  return `[Market Street Dashboard] ${actorName || 'Someone'} mentioned you in ${channelLabel || 'a conversation'}`;
+  return `[market.st Dashboard] ${actorName || 'Someone'} mentioned you in ${channelLabel || 'a conversation'}`;
 }
 
 async function sendChatMentionEmail({ recipientName, recipientEmail, actorName, channelLabel, snippet, link, htmlOverride, toOverride, ccOverride, subjectOverride }) {
