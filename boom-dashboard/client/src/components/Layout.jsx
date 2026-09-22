@@ -38,6 +38,7 @@ import BottomNav from './BottomNav'
 import FAB from './FAB'
 import NotificationBell from './NotificationBell'
 import api from '../api'
+import NextStepPrompt from './NextStepPrompt'
 import useLabel, { labelAddressLines } from '../hooks/useLabel'
 
 const PAGE_LABELS = {
@@ -514,6 +515,12 @@ function LayoutInner() {
   // set it for someone else and it follows the person across devices. localStorage
   // is a cache for the first paint and the migration source for accounts that
   // never saved to the server.
+  const [pwPrompt, setPwPrompt] = useState(null)
+  useEffect(() => {
+    if (!user || user.has_password !== false || location.pathname.startsWith('/settings')) return
+    let seen = false; try { seen = sessionStorage.getItem('pw_prompt_seen') === '1' } catch { /* private mode */ }
+    if (!seen) setPwPrompt({ key: 'pw', title: 'Set a password', body: 'You signed in with Google, so this account has no password yet. Set one under Settings › Sign-in to sign in without Google too.', to: '/settings?tab=signin', label: 'Set a password' })
+  }, [user?.id, user?.has_password]) // eslint-disable-line react-hooks/exhaustive-deps
   const [hiddenNavPages, setHiddenNavPages] = useState(() => {
     try {
       return JSON.parse(localStorage.getItem('nav_hidden_pages') || '[]')
@@ -1048,6 +1055,8 @@ function LayoutInner() {
           )}
         </div>
         <main className="flex-1 overflow-auto">
+          {/* Accepted the invite by signing in with Google → no password yet. One nudge per session. */}
+          {pwPrompt && <div className="px-4 pt-3 sm:px-6"><NextStepPrompt prompt={pwPrompt} onClose={() => { setPwPrompt(null); try { sessionStorage.setItem('pw_prompt_seen', '1') } catch { /* private mode */ } }} duration={0} /></div>}
           <div className="max-w-7xl mx-auto px-4 py-6 pb-20 sm:px-6 sm:py-8 sm:pb-8">
             <Outlet />
           </div>

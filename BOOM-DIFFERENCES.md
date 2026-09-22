@@ -381,6 +381,13 @@ Navs tab + rail entry, PeopleAdmin's Access tab, Layout, roles.js, tours,
 `nav-control-fixture.cjs`. Nothing label-shaped; Boom's My Nav is still
 localStorage, so port the migration too.
 
+## 29. First password after a Google sign-in — PORT
+
+`routes/auth.js` (`/change-password` first-password path, `/google` spends the
+invite, `has_password` on `/me`), `routes/settings.js` (`/me` has_password;
+People `invite_pending` vs `google_only`), Settings Sign-in tab, Layout nudge,
+Team directory badge, `google-password-fixture.cjs`. Boom has the same 500.
+
 ## Suggested order for Cadence
 
 1. Sections 3, 4, 7 (sidebar, presets, Settings) — they define the shape

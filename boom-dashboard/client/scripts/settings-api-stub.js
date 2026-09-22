@@ -12,7 +12,7 @@ export const PEOPLE = [
 const api = {
   get(url) {
     calls.get.push(url)
-    if (url === '/settings/me') return ok({ id: 1, name: 'John Skead', email: 'john@deanst.co', role: 'Superadmin', department: 'Operations', title: '', phone: '', nav_hidden: null })
+    if (url === '/settings/me') return ok({ id: 1, name: 'John Skead', email: 'john@deanst.co', role: 'Superadmin', department: 'Operations', title: '', phone: '', nav_hidden: null, has_password: globalThis.__HOME_ROLE__ !== 'User' })
     if (url === '/settings/department-navs') return ok({ navs: [{ department: 'Marketing', pages: ['/', '/my-work', '/messages', '/campaigns', '/releases'], hidden: ['/messages'], updated_by_name: 'John Skead', updated_at: '2026-09-22T00:00:00Z' }], members: { Marketing: [{ id: 3, name: 'Rosa Lind', role: 'User', department: 'Marketing', customised: true }, { id: 4, name: 'Dev Patel', role: 'User', department: 'Marketing', customised: false }], Operations: [{ id: 1, name: 'John Skead', role: 'Superadmin', department: 'Operations', customised: false }] } })
     if (/^\/settings\/users\/\d+\/nav$/.test(url)) return ok({ hidden: ['/calendar'], pages: ['/', '/my-work', '/messages', '/calendar', '/releases'], department: 'Marketing', department_nav: { department: 'Marketing', pages: ['/', '/my-work', '/messages', '/campaigns', '/releases'], hidden: ['/messages'] } })
     if (url === '/settings/me/sessions') return ok([{ id: 1, logged_in_at: new Date().toISOString(), ip_address: '10.0.0.1', user_agent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X) Chrome/128 Safari/537' }])
@@ -32,7 +32,8 @@ const api = {
     if (url.startsWith('/settings/reps')) return ok([])
     return ok([])
   },
-  post(url, body) { calls.post.push({ url, body }); if (/\/invite$/.test(url)) return ok({ token: 'abc', path: '/invite/abcdefghijklmnopqrstuvwx', expires_at: new Date(Date.now() + 7 * 86400000).toISOString() }); return ok({}) },
+  post(url, body) {
+    if (url === '/auth/change-password') { calls.post.push({ url, body }); return ok({}, { first_password: body.current_password === undefined }) } calls.post.push({ url, body }); if (/\/invite$/.test(url)) return ok({ token: 'abc', path: '/invite/abcdefghijklmnopqrstuvwx', expires_at: new Date(Date.now() + 7 * 86400000).toISOString() }); return ok({}) },
   put(url, body) { calls.put.push({ url, body }); if (url === '/settings/me') return ok({ id: 1, ...body }); if (/\/department-navs\//.test(url)) return ok({ department: decodeURIComponent(url.split('/').pop()), pages: body.pages, hidden: body.hidden }, { applied: body.apply ? 1 : 0, sidebar_set: body.apply ? 1 : 0, customised_kept: body.apply ? 1 : 0, admins_untouched: 0 }); if (/\/users\/\d+\/nav$/.test(url)) return ok({ hidden: body.hidden }); if (url === '/label') return ok({ ...body, ein_set: true, ein_last4: '6789', bank_account_set: !!body.bank_account_number, bank_account_last4: body.bank_account_number ? body.bank_account_number.slice(-4) : null }); return ok(body) },
   patch() { return ok({}) }, delete() { return ok({}) },
 }

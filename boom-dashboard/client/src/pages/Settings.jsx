@@ -75,13 +75,17 @@ function SignInTab() {
   const [cur, setCur] = useState(''); const [next, setNext] = useState(''); const [again, setAgain] = useState('')
   const [saving, setSaving] = useState(false); const [note, setNote] = useState(''); const [err, setErr] = useState('')
   const [sessions, setSessions] = useState(null)
+  // Someone who accepted their invite by signing in with Google has NO password
+  // yet: they set their first one here without a "current" one to type.
+  const [hasPassword, setHasPassword] = useState(true)
   useEffect(() => { api.get('/settings/me/sessions').then((r) => setSessions(r.data.data || [])).catch(() => setSessions([])) }, [])
+  useEffect(() => { api.get('/settings/me').then((r) => { if (r.data?.data?.has_password === false) setHasPassword(false) }).catch(() => {}) }, [])
   const change = async (e) => {
     e.preventDefault(); setErr(''); setNote('')
     if (next.length < 8) return setErr('The new password needs at least 8 characters.')
     if (next !== again) return setErr('The two new passwords do not match.')
     setSaving(true)
-    try { await api.post('/auth/change-password', { current_password: cur, new_password: next }); setNote('Password changed. Other sessions were signed out.'); setCur(''); setNext(''); setAgain('') }
+    try { const r = await api.post('/auth/change-password', hasPassword ? { current_password: cur, new_password: next } : { new_password: next }); setNote(r.data?.first_password ? 'Password set. You can sign in with it or with Google.' : 'Password changed. Other sessions were signed out.'); setCur(''); setNext(''); setAgain(''); if (!hasPassword) setHasPassword(true) }
     catch (e2) { setErr(e2?.response?.data?.error || 'Could not change the password') }
     finally { setSaving(false) }
   }
@@ -93,15 +97,16 @@ function SignInTab() {
   const agent = (ua) => { const s = String(ua || ''); const b = /Edg\//.test(s) ? 'Edge' : /Chrome\//.test(s) ? 'Chrome' : /Safari\//.test(s) ? 'Safari' : /Firefox\//.test(s) ? 'Firefox' : 'Browser'; const o = /Mac OS X/.test(s) ? 'Mac' : /Windows/.test(s) ? 'Windows' : /iPhone|iPad/.test(s) ? 'iOS' : /Android/.test(s) ? 'Android' : /Linux/.test(s) ? 'Linux' : ''; return [b, o].filter(Boolean).join(' · ') }
   return (
     <div className="grid lg:grid-cols-2 gap-8" data-tab-signin>
-      <form onSubmit={change} className="space-y-3 max-w-md">
-        <h3 className="text-sm font-semibold text-gray-900">Change password</h3>
-        <input type="password" value={cur} onChange={(e) => setCur(e.target.value)} placeholder="Current password" autoComplete="current-password" className="input-base w-full" required />
+      <form onSubmit={change} className="space-y-3 max-w-md" data-password-form={hasPassword ? 'change' : 'set'}>
+        <h3 className="text-sm font-semibold text-gray-900">{hasPassword ? 'Change password' : 'Set a password'}</h3>
+        {!hasPassword && <p className="text-xs text-gray-500" data-set-password-why>You signed in with Google, so this account has no password yet. Set one to sign in without Google too — Google keeps working either way.</p>}
+        {hasPassword && <input type="password" value={cur} onChange={(e) => setCur(e.target.value)} placeholder="Current password" autoComplete="current-password" className="input-base w-full" required />}
         <input type="password" value={next} onChange={(e) => setNext(e.target.value)} placeholder="New password (8+ characters)" autoComplete="new-password" className="input-base w-full" required />
         <input type="password" value={again} onChange={(e) => setAgain(e.target.value)} placeholder="New password again" autoComplete="new-password" className="input-base w-full" required />
         {err && <p className="text-xs text-rose-600" data-signin-error>{err}</p>}
         {note && <p className="text-xs text-emerald-700" data-signin-note>{note}</p>}
-        <button type="submit" disabled={saving} className="btn-primary text-sm px-4 py-2">{saving ? 'Changing…' : 'Change password'}</button>
-        <p className="text-[11px] text-gray-400">Changing it signs out every other session.</p>
+        <button type="submit" disabled={saving} className="btn-primary text-sm px-4 py-2" data-password-submit>{saving ? 'Saving…' : hasPassword ? 'Change password' : 'Set password'}</button>
+        <p className="text-[11px] text-gray-400">{hasPassword ? 'Changing it signs out every other session.' : 'Setting it keeps this session signed in.'}</p>
       </form>
       <div>
         <div className="flex items-center justify-between mb-2">

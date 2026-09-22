@@ -789,7 +789,9 @@ export default function Team() {
                         <td className="px-4 py-3 text-gray-500 text-xs" data-last-signin>
                           {u.invite_pending
                             ? <span className="text-amber-700 font-medium">invite pending{canManage && <> · <button type="button" onClick={() => resendInvite(u)} className="underline hover:text-amber-900" data-resend-invite>copy a new link</button> · <button type="button" onClick={() => resendInvite(u, true)} className="underline hover:text-amber-900" data-email-invite>email it</button></>}</span>
-                            : ago(u.last_sign_in)}
+                            : u.google_only
+                              ? <span title="Accepted the invite by signing in with Google; no password set yet" data-google-only>{ago(u.last_sign_in)} · <span className="text-gray-400">Google, no password</span></span>
+                              : ago(u.last_sign_in)}
                         </td>
                         <td className="px-4 py-3 text-right tabular-nums text-gray-700">{u.open_tasks || 0}</td>
                         <td className="px-4 py-3">

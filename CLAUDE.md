@@ -1078,6 +1078,24 @@ Authoritative project guide: **`boom-dashboard/CLAUDE.md`** — read it before m
   roles.js gained the line. Not done: reordering (the sidebar order is the
   nav's), a lock that stops a person changing their own sidebar, named
   groups beyond departments.
+- **A Google sign-in accepts the invite; the first password needs no current one
+  (2026-09-22, John: "users should be allowed to set their own password after
+  accepting the google invite").** An invited account has `password_hash NULL`;
+  signing in with Google worked but `POST /auth/change-password` demanded a
+  current password and `bcrypt.compare(x, null)` threw a 500, so the person
+  could never set one. Now: with no hash, the route takes `new_password`
+  alone, does NOT bump `token_version` (this is the only session), spends the
+  unused invite, and answers `first_password: true`; with a hash it still needs
+  the current one and signs other sessions out. `/auth/google` spends the
+  invite when the account has no password. `/auth/me`, `/settings/me` and the
+  Google login payload carry `has_password`; Settings › Sign-in renders "Set a
+  password" (no current box, `data-password-form="set"`) until it is true;
+  Layout shows a one-per-session NextStepPrompt nudge to `/settings?tab=signin`
+  for a password-less account. People's `invite_pending` now means no password
+  AND never signed in; a signed-in password-less account is `google_only`
+  ("Google, no password" beside the last sign-in). Fixture
+  `google-password-fixture.cjs` (12); settings-dom's `user` scenario sets the
+  first password.
 - **Bank-statement heuristics were tuned on Boom's Bank of America statements.** The own-name lists (`statements.js` stop-words, `funding-pairs.js` account-trailer strip) now say Market Street, but the layout parsers have not seen a Market Street statement yet. Expect the AI fallback to do the work until they do.
 
 ## Commands (run from `boom-dashboard/`)

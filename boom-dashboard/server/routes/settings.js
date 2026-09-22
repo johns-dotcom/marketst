@@ -497,7 +497,7 @@ const NOTIFY_KEYS = ['approvals_waiting', 'payments_due', 'tasks_assigned', 'ren
 router.get('/me', authMiddleware, async (req, res) => {
   try {
     const { rows: [u] } = await pool.query(
-      'SELECT id, name, email, role, department, title, phone, notification_prefs, tours_done, nav_hidden, created_at FROM users WHERE id = $1', [req.user.id]);
+      'SELECT id, name, email, role, department, title, phone, notification_prefs, tours_done, nav_hidden, created_at, (password_hash IS NOT NULL) AS has_password FROM users WHERE id = $1', [req.user.id]);
     if (!u) return res.status(404).json({ success: false, error: 'User not found' });
     res.json({ success: true, data: u });
   } catch (err) { console.error('settings/me error:', err); res.status(500).json({ success: false, error: 'Internal server error' }); }
@@ -660,7 +660,10 @@ router.get('/people', adminOnly, async (req, res) => {
   try {
     const { rows: users } = await pool.query(
       `SELECT u.id, u.name, u.email, u.role, u.department, u.hierarchy_level, u.boom_rep, u.title, u.phone, u.created_at,
-              (u.password_hash IS NULL) AS invite_pending,
+              -- pending = no password AND never signed in. A Google sign-in accepts the invite
+              -- without a password; that person is google_only, not pending.
+              (u.password_hash IS NULL AND NOT EXISTS (SELECT 1 FROM user_login_logs l WHERE l.user_id = u.id)) AS invite_pending,
+              (u.password_hash IS NULL AND EXISTS (SELECT 1 FROM user_login_logs l WHERE l.user_id = u.id)) AS google_only,
               (SELECT MAX(l.logged_in_at) FROM user_login_logs l WHERE l.user_id = u.id) AS last_sign_in,
               (SELECT COUNT(*)::int FROM tasks t WHERE t.user_id = u.id AND t.status <> 'Done') AS open_tasks
          FROM users u

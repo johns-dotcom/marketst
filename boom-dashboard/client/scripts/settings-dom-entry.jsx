@@ -67,6 +67,14 @@ async function main() {
   if (scenario === 'user') {
     assert('a User sees only My settings', sections.join(',') === 'My settings' && !tabs.includes('people') && !tabs.includes('label'))
     assert('with six tabs', tabs.join(',') === 'profile,signin,notifications,mailbox,theme,mynav')
+    // A User who accepted the invite by signing in with Google: no password yet.
+    click(host.querySelector('[data-tab="signin"]')); await sleep(250)
+    const pf = host.querySelector('[data-password-form]')
+    assert('the Sign-in tab offers SET a password — no current-password box — and says why', pf?.getAttribute('data-password-form') === 'set' && !pf.querySelector('input[autocomplete="current-password"]') && /signed in with Google/.test(textOf(pf.querySelector('[data-set-password-why]'))) && /Set password/.test(textOf(pf.querySelector('[data-password-submit]'))))
+    const [n1, n2] = [...pf.querySelectorAll('input[type="password"]')]
+    type(n1, 'correct-horse-battery'); type(n2, 'correct-horse-battery'); pf.dispatchEvent(new window.Event('submit', { bubbles: true, cancelable: true })); await sleep(250)
+    const cp = calls.post.find((c) => c.url === '/auth/change-password')
+    assert('setting it POSTs only the new password, and the form becomes Change password', !!cp && cp.body.current_password === undefined && cp.body.new_password === 'correct-horse-battery' && host.querySelector('[data-password-form]')?.getAttribute('data-password-form') === 'change' && /Password set/.test(textOf(host.querySelector('[data-signin-note]'))))
     say('DONE'); globalThis.__DONE__ = true; return
   }
   assert('the rail has two groups: My settings and Label settings', sections.join(',') === 'My settings,Label settings')

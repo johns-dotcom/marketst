@@ -165,6 +165,9 @@ router.post('/google', async (req, res) => {
       'INSERT INTO activity_log (user_id, action, detail, ip_address, method, endpoint, created_at) VALUES ($1, $2, $3, $4, $5, $6, NOW())',
       [user.id, 'Signed In', 'Google SSO', ip, 'POST', '/api/auth/google']
     ).catch(() => {});
+    // Signing in with Google ACCEPTS a pending invite: the link is spent, and the
+    // person can set a password of their own under Settings › Sign-in.
+    if (!user.password_hash) pool.query('UPDATE user_invites SET used_at = NOW() WHERE user_id = $1 AND used_at IS NULL', [user.id]).catch(() => {});
 
     res.json({
       success: true,
@@ -177,6 +180,7 @@ router.post('/google', async (req, res) => {
           role: user.role,
           department: user.department,
           hierarchy_level: user.hierarchy_level,
+          has_password: !!user.password_hash,
         },
       },
     });
@@ -229,7 +233,7 @@ router.post('/register', authMiddleware, async (req, res) => {
 router.get('/me', authMiddleware, async (req, res) => {
   try {
     const result = await pool.query(
-      'SELECT id, name, email, role, department, hierarchy_level, boom_rep, title, phone, nav_hidden, created_at FROM users WHERE id = $1',
+      'SELECT id, name, email, role, department, hierarchy_level, boom_rep, title, phone, nav_hidden, created_at, (password_hash IS NOT NULL) AS has_password FROM users WHERE id = $1',
       [req.user.id]
     );
 
@@ -332,9 +336,7 @@ router.post('/logout-all', authMiddleware, async (req, res) => {
 router.post('/change-password', authMiddleware, async (req, res) => {
   try {
     const { current_password, new_password } = req.body;
-    if (!current_password || !new_password) {
-      return res.status(400).json({ success: false, error: 'Current and new password required' });
-    }
+    if (!new_password) return res.status(400).json({ success: false, error: 'New password required' });
     if (new_password.length < 8) {
       return res.status(400).json({ success: false, error: 'New password must be at least 8 characters' });
     }
@@ -342,16 +344,30 @@ router.post('/change-password', authMiddleware, async (req, res) => {
     const { rows } = await pool.query('SELECT password_hash FROM users WHERE id = $1', [req.user.id]);
     if (!rows.length) return res.status(404).json({ success: false, error: 'User not found' });
 
-    const match = await bcrypt.compare(current_password, rows[0].password_hash);
-    if (!match) return res.status(401).json({ success: false, error: 'Current password is incorrect' });
+    // An account that signed in with Google off an invite has NO password yet
+    // (2026-09-22, John: "users should be allowed to set their own password after
+    // accepting the google invite"). Setting the first one needs no current
+    // password — there is none to check; bcrypt.compare against null threw a 500
+    // here before. Changing an existing one still does.
+    const firstPassword = !rows[0].password_hash;
+    if (!firstPassword) {
+      if (!current_password) return res.status(400).json({ success: false, error: 'Current password required' });
+      const match = await bcrypt.compare(current_password, rows[0].password_hash);
+      if (!match) return res.status(401).json({ success: false, error: 'Current password is incorrect' });
+    }
 
     const hash = await bcrypt.hash(new_password, 10);
+    // Setting the first password ends the invite (the link would otherwise still
+    // work) and does NOT bump token_version — this session is the only one.
     await pool.query(
-      'UPDATE users SET password_hash = $1, token_version = COALESCE(token_version, 0) + 1 WHERE id = $2',
+      firstPassword
+        ? 'UPDATE users SET password_hash = $1 WHERE id = $2'
+        : 'UPDATE users SET password_hash = $1, token_version = COALESCE(token_version, 0) + 1 WHERE id = $2',
       [hash, req.user.id]
     );
+    if (firstPassword) await pool.query('UPDATE user_invites SET used_at = NOW() WHERE user_id = $1 AND used_at IS NULL', [req.user.id]).catch(() => {});
 
-    res.json({ success: true, message: 'Password changed. All sessions invalidated.' });
+    res.json({ success: true, first_password: firstPassword, message: firstPassword ? 'Password set. You can sign in with it or with Google.' : 'Password changed. All sessions invalidated.' });
   } catch (error) {
     console.error('Change password error:', error);
     res.status(500).json({ success: false, error: 'Internal server error' });
