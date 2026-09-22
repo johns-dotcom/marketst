@@ -4,7 +4,11 @@
 //
 //   node tools/port-log.mjs                       every `todo` row, oldest first
 //   node tools/port-log.mjs all                   every row
-//   node tools/port-log.mjs add <ms-commit> [tag] [§]   append a row from the Market Street commit message
+//   node tools/port-log.mjs add <ms-commit> [tag] [§] [--commit]
+//        append a row from the Market Street commit message; --commit stages the log and
+//        commits it on its own ("Port log: …") — a row needs the hash, which exists only
+//        AFTER the commit, and amending would change it, so the row rides in a follow-up.
+//        Port-log commits themselves never get a row.
 //   node tools/port-log.mjs done <ms-commit> <cadence-commit>
 //   node tools/port-log.mjs skip <ms-commit> "reason"
 //
@@ -16,7 +20,9 @@ import { fileURLToPath } from 'node:url'
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const FILE = path.join(ROOT, 'CADENCE-PORT-LOG.md')
-const [cmd = 'todo', a, b, c] = process.argv.slice(2)
+const argv = process.argv.slice(2).filter((x) => x !== '--commit')
+const COMMIT = process.argv.includes('--commit')
+const [cmd = 'todo', a, b, c] = argv
 
 const text = fs.readFileSync(FILE, 'utf8')
 const lines = text.split('\n')
@@ -41,6 +47,11 @@ if (cmd === 'todo') {
   const row = `| ${n} | ${date} | ${sha} | ${subject.replace(/\|/g, '/')} | ${b || 'PORT'} | ${c || '—'} | todo |`
   const last = lines.map((l, i) => (isRow(l) ? i : -1)).filter((i) => i >= 0).pop()
   lines.splice(last + 1, 0, row); write(lines); console.log('added:', row)
+  if (COMMIT) {
+    execFileSync('git', ['-C', ROOT, 'add', 'CADENCE-PORT-LOG.md'], { stdio: 'inherit' })
+    execFileSync('git', ['-C', ROOT, 'commit', '-q', '-m', `Port log: row ${n} for ${sha} — ${subject.slice(0, 60)}`], { stdio: 'inherit' })
+    console.log('committed the row')
+  }
 } else if (cmd === 'done' || cmd === 'skip') {
   if (!a || !b) { console.error(`${cmd} needs <ms-commit> and ${cmd === 'done' ? '<cadence-commit>' : '"reason"'}`); process.exit(2) }
   const i = lines.findIndex((l) => isRow(l) && parse(l).commit.startsWith(a))

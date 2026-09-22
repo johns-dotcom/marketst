@@ -21,11 +21,13 @@ Root `CLAUDE.md` "Fork rules" carries the full rule for each.
 3. When it is in: `node …/tools/port-log.mjs done <ms-commit> <cadence-commit>`
    (or `skip <ms-commit> "reason"`). The row's Status column is the record.
 
-**How to keep it (Market Street, Claude Code):** every commit that should port
-gets a row in the SAME commit — `node tools/port-log.mjs add <commit>` writes
-one from the commit message; set Tag and § by hand. Housekeeping commits (docs
-only, fork bookkeeping, label-only looks) are `skip` rows so the list stays
-complete rather than curated.
+**How to keep it (Market Street, Claude Code):** right AFTER committing a change,
+run `node tools/port-log.mjs add HEAD PORT <§> --commit` — it writes the row from
+the commit message and commits the log on its own ("Port log: row N for …").
+The row needs the hash, which exists only after the commit, and amending would
+change it — so the row always rides in the next commit, and port-log commits
+themselves never get a row. Housekeeping commits (docs only, fork bookkeeping,
+label-only looks) get a `skip` row so the list stays complete rather than curated.
 
 **Tags:** PORT = as-is · PORT (config) = port, but label-specific values become
 tenant config · LABEL = a Market Street decision, do not port without asking ·
@@ -102,4 +104,4 @@ HOUSEKEEPING = nothing to port.
 | 65 | 2026-09-22 | 02a48ed | Superadmin controls sidebars and department navs: My Nav on the account, another person's sidebar editable, a department's nav is its page list | PORT | 28 | todo |
 | 66 | 2026-09-22 | 26731ab | Sign-in: an account that accepted its invite with Google can set its first password | PORT | 29 | todo |
 | 67 | 2026-09-22 | 3821758 | Walkthroughs are optional: nothing auto-starts; every tour begins from the Walkthrough button or the ? help | PORT | 30 | done 1860780 |
-| 68 | 2026-09-22 | afe8c1d | Cadence port log: the checklist, the tool, the habit | HOUSEKEEPING | — | skip — docs and tooling |
+| 68 | 2026-09-22 | f98fe43 | Cadence port log: the checklist, the tool, the habit | HOUSEKEEPING | — | skip — docs and tooling |
