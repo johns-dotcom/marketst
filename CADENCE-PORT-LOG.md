@@ -112,3 +112,4 @@ HOUSEKEEPING = nothing to port.
 | 73 | 2026-09-22 | 4619ef1 | Deal alerts on Home, in Flags and by email — release gap, option expiring, deliverables due, advance triggered — and the team seeded with invites | PORT | 34 | todo |
 | 74 | 2026-09-22 | a26a12b | Settings folded: My settings 6 → 4, Label settings 9 → 6 — nothing deleted, old tab links still land | PORT | 36 | todo |
 | 75 | 2026-09-22 | 3c19462 | Roles & teams as flat cards: How access works · Permissions per member · Presets · Departments · Department navs | PORT (config) | 37 | todo |
+| 76 | 2026-09-22 | 36636b6 | Song campaigns: the reopen reason names the invoices that actually arrived late | PORT | 27 | todo |
