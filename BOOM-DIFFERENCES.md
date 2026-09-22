@@ -444,6 +444,14 @@ export under Label; the sandbox card in Integrations; alias `Navigate`),
 `routes/mail.js` (personal OAuth returns to `tab=notifications`), tour
 `settings`, settings-dom. Apply after §7 and §32.
 
+## 37. Roles & teams as flat cards with a Permissions table — PORT (config)
+
+`components/OrgEditor.jsx` (Card, PermissionsSection, accessOf, department
+rows + inline add), settings-dom. Cadence already has this shape; what ports
+is the pieces it lacks — the custom-role card inside "How access actually
+works", the Presets card, the department preset chips and the Department navs
+fold. Apply after §32 and §36.
+
 ## Suggested order for Cadence
 
 1. Sections 3, 4, 7 (sidebar, presets, Settings) — they define the shape

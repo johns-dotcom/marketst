@@ -1,5 +1,9 @@
 // Settings › Roles & teams (2026-09-22): roles, presets and departments as
-// editable data. Three sections on one tab:
+// editable data. Laid out as flat cards, Cadence's shape (John, 2026-09-22:
+// "this is what cadence's looks like"): How access actually works (folded,
+// the roles live inside) · Permissions (one row per member, Configure opens
+// their Access tab) · Presets · Departments · Department navs (Superadmin,
+// folded). Sections on one tab:
 //   Roles        the four BASE roles (text editable; the tier is the code's) and
 //                custom roles — a name on a base role, with its own description
 //                and starting presets. Superadmin only (roles bind admins).
@@ -8,7 +12,8 @@
 //   Departments  name (rename cascades), default presets, default hierarchy
 //                level. Delete moves its people to another department.
 import { useEffect, useMemo, useState } from 'react'
-import { Plus, Trash2, Check, ChevronDown, ChevronRight, Users } from 'lucide-react'
+import { Plus, Trash2, Check, ChevronDown, ChevronRight, Users, Pencil, ShieldCheck, ArrowUpNarrowWide } from 'lucide-react'
+import { Link, useNavigate } from 'react-router-dom'
 import api from '../api'
 import { NAV_PAGES } from '../navConfig'
 import useOrg from '../hooks/useOrg'
@@ -24,29 +29,83 @@ const Note = ({ text }) => (text ? <p className={`text-xs mt-2 ${/Could not|refu
 export default function OrgEditor({ currentUserRole }) {
   const org = useOrg()
   const isSuper = currentUserRole === 'Superadmin'
-  const [open, setOpen] = useState('roles')
-  const Section = ({ id, title, sub, children, count }) => (
-    <div className="card" data-org-section={id}>
-      <button type="button" onClick={() => setOpen(open === id ? '' : id)} className="w-full flex items-center gap-2 px-4 py-3 text-left" aria-expanded={open === id} data-org-toggle={id}>
-        {open === id ? <ChevronDown size={14} className="text-gray-400" /> : <ChevronRight size={14} className="text-gray-400" />}
-        <span className="text-sm font-semibold text-gray-900">{title}</span>
-        <span className="text-[11px] text-gray-500 tabular-nums">· {count}</span>
-        <span className="text-[11px] text-gray-400 ml-auto hidden sm:inline">{sub}</span>
-      </button>
-      {open === id && <div className="px-4 pb-4 border-t border-divider pt-4">{children}</div>}
-    </div>
-  )
+  // Cards are open unless they are reference material (the roles) or a
+  // 50-page grid (the navs); every header still toggles.
+  const [closed, setClosed] = useState(() => new Set(['roles', 'navs']))
+  const toggle = (id) => setClosed((c) => { const n = new Set(c); n.has(id) ? n.delete(id) : n.add(id); return n })
+  const Card = ({ id, title, sub, icon: Icon, count, children, foldable = true }) => {
+    const open = !closed.has(id)
+    return (
+      <div className="card" data-org-section={id} data-open={open ? '1' : '0'}>
+        <button type="button" onClick={() => foldable && toggle(id)} className={`w-full flex items-start gap-3 px-5 py-4 text-left ${foldable ? '' : 'cursor-default'}`} aria-expanded={open} data-org-toggle={id}>
+          {Icon && <Icon size={16} className="text-gray-400 mt-0.5 flex-shrink-0" />}
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-gray-900">{title}{count !== undefined && <span className="text-[11px] text-gray-400 font-normal tabular-nums ml-2">· {count}</span>}</p>
+            {sub && <p className="text-xs text-gray-500 mt-0.5">{sub}</p>}
+          </div>
+          {foldable && (open ? <ChevronDown size={15} className="text-gray-400 mt-0.5" /> : <ChevronRight size={15} className="text-gray-400 mt-0.5" />)}
+        </button>
+        {open && <div className="px-5 pb-5">{children}</div>}
+      </div>
+    )
+  }
   return (
     <div className="space-y-4 max-w-4xl" data-org-editor>
-      <p className="text-sm text-gray-600">A <b>role</b> is what the API lets a person do — the four base tiers are enforced in code; a role you add here is a name on one of them with its own description and starting pages. A <b>preset</b> is a bundle of pages. A <b>department</b> picks the default presets and hierarchy level when an account is made.</p>
-      <Section id="roles" title="Roles" sub={isSuper ? 'Superadmin edits · base tiers stay' : 'read-only for Admins'} count={org.roles.length}><RolesSection org={org} canEdit={isSuper} /></Section>
-      <Section id="presets" title="Presets" sub="bundles of pages; departments and roles point at them" count={org.presets.length}><PresetsSection org={org} canEdit /></Section>
-      <Section id="departments" title="Departments" sub="default presets and level for new people" count={org.departments.length}><DepartmentsSection org={org} canEdit /></Section>
-      {isSuper && <div id="navs"><Section id="navs" title="Department navs" sub="what each department sees — the nav IS the group's page list" count={org.departments.length}><DepartmentNavsTab /></Section></div>}
-      <div className="card p-4" data-role-axes>
-        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Four things that are not the same</p>
-        <dl className="grid sm:grid-cols-[140px_minmax(0,1fr)] gap-x-4 gap-y-2 text-xs">{org.axes.map(([k, v]) => <div key={k} className="contents"><dt className="font-semibold text-gray-900">{k}</dt><dd className="text-gray-600">{v}</dd></div>)}</dl>
+      <Card id="roles" title="How access actually works" sub={`The ${org.base_roles.length} roles, and the four different things people mean by "permissions".${isSuper ? '' : ' Read-only for Admins.'}`} count={org.roles.length}>
+        <dl className="grid sm:grid-cols-[140px_minmax(0,1fr)] gap-x-4 gap-y-2 text-xs mb-5 border border-rule rounded-xl p-4 bg-gray-50/60" data-role-axes>{org.axes.map(([k, v]) => <div key={k} className="contents"><dt className="font-semibold text-gray-900">{k}</dt><dd className="text-gray-600">{v}</dd></div>)}</dl>
+        <p className="text-xs text-gray-500 mb-3">A <b>role</b> is what the API lets a person do — the four base tiers are enforced in code; a role added here is a name on one of them with its own description and starting presets.</p>
+        <RolesSection org={org} canEdit={isSuper} />
+      </Card>
+      <Card id="permissions" title="Permissions" icon={ShieldCheck} sub="Which pages each person can open. Page rows bind Users and Approvers always, an Admin once curated, a Superadmin never. Configure opens their Access tab." foldable={false}>
+        <PermissionsSection org={org} />
+      </Card>
+      <Card id="presets" title="Presets" sub="Bundles of pages. A department seeds one when an account is made; an admin can add a second for someone who does two jobs." count={org.presets.length}>
+        <PresetsSection org={org} canEdit />
+      </Card>
+      <Card id="departments" title="Departments" sub="How the label groups its people. A department seeds presets and a hierarchy level when an account is made — it does not grant access on its own." count={org.departments.length}>
+        <DepartmentsSection org={org} canEdit />
+      </Card>
+      {isSuper && <div id="navs"><Card id="navs" title="Department navs" sub="What each department sees. The nav IS the group's page list — saving with Apply rewrites every User and Approver in it." count={org.departments.length}><DepartmentNavsTab /></Card></div>}
+    </div>
+  )
+}
+
+// ── Permissions: one row per member, the People directory's access summary ──
+const accessOf = (p) => {
+  if (p.role === 'Superadmin') return 'Full access'
+  if (p.role === 'Admin') return p.pages?.length ? `${p.pages.length} pages (curated)` : 'Admin default'
+  return p.pages?.length ? `${p.pages.length} page${p.pages.length === 1 ? '' : 's'}` : 'No pages yet'
+}
+function PermissionsSection({ org }) {
+  const [people, setPeople] = useState(null)
+  const navigate = useNavigate()
+  useEffect(() => { api.get('/settings/people').then((r) => setPeople(r.data?.data || [])).catch(() => setPeople([])) }, [])
+  if (!people) return <p className="text-xs text-gray-400">Loading…</p>
+  const roleName = (p) => org.roles.find((r) => r.key === (p.role_key || p.role))?.label || p.role
+  return (
+    <div data-permissions>
+      <div className="overflow-x-auto -mx-1">
+        <table className="w-full text-sm">
+          <thead><tr className="text-[10px] font-bold uppercase tracking-wider text-gray-400 text-left"><th className="px-1 py-2">Member</th><th className="px-1 py-2">Role</th><th className="px-1 py-2">Department</th><th className="px-1 py-2">Access</th><th className="px-1 py-2" /></tr></thead>
+          <tbody className="divide-y divide-divider">
+            {people.map((p) => (
+              <tr key={p.id} data-perm-row={p.id}>
+                <td className="px-1 py-2.5 font-medium text-gray-900 whitespace-nowrap">{p.name}</td>
+                <td className="px-1 py-2.5"><span className={`inline-block text-[11px] font-semibold px-2 py-0.5 rounded-full border ${ROLE_TONE[p.role] || ROLE_TONE.User}`}>{roleName(p)}</span></td>
+                <td className="px-1 py-2.5 text-gray-600 whitespace-nowrap">{p.department || <span className="text-gray-300">—</span>}</td>
+                <td className="px-1 py-2.5 text-gray-600 whitespace-nowrap" data-perm-access>{accessOf(p)}</td>
+                <td className="px-1 py-2.5 text-right whitespace-nowrap"><Link to={`/team/${p.id}`} className="text-xs font-semibold text-boom-700 hover:underline" data-perm-configure={p.id}>Configure</Link></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
+      {people.length === 0 && <p className="text-xs text-gray-400 py-2">Nobody yet — add people under People.</p>}
+      <label className="block mt-4 max-w-xs"><span className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Member</span>
+        <select defaultValue="" onChange={(e) => { if (e.target.value) navigate(`/team/${e.target.value}`) }} className="select-base w-full mt-1 text-sm" data-perm-select>
+          <option value="">— select member —</option>
+          {people.map((p) => <option key={p.id} value={p.id}>{p.name} · {roleName(p)}</option>)}
+        </select></label>
     </div>
   )
 }
@@ -137,7 +196,7 @@ function PresetsSection({ org, canEdit }) {
         {org.presets.map((p) => (
           <li key={p.key} className="py-2 flex items-start gap-3" data-preset-row={p.key} data-builtin={p.builtin ? '1' : '0'}>
             <div className="flex-1 min-w-0"><p className="text-sm font-semibold text-gray-900">{p.label} <span className="text-[10px] text-gray-400 font-normal">{p.key}</span></p><p className="text-xs text-gray-500">{p.description}</p><p className="text-[11px] text-gray-400 mt-0.5" data-preset-count>{p.all ? 'Every page' : `${p.paths.length} pages`}{org.departments.some((d) => (d.presets || []).includes(p.key)) ? ` · default for ${org.departments.filter((d) => (d.presets || []).includes(p.key)).map((d) => d.name).join(', ')}` : ''}</p></div>
-            {canEdit && <div className="flex items-center gap-3"><button type="button" onClick={() => setEditing(p.key)} className="text-xs text-boom-700 hover:underline" data-preset-edit={p.key}>Edit</button>{!p.builtin && <button type="button" onClick={() => remove(p)} className="text-xs text-gray-400 hover:text-rose-600 inline-flex items-center gap-1" data-preset-delete={p.key}><Trash2 size={11} /> Remove</button>}</div>}
+            {canEdit && <div className="flex items-center gap-1"><button type="button" onClick={() => setEditing(p.key)} className="p-1.5 rounded-md text-gray-400 hover:text-gray-900 hover:bg-gray-100" aria-label={`Edit ${p.label}`} title="Edit" data-preset-edit={p.key}><Pencil size={13} /></button><button type="button" onClick={() => remove(p)} disabled={p.builtin} className="p-1.5 rounded-md text-gray-400 hover:text-rose-600 hover:bg-rose-50 disabled:opacity-30 disabled:hover:bg-transparent" aria-label={`Remove ${p.label}`} title={p.builtin ? 'Built-in presets stay' : 'Remove'} data-preset-delete={p.key}><Trash2 size={13} /></button></div>}
           </li>
         ))}
       </ul>
@@ -177,7 +236,8 @@ function PresetForm({ org, preset, onClose, onSaved }) {
 
 // ── Departments ──
 function DepartmentsSection({ org, canEdit }) {
-  const [editing, setEditing] = useState(null)
+  const [editing, setEditing] = useState(null)   // department name · 'new' · { name } (a quick-add carrying the typed name)
+  const [draft, setDraft] = useState('')
   const [note, setNote] = useState('')
   const remove = async (d) => {
     let move = null
@@ -185,25 +245,40 @@ function DepartmentsSection({ org, canEdit }) {
     else if (!window.confirm(`Remove the department "${d.name}"?`)) return
     try { await api.delete(`/settings/org/departments/${encodeURIComponent(d.name)}${move ? `?move_to=${encodeURIComponent(move)}` : ''}`); setNote(`Removed ${d.name}`); org.refresh() } catch (e) { setNote(e?.response?.data?.error || 'Could not remove') }
   }
+  const lowest = Math.min(...org.departments.map((d) => d.default_level || 99))
+  const people = (n) => (n === 1 ? '1 person' : `${n} people`)
   return (
     <div>
       <ul className="divide-y divide-divider">
         {org.departments.map((d) => (
-          <li key={d.name} className="py-2 flex items-start gap-3" data-department-row={d.name}>
-            <div className="flex-1 min-w-0"><p className="text-sm font-semibold text-gray-900">{d.name} <span className="text-[10px] text-gray-400 font-normal inline-flex items-center gap-1"><Users size={10} /> {d.members}</span></p>
-              <p className="text-[11px] text-gray-500">Default presets: {(d.presets || []).map((k) => org.presets.find((p) => p.key === k)?.label || k).join(', ') || 'none'}{d.default_level ? ` · level ${d.default_level}` : ''}</p></div>
-            {canEdit && <div className="flex items-center gap-3"><button type="button" onClick={() => setEditing(d.name)} className="text-xs text-boom-700 hover:underline" data-department-edit={d.name}>Edit</button><button type="button" onClick={() => remove(d)} className="text-xs text-gray-400 hover:text-rose-600 inline-flex items-center gap-1" data-department-delete={d.name}><Trash2 size={11} /> Remove</button></div>}
+          <li key={d.name} className="py-2.5 flex items-center gap-3" data-department-row={d.name}>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-gray-900">{d.name}</p>
+              <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
+                {(d.presets || []).length === 0 && <span className="text-[11px] text-gray-400">no default preset</span>}
+                {(d.presets || []).map((k) => <span key={k} className="text-[10px] px-1.5 py-0.5 rounded-full border border-rule text-gray-600" data-department-preset-chip={k}>{org.presets.find((p) => p.key === k)?.label || k}</span>)}
+                {d.default_level ? <span className="text-[10px] text-gray-400">· level {d.default_level}</span> : null}
+              </div>
+            </div>
+            <span className="text-xs text-gray-400 tabular-nums whitespace-nowrap" data-department-members>{people(d.members || 0)}</span>
+            {d.default_level && d.default_level === lowest && org.departments.length > 1 && <span className="text-[9px] font-bold uppercase tracking-wider text-gray-400 inline-flex items-center gap-1 whitespace-nowrap" title={`Level ${d.default_level} — sorts first in People`} data-department-first><ArrowUpNarrowWide size={10} /> sorts first</span>}
+            {canEdit && <div className="flex items-center gap-1"><button type="button" onClick={() => setEditing(d.name)} className="p-1.5 rounded-md text-gray-400 hover:text-gray-900 hover:bg-gray-100" aria-label={`Edit ${d.name}`} title="Edit" data-department-edit={d.name}><Pencil size={13} /></button><button type="button" onClick={() => remove(d)} className="p-1.5 rounded-md text-gray-400 hover:text-rose-600 hover:bg-rose-50" aria-label={`Remove ${d.name}`} title="Remove" data-department-delete={d.name}><Trash2 size={13} /></button></div>}
           </li>
         ))}
       </ul>
-      {canEdit && !editing && <button type="button" onClick={() => setEditing('new')} className="btn-secondary text-xs mt-3 inline-flex items-center gap-1" data-department-new><Plus size={12} /> New department</button>}
+      {canEdit && !editing && (
+        <form onSubmit={(e) => { e.preventDefault(); setEditing({ name: draft.trim() }) }} className="mt-3 flex items-center gap-2" data-department-quick>
+          <input value={draft} onChange={(e) => setDraft(e.target.value)} placeholder="New department" className="input-base text-sm flex-1 max-w-xs" data-department-draft />
+          <button type="submit" className="btn-secondary text-xs inline-flex items-center gap-1" data-department-new><Plus size={12} /> Add</button>
+        </form>
+      )}
       <Note text={note} />
-      {editing && <DepartmentForm org={org} dept={editing === 'new' ? null : org.departments.find((d) => d.name === editing)} onClose={() => setEditing(null)} onSaved={(msg) => { setNote(msg); setEditing(null); org.refresh() }} />}
+      {editing && <DepartmentForm org={org} dept={typeof editing === 'string' ? org.departments.find((d) => d.name === editing) : null} initialName={typeof editing === 'object' ? editing.name : ''} onClose={() => setEditing(null)} onSaved={(msg) => { setNote(msg); setEditing(null); setDraft(''); org.refresh() }} />}
     </div>
   )
 }
-function DepartmentForm({ org, dept, onClose, onSaved }) {
-  const [name, setName] = useState(dept?.name || '')
+function DepartmentForm({ org, dept, initialName = '', onClose, onSaved }) {
+  const [name, setName] = useState(dept?.name || initialName)
   const [presets, setPresets] = useState(dept?.presets || [])
   const [level, setLevel] = useState(dept?.default_level || '')
   const [err, setErr] = useState('')

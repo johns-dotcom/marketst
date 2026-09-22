@@ -1165,6 +1165,22 @@ Authoritative project guide: **`boom-dashboard/CLAUDE.md`** — read it before m
   OAuth to `tab=notifications`. Paths unchanged, grants unchanged.
   settings-dom (56) asserts the four and six, the folds, and that the three
   left the rail; tour `settings` rewritten (three steps).
+- **Roles & teams wears Cadence's shape (2026-09-22, John: "this is what
+  cadence's looks like").** `components/OrgEditor.jsx` is flat cards, not an
+  accordion: **How access actually works** (folded by default — the four
+  axes + the role cards and the custom-role form; Superadmin edits) ·
+  **Permissions** (NEW, always open: one row per member from
+  `/settings/people` — role pill, department, access summary via `accessOf`
+  = Full access · Admin default · N pages (curated) · N pages · No pages yet
+  — and a Configure link to `/team/:id`; a member select navigates there
+  too. Nothing is edited on this card: the Access editor stays the ONE
+  writer of page rows) · **Presets** (open; pencil/trash icons, built-ins'
+  trash disabled) · **Departments** (open; rows with preset chips, `N people`,
+  a `sorts first` badge on the lowest default level, pencil/trash, and an
+  inline "New department + Add" that opens the form with the name filled) ·
+  **Department navs** (Superadmin, folded). `data-org-section` carries
+  `data-open`. settings-dom (58) asserts the card order and fold state, the
+  Permissions rows, and the department rows.
 - **The CEO's list (2026-09-22) — phase 2, contract terms.** `server/lib/
   contract-terms.js`: `contracts` gained `options_total`, `options_exercised`,
   `term_years`, `marketing_budget`, `deal_id`, `signature_status`
