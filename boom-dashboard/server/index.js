@@ -37,6 +37,7 @@ const calendarRoutes     = require('./routes/calendar');
 const salaryRoutes       = require('./routes/salary');
 const adminDocsRoutes    = require('./routes/admin-docs');
 const artistCampaignsRoutes = require('./routes/artist-campaigns');
+const songCampaignsRoutes = require('./routes/song-campaigns');
 
 const authMiddleware = require('./middleware/auth');
 const activityLogger = require('./middleware/activityLogger');
@@ -310,6 +311,7 @@ app.use('/api/label-waivers', labelWaiversRoutes);
 app.use('/api/calendar', calendarRoutes);
 app.use('/api/salary', salaryRoutes);
 app.use('/api/artist-campaigns', artistCampaignsRoutes);
+app.use('/api/campaigns', songCampaignsRoutes);
 // Team message board. Membership-gated inside the router, not role-gated —
 // /messages is on the BASE_WHITELIST so everyone can open the page, and which
 // channels you belong to is what bounds you. See routes/chat.js.
@@ -553,6 +555,8 @@ const runMigrations = async () => {
       created_at TIMESTAMPTZ DEFAULT NOW()
     )`).catch(err => console.error('deal_events CREATE TABLE failed:', err.message));
   await pool.query(`CREATE INDEX IF NOT EXISTS idx_deal_events_deal ON deal_events(deal_id, created_at DESC)`).catch(() => {});
+  // Song campaigns (2026-09-21): the marketing team's per-song budget + lifecycle → recoupment hand-off.
+  await require('./lib/song-campaigns').ensureSchema();
   for (const col of [
     `email TEXT`, `phone TEXT`, `manager_name TEXT`, `manager_email TEXT`, `socials JSONB`, `spotify_url TEXT`,
     `signed_at TIMESTAMPTZ`, `onboarded_at TIMESTAMPTZ`, `signed_deal_id INTEGER`,

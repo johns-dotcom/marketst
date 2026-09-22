@@ -46,6 +46,8 @@ const DAYS = {
   stats_stale: 3,
   mail_failed_window: 7,
   deal_stale: 21,           // a live deal with no stage move this long
+  campaign_unconfirmed: 7,  // spending finished, nobody confirmed it ready
+  campaign_not_uploaded: 7, // confirmed ready, bookkeeping has not uploaded it
 };
 
 const ADMIN = new Set(['Admin', 'Superadmin']);
@@ -367,6 +369,46 @@ const DETECTORS = [
     },
   },
   {
+    kind: 'campaign_over_budget', group: MONEY, label: 'Song campaigns over budget', page: '/campaigns',
+    description: 'Spent, committed and expected together exceed the budget typed on the campaign.',
+    async run() {
+      const cs = await require('./song-campaigns').list();
+      return cs.filter((c) => c.over_budget && c.status !== 'uploaded').map((c) => ({ key: String(c.id), severity: 'high', to: `/campaigns?campaign=${c.id}`, title: `${c.artist} — ${c.song}: over budget by $${Math.round(c.total - c.budget_usd).toLocaleString('en-US')}`, detail: `budget $${Math.round(c.budget_usd).toLocaleString('en-US')} · spent $${Math.round(c.spent).toLocaleString('en-US')} · committed $${Math.round(c.committed).toLocaleString('en-US')} · expected $${Math.round(c.expected_open).toLocaleString('en-US')}`, fingerprint: fp([Math.round(c.total)]) }));
+    },
+  },
+  {
+    kind: 'campaign_unconfirmed', group: WORKFLOW, label: 'Campaigns finished, not confirmed', page: '/campaigns',
+    description: `Spending was marked finished ${DAYS.campaign_unconfirmed}+ days ago and nobody has confirmed it ready for recoupment.`,
+    async run() {
+      const cs = await require('./song-campaigns').list({ status: 'finished' });
+      return cs.filter((c) => daysSince(c.finished_at) >= DAYS.campaign_unconfirmed).map((c) => ({ key: String(c.id), severity: 'medium', to: `/campaigns?campaign=${c.id}`, title: `${c.artist} — ${c.song}: finished ${plural(daysSince(c.finished_at), 'day')} ago, not confirmed`, detail: c.ready ? 'checklist clear' : c.checklist.filter((x) => !x.ok && x.key !== 'budget').map((x) => x.label).join(' · '), fingerprint: fp([String(c.finished_at).slice(0, 10)]) }));
+    },
+  },
+  {
+    kind: 'campaign_ready_not_uploaded', group: WORKFLOW, label: 'Campaigns ready for recoupment, not uploaded', page: '/recoupments', roles: BK,
+    description: `Marketing confirmed these done ${DAYS.campaign_not_uploaded}+ days ago; their items are not yet uploaded for recoupment.`,
+    async run() {
+      const cs = await require('./song-campaigns').list({ status: 'ready' });
+      return cs.filter((c) => daysSince(c.confirmed_at) >= DAYS.campaign_not_uploaded).map((c) => ({ key: String(c.id), severity: 'medium', to: `/recoupments?campaign=${c.id}`, title: `${c.artist} — ${c.song}: ready ${plural(daysSince(c.confirmed_at), 'day')}, ${plural(c.rows, 'item')} to upload`, detail: `$${Math.round(c.spent).toLocaleString('en-US')} paid`, fingerprint: fp([c.rows]) }));
+    },
+  },
+  {
+    kind: 'campaign_reopened', group: WORKFLOW, label: 'Campaigns reopened by a late invoice', page: '/campaigns',
+    description: 'An invoice for the song arrived after the campaign was confirmed done. It is live again; finish and confirm it once more.',
+    async run() {
+      const cs = await require('./song-campaigns').list({ status: 'live' });
+      return cs.filter((c) => c.reopened_at && daysSince(c.reopened_at) <= 60).map((c) => ({ key: String(c.id), severity: 'medium', to: `/campaigns?campaign=${c.id}`, title: `${c.artist} — ${c.song}: reopened`, detail: c.reopen_reason, fingerprint: fp([String(c.reopened_at)]) }));
+    },
+  },
+  {
+    kind: 'campaign_end_passed', group: WORKFLOW, label: 'Campaigns past their end date', page: '/campaigns',
+    description: 'The end date is behind us and spending has not been marked finished.',
+    async run() {
+      const cs = await require('./song-campaigns').list();
+      return cs.filter((c) => ['planning', 'live'].includes(c.status) && c.end_date && new Date(c.end_date) < new Date()).map((c) => ({ key: String(c.id), severity: 'low', to: `/campaigns?campaign=${c.id}`, title: `${c.artist} — ${c.song}: ended ${plural(daysSince(c.end_date), 'day')} ago, still ${c.status}`, detail: c.expected_open ? `$${Math.round(c.expected_open).toLocaleString('en-US')} still expected` : null, fingerprint: fp([String(c.end_date).slice(0, 10)]) }));
+    },
+  },
+  {
     kind: 'deal_stale', group: WORKFLOW, label: 'Deals stuck in a stage', page: '/deals',
     description: `A live deal that has not moved stage in ${DAYS.deal_stale}+ days. Move it, pass on it, or set a follow-up.`,
     async run() {
@@ -626,6 +668,9 @@ async function sweep({ trigger = 'timer' } = {}) {
       try { const items = await fn(); seen.set(d.kind, items); counts[d.kind] = items.length; }
       catch (e) { errors[d.kind] = e.message; console.warn(`[flags] ${d.kind}:`, e.message); }
     };
+    // Song campaigns: the automatic transitions (late invoice reopens, all
+    // uploaded → uploaded) run before their detectors look.
+    try { await require('./song-campaigns').syncStatuses(); } catch (e) { console.warn('[flags] campaign sync:', e.message); }
     for (const d of DETECTORS) await run(d, () => d.run());
     const dq = dqDetectors();
     for (const d of dq.filter((x) => !x.artistFlags)) await run(d, () => d.run());

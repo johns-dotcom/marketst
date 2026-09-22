@@ -192,6 +192,7 @@ export const NAV_GROUPS = [
           label: 'Artist Spend',
           icon: Megaphone,
           children: [
+            { path: '/campaigns',        label: 'Song campaigns', icon: Megaphone, synonyms: 'song campaign budget spend marketing finished ready recoupment upload confirm owner' },
             { path: '/artist-budgets',   label: 'Budgets',      icon: Scale, synonyms: 'artist budget sheet spend variance committed campaign planned marketing spend sheet import xlsx' },
             { path: '/artist-campaigns', label: 'Campaigns',    icon: Megaphone, synonyms: 'marketing campaign promo spend per song' },
             { path: '/bk/advertising',   label: 'Allocate Ads', icon: Target, synonyms: 'advertising facebook meta ads allocate attribute ad spend pool campaign' },

@@ -285,6 +285,14 @@ router.get('/my-work', authMiddleware, async (req, res) => {
       deals_due = rows;
     } catch { /* column may not exist on an old database */ }
 
+    // Song campaigns I own that need me: finished-but-unconfirmed, reopened, over budget, past their end.
+    let campaigns_due = [];
+    try {
+      const cs = await require('../lib/song-campaigns').list({ owner_id: userId });
+      campaigns_due = cs.filter((c) => c.status === 'finished' || (c.status === 'live' && c.reopened_at) || (c.over_budget && c.status !== 'uploaded') || (['planning', 'live'].includes(c.status) && c.end_date && new Date(c.end_date) < new Date()))
+        .map((c) => ({ id: c.id, artist: c.artist, song: c.song, status: c.status, why: c.status === 'finished' ? 'confirm it' : c.reopened_at && c.status === 'live' ? 'reopened by a late invoice' : c.over_budget ? 'over budget' : 'past its end date' }));
+    } catch { /* table may not exist yet */ }
+
     res.json({
       success: true,
       data: {
@@ -293,6 +301,7 @@ router.get('/my-work', authMiddleware, async (req, res) => {
         tasks,
         invites_pending,
         deals_due,
+        campaigns_due,
         activity: activityResult.rows,
       }
     });

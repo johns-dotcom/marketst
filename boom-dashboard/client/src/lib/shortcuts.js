@@ -43,6 +43,7 @@ export const PAGE_KEYS = {
   '/releases': [K('n', 'New release'), K('v', 'Toggle list / calendar'), ...LIST, K('Enter', 'Expand / collapse the focused release'), K('1', 'Checklist tab'), K('2', 'Metadata tab'), K('3', 'DSP tab'), K('4', 'Budget tab'), K('5', 'Activity tab'), K('6', 'Comments tab'), K('7', 'Details tab')],
   '/catalog': [K('y', 'Sync artwork from Spotify'), K('1', 'All time'), K('2', 'This year'), K('3', 'Six months'), K('4', 'Twelve months'), K('5', 'Two years'), K('6', 'Custom range'), K('f', 'Focus the search')],
   '/calendar': [K('ArrowLeft', 'Previous month'), K('ArrowRight', 'Next month'), K('t', 'Today'), K('n', 'New event')],
+  '/campaigns': [...LIST, K('Enter', 'Open the focused campaign'), K('n', 'New campaign'), K('f', 'Focus the search')],
   '/deals': [...LIST, K('Enter', 'Open the focused deal'), K('m', 'Move it to the next stage'), K('n', 'New deal'), K('f', 'Focus the search')],
   '/team': [K('n', 'New task for someone'), K('1', 'First view'), K('2', 'Second view'), K('3', 'Third view'), K('4', 'Fourth view')],
   '/activity': [K('s', 'Flip the sort'), K('f', 'Focus the search')],

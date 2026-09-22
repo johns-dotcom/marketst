@@ -360,6 +360,17 @@ fallback, recoupments-2025), `Layout.jsx` + `GlobalSearch.jsx` + `useHotkeys.js`
 (keyboard quiet under a tour), `KeyboardShortcutsHelp.jsx` (navigate before
 start), `MyWork.jsx` (`isUpdated`). Boom's Messages page has the same redirect.
 
+## 27. Song campaigns — PORT
+
+`server/lib/song-campaigns.js`, `server/routes/song-campaigns.js` (mounted
+`/api/campaigns`, schema from `ensureSchema()` in index.js), Flags detectors +
+the sweep's `syncStatuses()` call, `/team/my-work` `campaigns_due`;
+`pages/SongCampaigns.jsx`, `components/campaigns/CampaignDrawer.jsx`,
+`lib/campaigns.js`, the Recoupments READY panel, nav (`/campaigns` in the
+artist-spend family, NAV_PAGES 50), Marketing preset, tours, shortcuts,
+`campaigns-dom`. Nothing label-shaped; Boom's Campaigns page is the read-only
+settled/committed view this sits beside.
+
 ## Suggested order for Cadence
 
 1. Sections 3, 4, 7 (sidebar, presets, Settings) — they define the shape

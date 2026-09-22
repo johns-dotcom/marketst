@@ -80,6 +80,7 @@ const PAGE_LABELS = {
   '/recoupments/audit': 'Recoupment Audit',
   '/artist-budgets':     'Artist Budgets',
   '/admin/vendor-lab':  'Vendor Form (sandbox)',
+  '/campaigns':          'Song Campaigns',
   '/artist-campaigns':   'Artist Campaigns',
   '/bk/advertising':     'Allocate Advertising',
   '/bk/reimburse':       'Add Reimbursement',

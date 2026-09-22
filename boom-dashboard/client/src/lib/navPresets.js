@@ -51,7 +51,7 @@ export const PRESETS = [
       ...COMMON,
       '/artists',
       '/releases', '/catalog',
-      '/artist-budgets', '/artist-campaigns', '/bk/advertising',
+      '/campaigns', '/artist-budgets', '/artist-campaigns', '/bk/advertising',
       '/bk/add',
     ],
   },

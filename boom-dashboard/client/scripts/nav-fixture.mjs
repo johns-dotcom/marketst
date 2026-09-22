@@ -33,9 +33,9 @@ const flat = (g) => g.items.flatMap(i => (i.collapsible || i.tabbed) ? i.childre
 const allPaths = NAV_GROUPS.flatMap(flat).map(i => i.path)
 
 console.log('1. no page can go missing')
-ok(allPaths.length === 49, `49 paths across ${NAV_GROUPS.length} groups (got ${allPaths.length}) — Boom's 53 minus the five John removed outright on 2026-09-18, plus Brand (2026-09-19)`)
+ok(allPaths.length === 50, `50 paths across ${NAV_GROUPS.length} groups (got ${allPaths.length}) — Boom's 53 minus the five John removed outright on 2026-09-18, plus Brand (2026-09-19), plus Song campaigns (2026-09-21)`)
 ok(new Set(allPaths).size === allPaths.length, 'no path appears twice')
-ok(NAV_PAGES.length === 49, "NAV_PAGES flattens to 49 — Settings' permission matrix renders from it, so a new page must appear here or nobody can ever be granted it")
+ok(NAV_PAGES.length === 50, "NAV_PAGES flattens to 50 — Settings' permission matrix renders from it, so a new page must appear here or nobody can ever be granted it")
 // Market Street regroup (2026-09-18): pages leave the SIDEBAR with `hidden`,
 // never by deletion. A hidden page is still grantable, still searchable, and
 // still a known page for the permission walk.
@@ -143,7 +143,7 @@ for (const [path, want] of [['/', 'Home'], ['/releases', 'Pipeline'], ['/deals',
   ok(labelOf(path) === want, `${path.padEnd(18)} is "${labelOf(path)}"`)
 }
 for (const [path, fam] of [['/deals', 'contracts'], ['/create-invoice', 'documents'], ['/bk/creators', 'invoices'],
-                           ['/bk/advertising', 'artist-spend'], ['/activity', 'settings'], ['/team', 'settings']]) {
+                           ['/bk/advertising', 'artist-spend'], ['/campaigns', 'artist-spend'], ['/activity', 'settings'], ['/team', 'settings']]) {
   ok(familyOf(path) === fam, `${path.padEnd(18)} is a tab of "${familyOf(path)}"`)
 }
 ok(groupOf('/bk/ledger') === 'Money' && groupOf('/bk/statements') === 'Money' && groupOf('/bk/vendors') === 'Money',

@@ -333,8 +333,9 @@ const PAGE_TOURS = [
   },
   // ─── Reports: Recoupments family ────────────────────────────────────────
   {
-    id: 'recoupments', title: 'Recoupments', path: '/recoupments', version: '2026-09-20',
+    id: 'recoupments', title: 'Recoupments', path: '/recoupments', version: '2026-09-21',
     steps: [
+      { target: '[data-tour="recoupments-ready"], [data-tour="recoupments-header"]', title: 'Ready for recoupment', body: 'Song campaigns marketing has confirmed done, with every item pre-selected. Upload all marks the items UFR and the campaign moves to Uploaded on its own. Appears only when something is ready.' },
       { target: '[data-tour="recoupments-header"]', title: 'Recoupable spend, by artist', body: 'Every recoupable item, grouped by artist, in four states: ready to upload (paid and proven by a bank line), no bank line yet, nothing provable, nothing to do. Only the first is a to-do.' },
       { target: '[data-tour="recoupments-summary"], [data-tour="recoupments-header"]', title: 'Ready to upload', body: 'The dollar figure is what can be claimed now; Upload all sends it. Notes and the Audit link sit beside it.' },
       { target: '[data-tour="recoupments-filters"], [data-tour="recoupments-header"]', title: 'Filters', body: 'Search, artist, sort, then recoupable, UFR, payments and labels. Add to plan stages items for Planning.' },
@@ -362,6 +363,15 @@ const PAGE_TOURS = [
       { target: '[data-tour="budgets-header"]', title: 'Budget against actual', body: 'What each artist was budgeted, what is still owed, and what the ledger actually paid. New budget starts a sheet for an artist.' },
       { target: '[data-tour="budgets-tabs"], [data-tour="budgets-header"]', title: 'Budgets, Unlinked, Import', body: 'Budgets is the card grid; Unlinked is spend the app could not tie to a plan; Import sheet brings a spreadsheet in.' },
       { target: '[data-tour="budgets-search"], [data-tour="budgets-header"]', title: 'The sheet', body: 'Search and sort the cards; open one for the sheet — Advance and Total marketing typed, release budgets under marketing, and a Full breakdown by category.' },
+    ],
+  },
+  {
+    id: 'song-campaigns', title: 'Song Campaigns', path: '/campaigns', version: '2026-09-21',
+    steps: [
+      { target: '[data-tour="song-campaigns-header"]', title: 'One campaign per song', body: 'A budget, an owner, the spend you expect, and the invoices the ledger already attributes to that artist and song. The subtitle totals what is open, budgeted, spent and committed.' },
+      { target: '[data-tour="song-campaigns-filters"], [data-tour="song-campaigns-header"]', title: 'Filters live in the URL', body: 'Search, Mine, artist, and Needs attention — over budget, reopened by a late invoice, finished but unconfirmed, or past its end date.' },
+      { target: '[data-tour="song-campaigns-board"], [data-tour="song-campaigns-header"]', title: 'The lifecycle', body: 'Planning → Live → Spending finished → Ready for recoupment → Uploaded. Each card is one bar: spent (green), committed (amber), expected (grey), the budget as a line. The button on a card moves it on.' },
+      { target: '[data-tour="song-campaigns-new"], [data-tour="song-campaigns-header"]', title: 'Confirming done', body: 'Open a card for its checklist: every expected line invoiced, every invoice paid, every document in. Gaps warn but never block — confirming with gaps needs a note. Once ready, bookkeeping uploads it from Recoupments; a late invoice reopens it.' },
     ],
   },
   {

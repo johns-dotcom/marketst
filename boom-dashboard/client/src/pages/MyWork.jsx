@@ -9,7 +9,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import usePageShortcuts from '../hooks/usePageShortcuts'
 import { Link } from 'react-router-dom'
-import { Plus, Check, Circle, Trash2, AtSign, ChevronDown, ChevronRight, Calendar as CalendarIcon, Inbox, MessageSquare, Hourglass, Mail, Footprints, Loader, Flag, Briefcase } from 'lucide-react'
+import { Plus, Check, Circle, Trash2, AtSign, ChevronDown, ChevronRight, Calendar as CalendarIcon, Inbox, MessageSquare, Hourglass, Mail, Footprints, Loader, Flag, Briefcase, Megaphone } from 'lucide-react'
 import NotesEditor from '../components/NotesEditor'
 import api from '../api'
 import { isPastLocal, daysUntilLocal } from '../utils'
@@ -125,6 +125,7 @@ export default function MyWork() {
     // Flags new since this person last opened the page — the register's push
     // (lib/flags-register summaryFor, via the Home loop). Only kinds they can act on.
     loop?.flags && canView('/flags') && loop.flags.new > 0 && { icon: Flag, text: `${loop.flags.new} flag${loop.flags.new === 1 ? '' : 's'} new since you looked`, sub: loop.flags.count > loop.flags.new ? `${loop.flags.count} open in all` : null, to: '/flags' },
+    (data?.campaigns_due || []).length > 0 && canView('/campaigns') && { icon: Megaphone, text: `${data.campaigns_due.length} song campaign${data.campaigns_due.length === 1 ? '' : 's'} you own need${data.campaigns_due.length === 1 ? 's' : ''} you`, sub: data.campaigns_due.slice(0, 3).map((c) => `${c.song} — ${c.why}`).join(' · ') + (data.campaigns_due.length > 3 ? '…' : ''), to: '/campaigns?owner=me&attn=1' },
     (data?.deals_due || []).length > 0 && canView('/deals') && { icon: Briefcase, text: `${data.deals_due.length} deal${data.deals_due.length === 1 ? '' : 's'} you own need${data.deals_due.length === 1 ? 's' : ''} a touch`, sub: data.deals_due.slice(0, 3).map((d) => d.artist_name).join(', ') + (data.deals_due.length > 3 ? '…' : ''), to: '/deals?owner=me&attn=1' },
     (data?.invites_pending || []).length > 0 && { icon: Mail, text: `${data.invites_pending.length} invite${data.invites_pending.length === 1 ? '' : 's'} you sent, not yet used`, sub: data.invites_pending.map((i) => i.name).join(', '), to: '/team' },
     canView('/bk/statements') && cutoffDays <= 7 && { icon: Hourglass, text: `Statement cutoff ${cutoffDays === 0 ? 'today' : `in ${cutoffDays} day${cutoffDays === 1 ? '' : 's'}`}`, sub: 'the 20th', to: '/bk/statements' },

@@ -149,6 +149,12 @@ export default function Recoupments() {
   const [searchParams, setSearchParams] = useSearchParams()
   const routeArtist = rawArtistParam ? decodeURIComponent(rawArtistParam) : ''
   const isDetail = !!routeArtist
+  // Song campaigns marketing has confirmed done: the READY queue (2026-09-21).
+  // Every item pre-selected; Upload all is the same ufr-bulk write the rows
+  // use, and the campaign moves to Uploaded on the next list read.
+  const [readyCampaigns, setReadyCampaigns] = useState([])
+  const loadReady = () => api.get('/campaigns', { params: { status: 'ready' } }).then((r) => setReadyCampaigns(r.data?.data || [])).catch(() => setReadyCampaigns([]))
+  useEffect(() => { if (!isDetail) loadReady() }, [isDetail]) // eslint-disable-line react-hooks/exhaustive-deps
   // Detail-view "statement" tab. 'pending' means items not yet uploaded for
   // recoupment; otherwise a YYYY-MM string identifies the calendar month in
   // which the row was UFR-stamped (ufr_marked_at). Lives in the URL so each
@@ -2238,6 +2244,23 @@ export default function Recoupments() {
           The four figures are one partition of `pendingFiltered`, so they add up
           to it by construction. The DETAIL page keeps the full tile grid — this
           is the index only. */}
+      {!isDetail && readyCampaigns.length > 0 && (
+        <div data-tour="recoupments-ready" data-recoupments-ready className="card px-4 py-3 border-emerald-200 bg-emerald-50/40">
+          <div className="flex items-center justify-between gap-3 mb-2">
+            <p className="text-sm font-semibold text-emerald-900 inline-flex items-center gap-1.5"><CheckCircle2 size={15} /> {readyCampaigns.length} song campaign{readyCampaigns.length === 1 ? '' : 's'} ready for recoupment</p>
+            <span className="text-[11px] text-emerald-800">Marketing confirmed these done. Upload marks every item UFR; the campaign moves to Uploaded on its own.</span>
+          </div>
+          <ul className="divide-y divide-emerald-100">
+            {readyCampaigns.map((c) => (
+              <li key={c.id} className="py-1.5 flex items-center gap-3 text-sm" data-ready-campaign={c.id}>
+                <div className="flex-1 min-w-0"><span className="font-semibold text-gray-900">{c.song}</span> <span className="text-gray-500">· {c.artist}</span>{c.confirm_note && <span className="block text-[11px] text-gray-500 truncate">“{c.confirm_note}”</span>}</div>
+                <span className="text-xs text-gray-600 tabular-nums">{c.rows} item{c.rows === 1 ? '' : 's'} · {fmtUsdItems([{ amount: c.spent, currency: 'USD' }], fxRates) || '$0'}{c.unpaid ? <span className="text-amber-700"> · {c.unpaid} unpaid</span> : ''}</span>
+                <button type="button" disabled={claimBusy || !c.expense_ids?.length} onClick={async () => { await claimForRecoupment(c.expense_ids.map((id) => ({ id }))); loadReady() }} className="btn-primary text-xs py-1 disabled:opacity-40" data-ready-upload={c.id}>Upload all</button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
       {!isDetail && (
         <div data-tour="recoupments-summary" className="card px-4 py-3">
           <div className="flex items-baseline gap-x-2.5 gap-y-1 flex-wrap">

@@ -982,6 +982,67 @@ Authoritative project guide: **`boom-dashboard/CLAUDE.md`** — read it before m
   was still the plain box when the harness typed into it, and the song landed
   as "other" while every payload assertion stayed green. `fillProject` awaits
   a tick after each pick.
+- **Song campaigns (2026-09-21, John: "a really good system for the marketing
+  team to track spending for song campaigns and when they're finished
+  spending and can confirm it's done, mark the campaign as ready to upload for
+  recoupment" — his calls: one campaign per song · confirming needs every
+  expected line invoiced AND every invoice paid, but gaps WARN, never block ·
+  Recoupments gets a Ready queue · a late invoice reopens it · budget typed on
+  the campaign · expected-spend lines · a marketing board · spend by
+  channel).** `/campaigns` ("Song campaigns", first tab of the Artist Spend
+  family; in the Marketing preset; NAV_PAGES is 50). **Model**
+  (`server/lib/song-campaigns.js`): `song_campaigns` (artist_key + song_key
+  UNIQUE, owner_id, budget/currency, start/end, status planning · live ·
+  finished · ready · uploaded, finished/confirmed/uploaded/reopened stamps,
+  confirm_note, reopen_reason), `song_campaign_lines` (label, category,
+  vendor, expected_amount, `expense_id` once the invoice arrived),
+  `song_campaign_events` (timeline). **Spend is never typed**: it is every
+  alive LEAF ledger row with the same `artistBucketKey` + song key in a
+  campaign category (bk_categories `ui_group='campaign'` ∪
+  CAMPAIGN_CATEGORIES). Spent = Paid rows (usdOf), committed = unpaid,
+  expected = lines with no expense_id; total = all three; `left` = budget −
+  total. The CHECKLIST (`computeMoney`): every expected line invoiced · every
+  invoice paid · every row has a document · some spend exists · within budget
+  (informational). `ready` = the first four. **Confirming** (`POST
+  /campaigns/:id/status {status:'ready', note}`) with a dirty checklist
+  returns 400 `needs_note` + the checklist; with a note it records who and why.
+  `uploaded` cannot be set by hand. **`syncStatuses()`** (idempotent; runs
+  before every list read and at the start of the hourly Flags sweep): a row
+  created after `confirmed_at` reopens ready/uploaded → live with
+  `reopen_reason` naming the payee(s) and clears the confirmation; a ready
+  campaign whose every row is `ufr='Yes'` → uploaded. **Timezone trap hit
+  here:** `expenses.created_at` is a zoneless TIMESTAMP, node-pg reads it in
+  the process zone, so a laptop in LA saw every invoice as "7 hours after
+  confirmation" — compare instants as SQL epochs (`created_epoch` /
+  `confirmed_epoch`), never `new Date(created_at)`. **Routes**
+  (`routes/song-campaigns.js`, `/api/campaigns`): list (light, with
+  `expense_ids`), `/songs?artist=` (releases + ledger songs + existing), read
+  (lines, ledger rows, by_channel, events), create (owner defaults to the
+  caller; a first note becomes an event), PUT, lines CRUD (a line may only
+  link an invoice attributed to this song), `/status`, `/events`, DELETE
+  (owner/creator/admin). **Client**: `pages/SongCampaigns.jsx` (board by
+  status with $ per column, cards = one bar spent/committed/expected + budget
+  line, owner initials, left/over, attention line, next-step button; list
+  view; New campaign with ArtistSelect + song datalist from `/campaigns/songs`
+  + expected lines; URL filters `q owner status artist attn view campaign`,
+  `?campaign=ID` opens the drawer), `components/campaigns/CampaignDrawer.jsx`
+  (money, lifecycle strip, checklist, "Confirm ready anyway…" note form,
+  Reopen, expected lines with Link-the-invoice menu, spend by channel,
+  invoices with UFR badges, details, timeline), `lib/campaigns.js` (rules:
+  `needsAttention` = over budget · reopened · finished-unconfirmed · past end
+  date). **Reach**: Recoupments index gained the READY panel
+  (`data-tour="recoupments-ready"`, `GET /campaigns?status=ready`, Upload all →
+  the existing `/bk/entries/ufr-bulk`, then the campaign flips itself);
+  `/team/my-work` `campaigns_due` → My Work "Waiting on you"
+  (`/campaigns?owner=me&attn=1`); Flags detectors `campaign_over_budget`
+  (Money), `campaign_unconfirmed` (7d), `campaign_ready_not_uploaded` (7d, BK,
+  page /recoupments), `campaign_reopened`, `campaign_end_passed`. Harnesses:
+  `server/scripts/song-campaigns-fixture.cjs` (24), `npm run campaigns-dom`
+  (full · empty · url); tours `song-campaigns` (new) and `recoupments`
+  bumped; PAGE_KEYS['/campaigns'] j/k/Enter/n/f. Not done: a Home loop tile,
+  per-campaign currency other than USD on the budget bar (usdOf converts),
+  auto-suggesting which invoice fulfils a line (the menu lists this song's
+  unlinked invoices; the person picks).
 - **Bank-statement heuristics were tuned on Boom's Bank of America statements.** The own-name lists (`statements.js` stop-words, `funding-pairs.js` account-trailer strip) now say Market Street, but the layout parsers have not seen a Market Street statement yet. Expect the AI fallback to do the work until they do.
 
 ## Commands (run from `boom-dashboard/`)

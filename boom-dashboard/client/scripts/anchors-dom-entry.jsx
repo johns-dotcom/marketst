@@ -67,6 +67,7 @@ import BudgetDetail from '../src/pages/BudgetDetail'
 import BkArchive from '../src/pages/BkArchive'
 import BkVendorsAdded from '../src/pages/BkVendorsAdded'
 import Recoupments2025 from '../src/pages/Recoupments2025'
+import SongCampaigns from '../src/pages/SongCampaigns'
 // Detail pages: the tour's `sample` path is mounted on this route.
 const DETAIL = {
   'artist-profile': ['/artists/:id', <ArtistProfile />],
@@ -92,7 +93,7 @@ const PAGES = {
   '/create-nda': CreateNDA, '/create-label-waiver': CreateLabelWaiver, '/create-artist-clearance': ArtistClearance, '/create-invoice': CreateInvoice, '/reports': Reports, '/admin': AdminDocs,
   '/bk/ledger': BkLedger, '/bk/creators': BkCreators, '/bk/add': BkAddInvoice, '/bk/bank-matching': BkBankMatching, '/bk/bank-ledger': () => <BkLedger bank />, '/bk/statements': BkStatements, '/bk/rules': BkRules,
   '/bk/vendors': BkVendorsUnified, '/bk/1099': Bk1099, '/bk/reimburse': BkAddReimbursement, '/bk/invoices': BkInvoices, '/bk/bulk-deals': BkBulkDeals, '/bk/ledger-matching': LedgerMatching,
-  '/recoupments': Recoupments, '/recoupments/planning': RecoupmentsPlanning, '/recoupments/audit': RecoupmentsAudit, '/artist-budgets': ArtistBudgets, '/artist-campaigns': ArtistCampaigns, '/bk/advertising': AdAllocation,
+  '/recoupments': Recoupments, '/recoupments/planning': RecoupmentsPlanning, '/recoupments/audit': RecoupmentsAudit, '/artist-budgets': ArtistBudgets, '/artist-campaigns': ArtistCampaigns, '/campaigns': SongCampaigns, '/bk/advertising': AdAllocation,
   '/financials': Financials, '/budget': Budget, '/salary': Salary, '/analytics': Analytics, '/activity': ActivityHistory,
 }
 // Anchors that a SHELL renders around the page (BankShell's scope band, the

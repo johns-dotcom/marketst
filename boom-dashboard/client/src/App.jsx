@@ -59,6 +59,7 @@ import EULA from './pages/EULA'
 import Salary from './pages/Salary'
 import Recoupments from './pages/Recoupments'
 import ArtistCampaigns from './pages/ArtistCampaigns'
+import SongCampaigns from './pages/SongCampaigns'
 import AdAllocation from './pages/AdAllocation'
 import BkInvoices from './pages/BkInvoices'
 import BkBulkDeals from './pages/BkBulkDeals'
@@ -254,6 +255,7 @@ function AppContent() {
         <Route path="/artist-budgets/:artistKey/detail" element={<ArtistBudgetSheet />} />
         <Route path="/recoupments/:artistName" element={<TabbedShell family="recoupments"><Recoupments /></TabbedShell>} />
         <Route path="/bk/advertising" element={<TabbedShell family="artist-spend"><AdAllocation /></TabbedShell>} />
+        <Route path="/campaigns" element={<TabbedShell family="artist-spend"><SongCampaigns /></TabbedShell>} />
         <Route path="/artist-campaigns" element={<TabbedShell family="artist-spend"><ArtistCampaigns /></TabbedShell>} />
         <Route path="/artist-campaigns/:artistName" element={<TabbedShell family="artist-spend"><ArtistCampaigns /></TabbedShell>} />
         <Route path="/artist-campaigns/:artistName/:songName" element={<TabbedShell family="artist-spend"><ArtistCampaigns /></TabbedShell>} />
