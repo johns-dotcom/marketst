@@ -379,6 +379,14 @@ Authoritative project guide: **`boom-dashboard/CLAUDE.md`** — read it before m
   the ? menu and in My Work's Waiting on you (`isDone` = version match), where
   it can be replayed by hand. A failed read of `/settings/me` leaves `done`
   null and starts nothing.
+  **NOTHING auto-starts any more (2026-09-22, John: "purely optional in the top
+  nav bar rather than having it forced on new users").** The auto-start effect
+  is gone from Tour.jsx; the welcome walk and every page tour start only from
+  the Walkthrough button beside the manual (footprints icon on a phone) or the
+  ? help's Tours list. Completion is still recorded so the menus say "new" /
+  "updated" and My Work can list updated tours. tour-dom's fresh, mobile and
+  detail scenarios assert silence, then start by hand. (The "once per person"
+  gating above is therefore moot but kept: it is what the labels read.)
   **Every route has a tour (2026-09-21, John: "make sure every feature has a
   walkthrough").** Measured first: 71 `<Route path>`s in App.jsx against 48
   tour paths left 23 routes with none — 14 real detail pages (a person, a

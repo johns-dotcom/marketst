@@ -101,7 +101,7 @@ export default function KeyboardShortcutsHelp({ open, onClose }) {
                   </button>
                 ))}
               </div>
-              <p style={{ fontSize: 11, color: '#9ca3af', margin: '8px 0 0' }}>A page's tour plays once the first time you open it. “Updated” means the page changed since you last took it.</p>
+              <p style={{ fontSize: 11, color: '#9ca3af', margin: '8px 0 0' }}>Tours never start on their own — play any from here or from the Walkthrough button in the top bar. “New” means you have not taken it; “updated” means the page changed since you did.</p>
             </div>
           )}
           {pageKeys.length

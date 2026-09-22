@@ -469,7 +469,7 @@ function walkSteps() {
   return out
 }
 const WELCOME = {
-  id: 'welcome', title: 'Welcome to the dashboard', path: '/', version: '2026-09-22', auto: 'first-signin', multipage: true,
+  id: 'welcome', title: 'Welcome to the dashboard', path: '/', version: '2026-09-22', multipage: true,
   steps: [
     { path: '/', target: null, title: 'Welcome to Market Street', body: 'A walk through every page you can open, each one in full — fifteen minutes or so. Skip a page, a family, or the whole tour at any time; replay any page\'s part later from Walkthrough in the top bar.' },
     { path: '/', target: '[data-tour="sidebar"]', prepare: 'sidebar', title: 'Everything is in the sidebar', body: 'Five groups: General, Artists & releases, Money, Reports, Admin. A row with a chevron holds several pages; open it and they appear as tabs across the top. On a phone the ☰ button opens this menu.' },

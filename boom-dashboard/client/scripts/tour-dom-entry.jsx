@@ -1,5 +1,5 @@
 // Does the tour engine drive? A fake page with the anchors the welcome and
-// Home tours point at, the provider around it. fresh: welcome auto-starts,
+// Home tours point at, the provider around it. fresh: NOTHING auto-starts; the walk is started by hand,
 // Next walks the steps that are on screen, Done PUTs completion. done:
 // welcome is done and Home was finished at an OLD version → the Home tour
 // reads as updated but does NOT auto-start (a tour runs itself once, ever).
@@ -80,15 +80,17 @@ async function main() {
   say(`SCENARIO ${scenario}`)
   const host = document.createElement('div'); document.body.appendChild(host)
   createRoot(host).render(<MemoryRouter initialEntries={[scenario === 'user' ? '/team' : scenario === 'detail' ? '/team/1' : '/']}><TourProvider><Routes><Route path="*" element={<Page />} /></Routes></TourProvider></MemoryRouter>)
-  for (let i = 0; i < (scenario === 'user' ? 15 : 40) && !document.querySelector('[data-tour-overlay]'); i += 1) await sleep(100)
-  await sleep(150)
+  // Nothing starts on its own any more: wait long enough for the old auto-start timers to have fired, then assert silence.
+  await sleep(1400)
   const ov = () => document.querySelector('[data-tour-overlay]')
   assert('nothing threw', errors.length === 0); if (errors.length) say('  ' + errors.join('\n  '))
   if (scenario === 'fresh') {
     const card = () => ov()?.querySelector('[data-tour-card]')
     const where = () => textOf(host.querySelector('[data-where]'))
     const total = TOURS.find((t) => t.id === 'welcome').steps.length
-    assert('the welcome tour auto-starts on first sign-in', ov()?.getAttribute('data-tour-id') === 'welcome')
+    assert('NOTHING auto-starts on first sign-in — walkthroughs are optional', !ov())
+    window.__START__('welcome'); await sleep(400)
+    assert('the welcome walk starts from the Walkthrough button', ov()?.getAttribute('data-tour-id') === 'welcome')
     assert('it opens with a centered card, no spotlight, that says skipping is allowed', !ov().querySelector('[data-tour-spotlight]') && /Skip a page, a family, or the whole tour/.test(textOf(card())))
     assert(`the count covers every visible page plus the family strips (${total})`, new RegExp(`1 of ${total}`).test(textOf(card())))
     assert('Skip tour and Skip this page are both offered', !!card().querySelector('[data-tour-skip-all]') && !!card().querySelector('[data-tour-skip-page]'))
@@ -140,7 +142,9 @@ async function main() {
     assert('…but Home\'s tour does not pounce the moment the walk ends', !ov())
   } else if (scenario === 'mobile') {
     const card = () => ov()?.querySelector('[data-tour-card]')
-    assert('on a phone the welcome tour still auto-starts', ov()?.getAttribute('data-tour-id') === 'welcome')
+    assert('on a phone nothing auto-starts either', !ov())
+    window.__START__('welcome'); await sleep(400)
+    assert('the welcome walk starts from the footprints icon', ov()?.getAttribute('data-tour-id') === 'welcome')
     assert('the card is a bottom sheet, not a floating box', card()?.getAttribute('data-tour-sheet') === '1' && !card().style.top)
     click(card().querySelector('[data-tour-next]')); await sleep(500)
     assert('the sidebar step asks Layout to open the drawer', /Everything is in the sidebar/.test(textOf(card())) && prepared.includes('sidebar:on'))
@@ -158,7 +162,9 @@ async function main() {
     assert('Done closes it', !ov())
   } else if (scenario === 'detail') {
     // A detail page (a person's page) with welcome SKIPPED long ago at an old version.
-    assert('a skipped welcome at an old version does not replay; the detail page tour auto-starts instead', ov()?.getAttribute('data-tour-id') === 'team-member')
+    assert('a detail page opens quietly — no tour pounces', !ov())
+    window.__START__('team-member'); await sleep(400)
+    assert('its tour starts by hand', ov()?.getAttribute('data-tour-id') === 'team-member')
     assert('the detail tour is the page tour the header offers', /team-member · \d+ tours/.test(textOf(host.querySelector('[data-page-tour]'))))
     const steps = TOURS.find((t) => t.id === 'team-member').steps.length
     for (let i = 0; i < steps; i += 1) { click(ov().querySelector('[data-tour-next]')); await sleep(200) }
@@ -176,7 +182,7 @@ async function main() {
     assert(`the welcome walk for a User drops the ${adminOnly} admin-only steps (${total - adminOnly} of ${total})`, adminOnly >= 1 && ov()?.getAttribute('data-tour-id') === 'welcome' && new RegExp(`1 of ${total - adminOnly}`).test(textOf(ov().querySelector('[data-tour-card]'))))
     window.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Escape' })); await sleep(300)
   } else {
-    assert('with welcome done and Home at an OLD version, NOTHING auto-starts — a tour runs itself once, ever', !ov())
+    assert('with welcome done and Home at an OLD version, NOTHING auto-starts', !ov())
     assert('the page knows its tour and the list of tours the user can open', /home · \d+ tours/.test(textOf(host.querySelector('[data-page-tour]'))))
     window.__START__('home'); await sleep(500)
     assert('the updated Home tour can still be started by hand', ov()?.getAttribute('data-tour-id') === 'home')

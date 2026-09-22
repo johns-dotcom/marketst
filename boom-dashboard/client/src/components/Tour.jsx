@@ -1,10 +1,10 @@
 // The spotlight tour engine. Mounted once in Layout; steps come from tours/index.js.
 //
-// Auto-start: the welcome tour on first sign-in (never completed), then each
-// page's tour the first time that page is opened — only after welcome is done,
-// only for pages the person can open, one tour at a time. Completion is stored
-// per user on the server (users.tours_done), so it follows them across
-// devices. Replaying is always possible from the help modal (?).
+// NOTHING starts on its own (2026-09-22, John: "purely optional in the top nav
+// bar rather than having it forced on new users"). Every tour — the welcome
+// walk and each page's — is started from the Walkthrough button beside the
+// manual or from the ? help. Completion is still recorded per user on the
+// server (users.tours_done) so the menus can say "new" and "updated".
 import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { X, ChevronLeft, ChevronRight, SkipForward, Loader } from 'lucide-react'
@@ -62,10 +62,8 @@ export function TourProvider({ children }) {
   const tours = useMemo(() => TOURS.filter(allowed), [allowed])
   const doneVersion = useCallback((id) => done?.[id]?.version || null, [done])
   const isDone = useCallback((t) => doneVersion(t.id) === t.version, [doneVersion])
-  // Seen at ANY version — finished or skipped. Auto-start is gated on this, so a
-  // tour runs itself ONCE per person (John, 2026-09-21: "only once … not every
-  // time I log in"). A newer version shows as "updated" in the ? menu and in My
-  // Work's Waiting on you, where it can be replayed; it never pounces again.
+  // Seen at ANY version — finished or skipped. Labels a tour "new" in the menus;
+  // nothing auto-starts any more (2026-09-22).
   const everSeen = useCallback((t) => !!done?.[t.id], [done])
   // "Updated since you took it": finished (not skipped) at an older version.
   const isUpdated = useCallback((t) => { const d = done?.[t.id]; return !!d && !d.skipped && d.version !== t.version }, [done])
@@ -107,21 +105,8 @@ export function TourProvider({ children }) {
     } catch { setDone((d) => ({ ...(d || {}), ...local })) }
   }, [active, done, location.pathname, canView])
 
-  // Auto-start. Welcome first; then the page tour once per page per session.
-  useEffect(() => {
-    if (!user || done === null || active) return undefined
-    const welcome = tourById('welcome')
-    if (welcome && !everSeen(welcome) && !startedOnPath.current.has('welcome')) {
-      const t = setTimeout(() => { startedOnPath.current.add('welcome'); setActive({ tour: welcome, index: 0 }) }, 600); return () => clearTimeout(t)
-    }
-    if (welcome && !everSeen(welcome)) return undefined
-    const pt = tourForPath(location.pathname)
-    if (pt && allowed(pt) && !everSeen(pt) && !startedOnPath.current.has(pt.id)) {
-      const t = setTimeout(() => { startedOnPath.current.add(pt.id); setActive({ tour: pt, index: 0 }) }, 900)
-      return () => clearTimeout(t)
-    }
-    return undefined
-  }, [user?.id, done, location.pathname, active, everSeen, allowed])
+  // No auto-start (see the header). `everSeen` still labels a tour "new" in the menus.
+  void everSeen; void allowed
 
   const value = useMemo(() => ({ startTour, tours, done: done || {}, active, doneVersion, isDone, isUpdated, pageTour: (() => { const pt = tourForPath(location.pathname); return allowed(pt) ? pt : null })() }), [startTour, tours, done, active, doneVersion, isDone, isUpdated, location.pathname, allowed])
   return (

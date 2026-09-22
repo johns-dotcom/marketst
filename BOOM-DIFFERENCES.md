@@ -388,6 +388,11 @@ invite, `has_password` on `/me`), `routes/settings.js` (`/me` has_password;
 People `invite_pending` vs `google_only`), Settings Sign-in tab, Layout nudge,
 Team directory badge, `google-password-fixture.cjs`. Boom has the same 500.
 
+## 30. Walkthroughs are optional — PORT
+
+`Tour.jsx` (no auto-start), `KeyboardShortcutsHelp.jsx` copy, `tours/index.js`
+(no `auto` flag), tour-dom. Boom still forces the welcome walk on first sign-in.
+
 ## Suggested order for Cadence
 
 1. Sections 3, 4, 7 (sidebar, presets, Settings) — they define the shape
