@@ -105,3 +105,4 @@ HOUSEKEEPING = nothing to port.
 | 66 | 2026-09-22 | 26731ab | Sign-in: an account that accepted its invite with Google can set its first password | PORT | 29 | todo |
 | 67 | 2026-09-22 | 3821758 | Walkthroughs are optional: nothing auto-starts; every tour begins from the Walkthrough button or the ? help | PORT | 30 | done 1860780 |
 | 68 | 2026-09-22 | f98fe43 | Cadence port log: the checklist, the tool, the habit | HOUSEKEEPING | — | skip — docs and tooling |
+| 69 | 2026-09-22 | e1e9196 | Passwords: a show/hide eye on every password field | PORT | 31 | todo |
