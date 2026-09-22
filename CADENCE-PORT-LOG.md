@@ -110,3 +110,4 @@ HOUSEKEEPING = nothing to port.
 | 71 | 2026-09-22 | 6584868 | The label is written market.st — lowercase, a dot between — everywhere it shows | LABEL | 1 | skip — label name |
 | 72 | 2026-09-22 | fd5d309 | Contract terms: deliverables, options and periods, splits, budget, signature status; releases count toward the deal and carry a status; deal Priority removed | PORT | 33 | todo |
 | 73 | 2026-09-22 | 4619ef1 | Deal alerts on Home, in Flags and by email — release gap, option expiring, deliverables due, advance triggered — and the team seeded with invites | PORT | 34 | todo |
+| 74 | 2026-09-22 | a26a12b | Settings folded: My settings 6 → 4, Label settings 9 → 6 — nothing deleted, old tab links still land | PORT | 36 | todo |
