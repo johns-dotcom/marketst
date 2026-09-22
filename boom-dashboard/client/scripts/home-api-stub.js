@@ -8,6 +8,11 @@
 export const calls = { get: [], post: [], put: [], del: [] }
 
 const scenario = () => globalThis.__HOME_SCENARIO__ || 'admin'
+// The CEO's alerts (GET /dashboard/alerts): one release gap, one option period ending
+const DEAL_ALERTS = [
+  { kind: 'release_gap', key: '12', artist_id: 12, artist: 'Rosa Vale', severity: 'high', to: '/artists/12', title: 'Rosa Vale: no release in 4 months', detail: 'last release 2026-05-20 · 2 deliverables remaining', days: 125 },
+  { kind: 'option_expiring', key: '5', artist_id: 12, artist: 'Rosa Vale', severity: 'medium', to: '/contracts?focus=5', title: 'Rosa Vale: option period ends in 61 days', detail: 'Master License · period 1 of 3 ends 2026-11-22 · 2 options left to exercise', days: 61 },
+]
 const ok = (data) => Promise.resolve({ data: { success: true, data } })
 
 const LOOP = {
@@ -70,6 +75,7 @@ const api = {
       return ok(LOOP[scenario()])
     }
     if (url.startsWith('/dashboard/stats')) return ok(STATS)
+    if (url.startsWith('/dashboard/alerts')) return scenario() === 'down' ? Promise.reject(new Error('alerts down')) : ok(scenario() === 'admin' ? DEAL_ALERTS : [])
     if (url.startsWith('/dashboard/notifications')) return ok(scenario() === 'admin' ? ALERTS : [])
     if (url.startsWith('/dashboard/activity')) return ok(scenario() === 'anr' || scenario() === 'empty' ? [] : ACTIVITY)
     if (url.startsWith('/calendar')) return scenario() === 'down' ? Promise.reject(new Error('cal down')) : Promise.resolve({ data: scenario() === 'empty' ? { events: [], sources: CAL.sources } : CAL })

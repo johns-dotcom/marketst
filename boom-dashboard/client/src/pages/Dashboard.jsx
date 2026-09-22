@@ -23,6 +23,7 @@ import { useAuth } from '../context/AuthContext'
 import usePageShortcuts from '../hooks/usePageShortcuts'
 import { humanizeAction } from '../lib/activityText'
 import { groupOf } from './Calendar'
+import AlertsPanel from '../components/AlertsPanel'
 
 // Turn whatever the user stored in `spotify_uri` into a clickable https URL.
 // Returns null for anything we can't confidently parse — we'd rather fall
@@ -394,6 +395,7 @@ export default function Dashboard() {
           reports read from that. One tile per step, each opening the page
           that resolves it, each rendered only if the server returned the
           section AND this user can open the destination. */}
+      <AlertsPanel canView={canView} />
       {loopAllClear ? (
         <div className="card px-5 py-3 flex items-center gap-3" data-loop-clear data-tour="home-loop">
           <CheckCircle2 size={18} className="text-emerald-500 flex-shrink-0" strokeWidth={1.5} />

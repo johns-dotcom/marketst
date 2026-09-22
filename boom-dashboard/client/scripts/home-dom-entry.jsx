@@ -79,6 +79,9 @@ async function main() {
 
   if (scenario === 'admin') {
     assert('ADMIN: all four loop tiles render', ['approvals', 'bank', 'payments', 'releases'].every((k) => byId[k]))
+    const al = host.querySelector('[data-home-alerts]')
+    assert('ADMIN: the Alerts panel renders the two deal alerts, grouped by kind', !!al && al.querySelectorAll('[data-alert-kind]').length === 2 && /No release in 2\+ months/.test(textOf(al)) && /Option period ending/.test(textOf(al)))
+    assert('ADMIN: each alert links to the page that resolves it', al?.querySelector('[data-alert="release_gap:12"]')?.getAttribute('href') === '/artists/12' && al?.querySelector('[data-alert="option_expiring:5"]')?.getAttribute('href') === '/contracts?focus=5')
     assert('ADMIN: approvals shows the count and the money', /7/.test(textOf(byId.approvals)) && /\$18,420/.test(textOf(byId.approvals)))
     assert('ADMIN: approvals says how old the oldest is', /oldest 4 days/.test(textOf(byId.approvals)))
     assert('ADMIN: payments shows rush and overdue', /2 rush/.test(textOf(byId.payments)) && /1 overdue/.test(textOf(byId.payments)))
@@ -115,6 +118,7 @@ async function main() {
     assert('ANR: the week still renders', !!host.querySelector('[data-week]'))
   }
   if (scenario === 'empty') {
+    assert('EMPTY: no Alerts panel when there is nothing — never a bare zero', !host.querySelector('[data-home-alerts]'))
     const clear = host.querySelector('[data-loop-clear]')
     assert('EMPTY: the six tiles collapse to one line', !!clear && tiles.length === 0)
     assert('EMPTY: the line names every source that is clear', /All clear/.test(textOf(clear)) && /no open tasks/.test(textOf(clear)) && /nothing awaiting approval/.test(textOf(clear)) && /nothing due this week/.test(textOf(clear)) && /no bank lines to review/.test(textOf(clear)) && /nothing releasing in 30 days/.test(textOf(clear)) && /nobody mid-onboarding/.test(textOf(clear)))
@@ -124,6 +128,7 @@ async function main() {
     assert('EMPTY: no bare zero anywhere in the loop', !/\b0\b/.test(textOf(clear)))
   }
   if (scenario === 'down') {
+    assert('DOWN: a failed alerts read renders no panel', !host.querySelector('[data-home-alerts]'))
     assert('DOWN: no loop tile renders when the read failed', !byId.approvals && !byId.payments && !byId.bank && !byId.releases)
     assert('DOWN: the page still renders the rest — tasks tile, quick actions, and the week says it could not be read', !!byId.tasks && !!host.querySelector('[data-quick-actions]') && /could not be read/.test(textOf(host.querySelector('[data-week]'))))
     assert('DOWN: a failed loop never collapses to All clear', !host.querySelector('[data-loop-clear]'))

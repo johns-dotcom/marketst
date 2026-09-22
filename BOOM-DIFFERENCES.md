@@ -408,6 +408,33 @@ AccessEditor / Team / NavEditors / ActivityHistory reading the live lists,
 `org-config-fixture.cjs`. Cadence: scope the three tables per tenant; the base
 tiers stay code there too.
 
+## 33. Contract terms, deliverables, options, signature status; deal priority removed — PORT
+
+`server/lib/contract-terms.js`, `routes/contracts.js` (terms on every read,
+`/exercise-option`), `routes/deals.js` (`marketing_budget`), `routes/releases.js`
+(`counts_toward_deal`, `ingested`, computed status), `components/ContractTerms.jsx`,
+Contracts form + detail, ArtistProfile contracts tab, deals without Priority.
+Releases row status pill + Metadata deal flags; tours bumped. Harnesses:
+`server/scripts/ceo-list-fixture.cjs`, `hub-dom`. Read the CLAUDE.md bullet for
+the period arithmetic (consecutive terms of `term_years`) and the signature
+precedence (by hand > DocuSign > signing date).
+
+## 34. Deal alerts: release gap, option expiring, deliverables due, advance triggered — PORT
+
+`server/lib/deal-alerts.js` (one computation), four `alert_*` detectors in
+`lib/flags-register.js`, `GET /dashboard/alerts` in `routes/dashboard.js`,
+`components/AlertsPanel.jsx` on Home, notifier job `deal_alerts`
+(`lib/notifier.js`), `label_settings.alerts_to` + Settings › Label › Alerts
+field (`routes/label.js`, `pages/Settings.jsx`). Cadence is multi-tenant: the
+always-to address is per label already (it lives on label_settings); the
+thresholds (60-day gap, 90/60/30) are constants at the top of the lib.
+
+## 35. The team seed — LABEL
+
+`syncTeam()` in `server/index.js` seeds Market Street's people (Soli, London,
+Chase), an Interns department and John's title. Do not port; Cadence tenants
+add their own people through People.
+
 ## Suggested order for Cadence
 
 1. Sections 3, 4, 7 (sidebar, presets, Settings) — they define the shape

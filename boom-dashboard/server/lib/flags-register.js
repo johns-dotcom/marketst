@@ -368,6 +368,16 @@ const DETECTORS = [
       return rows.map((r) => ({ key: String(r.id), severity: 'high', to: `/contracts?new=1&artist=${encodeURIComponent(r.name)}&deal=${r.id}`, title: `${r.name}: signed, no contract on file`, detail: r.signed_at ? `signed ${plural(daysSince(r.signed_at), 'day')} ago` : null }));
     },
   },
+  // ── The CEO's four dashboard alerts (2026-09-22) — lib/deal-alerts.js is the one computation ──
+  ...['release_gap', 'option_expiring', 'deliverable_due', 'advance_triggered'].map((kind) => ({
+    kind: `alert_${kind}`, group: WORKFLOW, page: kind === 'advance_triggered' ? '/bk/payments' : kind === 'option_expiring' ? '/contracts' : '/artists',
+    label: { release_gap: 'Artists with no release in 2+ months', option_expiring: 'Option / contract periods ending soon', deliverable_due: 'Deliverables still owed as the period ends', advance_triggered: 'Advance payments triggered' }[kind],
+    description: { release_gap: 'A signed artist with nothing released for two months. Emailed to the A&R owner every two months while it lasts.', option_expiring: 'The current contract period ends within 90 days — exercise the option, renew, or let it lapse. Emailed at 90, 60 and 30 days.', deliverable_due: 'Deliverables remain on a contract whose period ends within 90 days.', advance_triggered: 'An advance was booked in the last 30 days, or is due and unpaid.' }[kind],
+    async run() {
+      const rows = await require('./deal-alerts').alerts();
+      return rows.filter((r) => r.kind === kind).map((r) => ({ key: r.key, severity: r.severity, to: r.to, title: r.title, detail: r.detail, fingerprint: fp([kind === 'release_gap' ? Math.floor((r.days || 0) / 60) : kind === 'option_expiring' || kind === 'deliverable_due' ? (r.days <= 30 ? 30 : r.days <= 60 ? 60 : 90) : r.key]) }));
+    },
+  })),
   {
     kind: 'campaign_over_budget', group: MONEY, label: 'Song campaigns over budget', page: '/campaigns',
     description: 'Spent, committed and expected together exceed the budget typed on the campaign.',

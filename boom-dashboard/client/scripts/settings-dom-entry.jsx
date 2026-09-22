@@ -113,7 +113,7 @@ async function main() {
   click(host.querySelector('[data-tab="label"]')); await sleep(200)
   const lb = host.querySelector('[data-tab-label]')
   assert('the Label tab loads the record into fields', lb?.querySelector('[data-label-field="legal_name"]')?.value === 'market.st Records LLC')
-  assert('sections are cards with their own blank counts', host.querySelectorAll('[data-label-section]').length === 6 && /complete/.test(textOf(host.querySelector('[data-label-section="Identity"]'))) && /blank/.test(textOf(host.querySelector('[data-label-section="Address"]'))))
+  assert('sections are cards with their own blank counts', host.querySelectorAll('[data-label-section]').length === 7 && /complete/.test(textOf(host.querySelector('[data-label-section="Identity"]'))) && /blank/.test(textOf(host.querySelector('[data-label-section="Address"]'))))
   const pv = host.querySelector('[data-label-preview]')
   assert('the live preview prints the legal name in caps and dashes for blanks', /MARKET.ST RECORDS LLC/.test(textOf(pv)) && /EIN: ••-•••6789/.test(textOf(pv)) && pv.querySelectorAll('.text-rose-400').length > 0)
   type(lb.querySelector('[data-label-field="bank_name"]'), 'Chase'); await sleep(50)

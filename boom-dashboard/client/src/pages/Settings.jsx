@@ -432,6 +432,7 @@ const LABEL_FIELDS = [
   ['Identity', [['legal_name', 'Legal name', 'as it appears on contracts and the W-9'], ['display_name', 'Display name', 'how the label is written in emails and headers'], ['default_payment_terms', 'Default payment terms', 'e.g. Net 30']]],
   ['Address', [['address_line1', 'Address line 1'], ['address_line2', 'Address line 2', 'city, state, ZIP']]],
   ['Contact', [['contact_name', 'Contact name'], ['contact_email', 'Contact email'], ['contact_phone', 'Contact phone']]],
+  ['Alerts', [['alerts_to', 'Alert emails always go to', 'comma-separated; the A&R owner of the deal is added per alert (the CEO: Soli, always)']]],
   ['Signatory', [['signatory_name', 'Signatory name', 'signs NDAs and waivers; countersigns DocuSign envelopes'], ['signatory_title', 'Signatory title', 'e.g. Managing Member'], ['signatory_email', 'Signatory email', 'where DocuSign sends the countersignature request']]],
   ['Remittance bank', [['bank_name', 'Bank name'], ['bank_address', 'Bank address'], ['bank_account_name', 'Name on the account'], ['bank_account_type', 'Account type', 'Checking or Savings'], ['bank_routing_ach', 'Routing (ACH)'], ['bank_routing_wire', 'Routing (wire)'], ['bank_swift', 'SWIFT / BIC']]],
 ]

@@ -112,6 +112,28 @@ const JOBS = {
   },
 };
 
+// The CEO's alerts, daily at 09:00 LA: each (alert · threshold) once, to the
+// A&R owner and the label's always-to address. lib/deal-alerts.dueEmails says
+// what is due; mail_jobs remembers what went.
+JOBS.deal_alerts = {
+  when: ({ hour }) => hour === 9, period: ({ date }) => date,
+  run: async () => {
+    const alertsLib = require('./deal-alerts');
+    const due = await alertsLib.dueEmails();
+    let sent = 0;
+    for (const { alert, period } of due) {
+      if (!(await claim(`deal_alert:${alert.kind}`, period))) continue;
+      const users = await alertsLib.recipients(alert);
+      if (!users.length) continue;
+      const subject = { release_gap: `${alert.artist} has not released in ${Math.floor((alert.days || 0) / 30)} months`, option_expiring: `${alert.artist}: contract period ends ${alert.days < 0 ? 'has ended' : `in ${alert.days} days`}`, deliverable_due: `${alert.artist}: deliverables still owed`, advance_triggered: `${alert.artist}: advance payment triggered` }[alert.kind];
+      const link = `${APP_URL}${alert.to.startsWith('/') ? alert.to : `/${alert.to}`}`;
+      await sendTo(users, 'notification', subject, wrap(subject, `<p>${L.esc(alert.title)}</p><p style="color:#666;">${L.esc(alert.detail || '')}</p><p><a href="${L.esc(link)}">Open it</a></p>`));
+      sent += 1;
+    }
+    return sent;
+  },
+};
+
 let warnedOnce = false;
 async function tick(now = new Date()) {
   const parts = laParts(now);

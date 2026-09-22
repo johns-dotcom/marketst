@@ -19,7 +19,7 @@ const isAdmin = (r) => r === 'Admin' || r === 'Superadmin';
 
 const PLAIN = ['legal_name', 'display_name', 'address_line1', 'address_line2', 'contact_name', 'contact_email', 'contact_phone',
   'bank_name', 'bank_address', 'bank_account_name', 'bank_account_type', 'bank_routing_ach', 'bank_routing_wire', 'bank_swift',
-  'signatory_name', 'signatory_title', 'default_payment_terms'];
+  'signatory_name', 'signatory_title', 'default_payment_terms', 'alerts_to'];
 const str = (v) => (v === undefined ? undefined : (v === null ? null : (String(v).trim() || null)));
 const last4 = (v) => { const d = String(v || '').replace(/\D/g, ''); return d ? d.slice(-4) : String(v).slice(-4); };
 

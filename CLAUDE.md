@@ -1148,6 +1148,75 @@ Authoritative project guide: **`boom-dashboard/CLAUDE.md`** — read it before m
   (a data: module cannot resolve a relative JSON import). Not done: per-role
   capability toggles beyond the four tiers (that is code), ordering, a
   department's own nav being edited from here (it is on the Navs tab).
+- **The CEO's list (2026-09-22) — phase 2, contract terms.** `server/lib/
+  contract-terms.js`: `contracts` gained `options_total`, `options_exercised`,
+  `term_years`, `marketing_budget`, `deal_id`, `signature_status`
+  (draft · sent · signed · fully_executed) + `signature_status_manual`;
+  `num_releases` IS the deliverables total; `royalty_split` IS the artist's %
+  and the label's is 100 − it. `withTerms(rows)` attaches `terms` to every
+  contract the list, detail, POST and PUT return: deliverables total ·
+  delivered · remaining · scheduled (releases of the artist with
+  `counts_toward_deal`, dated on/after the signing, delivered once the date
+  has passed), options included · exercised · remaining · current period ·
+  `period_end` (= signed + term × (1 + exercised); consecutive periods, John's
+  call) · days to it, both splits, budget, advance, term, and the signature
+  (DocuSign's newest envelope wins unless set by hand; else the signing date).
+  `POST /contracts/:id/exercise-option` (bookkeeping roles) starts the next
+  period and moves `expiration_date`. The Contracts form and the deal-prefill
+  carry the new fields (deal `term_months` → years, `option_periods` →
+  options, `marketing_budget` new on deals too); `components/ContractTerms.jsx`
+  renders the block on the Contracts detail panel and each card of the
+  artist's Contracts tab (compact), with a by-hand signature select and the
+  Exercise option button. **Deal Priority is gone** from the pipeline (card,
+  list, drawer, filters, form); the column stays. Releases gained
+  `counts_toward_deal` (default TRUE) and `ingested`, and every list row a
+  computed `status` (Archived · Draft · Scheduled · Ingested · Released).
+  The Releases row's date cell wears the status pill (`data-release-status`);
+  Metadata & Links carries the "counts toward the deal" checkbox and the
+  ingested select (`data-release-deal-flags`). Harnesses:
+  `server/scripts/ceo-list-fixture.cjs` (41 — terms, the alerts before and
+  after a release / an untick / an exercised option, the sweep, the team) and
+  `hub-dom` (57 — the terms block on the profile, Exercise option POST, the
+  by-hand signature PUT; it caught a `setContracts` that did not exist —
+  the profile's contracts are `data.contracts`, patch through `setData`).
+  Tours home · releases · deals · contracts · artist-profile bumped to
+  2026-09-22.
+- **The CEO's list — phase 6, the four alerts (2026-09-22).**
+  `server/lib/deal-alerts.js` is the ONE computation, three readers:
+  `alerts()` walks every Active contract (with its artist, the deal's owner via
+  `COALESCE(c.deal_id, a.signed_deal_id)`, the artist's last release, the
+  signing's advance expense) and yields `release_gap` (no release in 60 days —
+  since signing when none; high at 120), `option_expiring` (period ends ≤ 90
+  days, or already ended; to `/contracts?focus=`), `deliverable_due`
+  (remaining > 0 and the period ends ≤ 90 days), `advance_triggered` (the
+  advance expense booked ≤ 30 days ago, or due and unpaid; to `/bk/payments`).
+  Readers: (1) four Flags detectors `alert_*` in flags-register (Workflow
+  group, page = the alert's destination, fingerprint = the threshold band so
+  a dismissal holds until the next band); (2) `GET /dashboard/alerts`
+  (pagesReachable-gated per destination) → `components/AlertsPanel.jsx` on
+  Home above the loop, grouped by kind, five per kind, renders NOTHING when
+  empty or on a failed read; (3) notifier job `deal_alerts` (daily 09:00 LA):
+  `dueEmails()` says what is due — release gap every 60 days while it lasts
+  (bucket = floor(days/60)), option expiry at the TIGHTEST of 90/60/30 passed
+  (25 days out is the 30-day mail, not the 90 — the fixture caught `find` over
+  a descending list), deliverables at 90/30, an advance once — each claimed
+  once in `mail_jobs` as `deal_alert:<kind>` · `<key>:<threshold>`.
+  `recipients()` = the deal owner + `label_settings.alerts_to` (new column,
+  default `soli@market.st`, edited on Settings › Label › Alerts; an address
+  that is not a user still gets the mail). **The Team mailbox is not connected
+  in production, so no alert email goes out until it is** — the panel and the
+  Flags rows work regardless. home-dom (55) covers the panel in admin · empty
+  · down.
+- **The CEO's list — phase 7, the team (2026-09-22). LABEL, not portable.**
+  `syncTeam()` in index.js (after the `users.title` migration) creates, ONCE,
+  Soli Doherty (Superadmin · Executive · Founder / President), London Walley
+  (Admin · Operations · Head of Operations), Chase Mann (User · Marketing ·
+  Digital Coordinator, the Marketing preset's pages) — `password_hash NULL`
+  with an invite row each, so People shows "copy a new link" (and "email it"
+  once Gmail is connected); Google sign-in works too. Adds an `Interns`
+  department; sets John's title to Backend / Books where blank. Skips a row
+  whose email exists, so an edit in People sticks. The A&R consultant seat is
+  pending a person — add them in People when hired.
 - **Bank-statement heuristics were tuned on Boom's Bank of America statements.** The own-name lists (`statements.js` stop-words, `funding-pairs.js` account-trailer strip) now say Market Street, but the layout parsers have not seen a Market Street statement yet. Expect the AI fallback to do the work until they do.
 
 ## Commands (run from `boom-dashboard/`)

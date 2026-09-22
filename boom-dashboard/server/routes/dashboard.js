@@ -363,6 +363,20 @@ router.get('/activity', authMiddleware, async (req, res) => {
 //
 // Money is usdOf(amount, currency, locked rate) per row — the same helper
 // every report uses — never a SUM over `amount` across currencies.
+// GET /api/dashboard/alerts — the CEO's four alerts for the Home panel, gated on
+// the page each one opens (pagesReachable), newest-worst first.
+router.get('/alerts', authMiddleware, async (req, res) => {
+  try {
+    const { pagesReachable } = require('../middleware/pagePermission');
+    const reach = await pagesReachable(req.user, ['/artists', '/contracts', '/bk/payments']);
+    const all = await require('../lib/deal-alerts').alerts();
+    const pageOf = (a) => (a.kind === 'advance_triggered' ? '/bk/payments' : a.kind === 'option_expiring' ? '/contracts' : '/artists');
+    const rank = { high: 0, medium: 1, low: 2 };
+    const mine = all.filter((a) => reach.has(pageOf(a))).sort((a, b) => (rank[a.severity] ?? 9) - (rank[b.severity] ?? 9) || String(a.artist).localeCompare(String(b.artist)));
+    res.json({ success: true, data: mine, withheld: ['/artists', '/contracts', '/bk/payments'].filter((p) => !reach.has(p)) });
+  } catch (e) { console.error('dashboard alerts:', e); res.status(500).json({ success: false, error: 'Internal server error' }); }
+});
+
 const LOOP_PAGES = {
   approvals: '/bk/approvals',
   payments:  '/bk/payments',
