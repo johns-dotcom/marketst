@@ -72,6 +72,9 @@ async function main() {
     const pf = host.querySelector('[data-password-form]')
     assert('the Sign-in tab offers SET a password — no current-password box — and says why', pf?.getAttribute('data-password-form') === 'set' && !pf.querySelector('input[autocomplete="current-password"]') && /signed in with Google/.test(textOf(pf.querySelector('[data-set-password-why]'))) && /Set password/.test(textOf(pf.querySelector('[data-password-submit]'))))
     const [n1, n2] = [...pf.querySelectorAll('input[type="password"]')]
+    click(pf.querySelector('[data-password-toggle]')); await sleep(60)
+    assert('the eye shows the password as text, and again hides it', n1.getAttribute('type') === 'text' && (click(pf.querySelector('[data-password-toggle]')), true))
+    await sleep(60)
     type(n1, 'correct-horse-battery'); type(n2, 'correct-horse-battery'); pf.dispatchEvent(new window.Event('submit', { bubbles: true, cancelable: true })); await sleep(250)
     const cp = calls.post.find((c) => c.url === '/auth/change-password')
     assert('setting it POSTs only the new password, and the form becomes Change password', !!cp && cp.body.current_password === undefined && cp.body.new_password === 'correct-horse-battery' && host.querySelector('[data-password-form]')?.getAttribute('data-password-form') === 'change' && /Password set/.test(textOf(host.querySelector('[data-signin-note]'))))

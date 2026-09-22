@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { GoogleLogin } from '@react-oauth/google'
 import { useAuth } from '../context/AuthContext'
+import PasswordInput from '../components/PasswordInput'
 
 export default function Login() {
   const [error, setError] = useState('')
@@ -87,8 +88,7 @@ export default function Login() {
               onChange={e => setEmail(e.target.value)}
               className="w-full text-sm border border-rule rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-boom-400 placeholder:text-gray-300"
             />
-            <input
-              type="password"
+            <PasswordInput
               placeholder="Password"
               value={password}
               onChange={e => setPassword(e.target.value)}

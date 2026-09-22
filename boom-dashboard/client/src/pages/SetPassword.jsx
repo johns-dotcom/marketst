@@ -3,6 +3,7 @@
 // valid, already used, expired — never a generic error.
 import { useEffect, useState } from 'react'
 import api from '../api'
+import PasswordInput from '../components/PasswordInput'
 
 export default function SetPassword() {
   const token = window.location.pathname.split('/invite/')[1] || ''
@@ -42,8 +43,8 @@ export default function SetPassword() {
           ) : !who ? <p className="text-sm text-gray-400 text-center">Checking your link…</p> : (
             <form onSubmit={submit} className="space-y-3">
               <p className="text-xs text-gray-500 text-center">Signing in as <span className="font-semibold text-gray-700">{who.email}</span></p>
-              <input type="password" value={pw} onChange={(e) => setPw(e.target.value)} placeholder="Password (8+ characters)" autoComplete="new-password" autoFocus className="w-full text-sm border border-rule rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-boom-400" />
-              <input type="password" value={again} onChange={(e) => setAgain(e.target.value)} placeholder="Password again" autoComplete="new-password" className="w-full text-sm border border-rule rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-boom-400" />
+              <PasswordInput value={pw} onChange={(e) => setPw(e.target.value)} placeholder="Password (8+ characters)" autoComplete="new-password" autoFocus className="w-full text-sm border border-rule rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-boom-400" />
+              <PasswordInput value={again} onChange={(e) => setAgain(e.target.value)} placeholder="Password again" autoComplete="new-password" className="w-full text-sm border border-rule rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-boom-400" />
               {err && <p className="text-xs text-rose-600" data-invite-error>{err}</p>}
               <button type="submit" disabled={saving} className="w-full text-sm font-semibold bg-gray-900 text-white py-2.5 rounded-lg hover:bg-gray-800 disabled:opacity-40">{saving ? 'Setting…' : 'Set password and sign in'}</button>
               <p className="text-[11px] text-gray-400 text-center">This link works once and expires {new Date(who.expires_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}.</p>

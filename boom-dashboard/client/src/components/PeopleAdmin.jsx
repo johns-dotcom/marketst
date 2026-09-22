@@ -13,6 +13,7 @@ import { NAV_PAGES } from '../navConfig'
 import { PRESETS, DEPARTMENTS, DEPARTMENT_LEVEL, presetsForDepartment, unionPaths, addPaths } from '../lib/navPresets'
 import { useBoomReps, useBoomRepsContext } from '../context/BoomRepsContext'
 import { canViewPath } from '../lib/pageAccess'
+import PasswordInput from './PasswordInput'
 
 const ALL_PAGES = NAV_PAGES
 const ALL_ROLES = ['Superadmin', 'Admin', 'Approver', 'User']
@@ -337,8 +338,7 @@ export function PersonModal({ user, onClose, onSaved, currentUserRole }) {
               <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
                 New Password (leave blank to keep current)
               </label>
-              <input
-                type="password"
+              <PasswordInput
                 value={form.password}
                 onChange={e => set('password', e.target.value)}
                 placeholder="Leave blank to keep current password"

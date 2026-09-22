@@ -13,6 +13,7 @@ import { useTheme } from '../context/ThemeContext'
 import PageHeader from '../components/PageHeader'
 import useHotkeys from '../hooks/useHotkeys'
 import { NavGrid, DepartmentNavsTab } from '../components/NavEditors'
+import PasswordInput from '../components/PasswordInput'
 
 // Groupings mirror the sidebar nav (Layout.jsx) so what an admin sees in
 // Permissions / My Nav lines up with the structure they navigate every day.
@@ -100,9 +101,9 @@ function SignInTab() {
       <form onSubmit={change} className="space-y-3 max-w-md" data-password-form={hasPassword ? 'change' : 'set'}>
         <h3 className="text-sm font-semibold text-gray-900">{hasPassword ? 'Change password' : 'Set a password'}</h3>
         {!hasPassword && <p className="text-xs text-gray-500" data-set-password-why>You signed in with Google, so this account has no password yet. Set one to sign in without Google too — Google keeps working either way.</p>}
-        {hasPassword && <input type="password" value={cur} onChange={(e) => setCur(e.target.value)} placeholder="Current password" autoComplete="current-password" className="input-base w-full" required />}
-        <input type="password" value={next} onChange={(e) => setNext(e.target.value)} placeholder="New password (8+ characters)" autoComplete="new-password" className="input-base w-full" required />
-        <input type="password" value={again} onChange={(e) => setAgain(e.target.value)} placeholder="New password again" autoComplete="new-password" className="input-base w-full" required />
+        {hasPassword && <PasswordInput value={cur} onChange={(e) => setCur(e.target.value)} placeholder="Current password" autoComplete="current-password" className="input-base w-full" required />}
+        <PasswordInput value={next} onChange={(e) => setNext(e.target.value)} placeholder="New password (8+ characters)" autoComplete="new-password" className="input-base w-full" required />
+        <PasswordInput value={again} onChange={(e) => setAgain(e.target.value)} placeholder="New password again" autoComplete="new-password" className="input-base w-full" required />
         {err && <p className="text-xs text-rose-600" data-signin-error>{err}</p>}
         {note && <p className="text-xs text-emerald-700" data-signin-note>{note}</p>}
         <button type="submit" disabled={saving} className="btn-primary text-sm px-4 py-2" data-password-submit>{saving ? 'Saving…' : hasPassword ? 'Change password' : 'Set password'}</button>

@@ -393,6 +393,11 @@ Team directory badge, `google-password-fixture.cjs`. Boom has the same 500.
 `Tour.jsx` (no auto-start), `KeyboardShortcutsHelp.jsx` copy, `tours/index.js`
 (no `auto` flag), tour-dom. Boom still forces the welcome walk on first sign-in.
 
+## 31. Show/hide on every password field — PORT
+
+`components/PasswordInput.jsx` (eye toggle, `data-password-toggle`), used by Settings
+› Sign-in, Login, the invite SetPassword page and PersonModal. Nothing label-shaped.
+
 ## Suggested order for Cadence
 
 1. Sections 3, 4, 7 (sidebar, presets, Settings) — they define the shape
