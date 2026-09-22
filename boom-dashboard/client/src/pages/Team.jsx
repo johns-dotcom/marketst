@@ -8,7 +8,7 @@ import { formatDate, isPastLocal, daysUntilLocal } from '../utils'
 import PageHeader from '../components/PageHeader'
 import EmailPreviewModal from '../components/EmailPreviewModal'
 import { PersonModal, DeleteConfirm, BoomRepsPanel } from '../components/PeopleAdmin'
-import { PRESETS } from '../lib/navPresets'
+import useOrg from '../hooks/useOrg'
 
 const PRIORITY_DOT = {
   'Urgent': 'bg-red-600',
@@ -53,7 +53,8 @@ export default function Team() {
   const fetchPeople = () => api.get('/settings/people').then((r) => setPeople(r.data?.data || [])).catch(() => setPeople([]))
   useEffect(() => { if (isAdminUser) fetchPeople() }, [isAdminUser]) // eslint-disable-line react-hooks/exhaustive-deps
   // Which presets a person's rows add up to (a preset "holds" when every one of its pages is granted).
-  const presetsOf = (pages) => (!pages ? [] : PRESETS.filter((pr) => pr.paths.every((x) => pages.includes(x))).map((pr) => pr.label))
+  const org = useOrg()
+  const presetsOf = (pages) => (!pages ? [] : org.presets.filter((pr) => pr.paths.every((x) => pages.includes(x))).map((pr) => pr.label))
   const resendInvite = async (u, send = false) => {
     try {
       const r = await api.post(`/settings/users/${u.id}/invite${send ? '?send=1' : ''}`)

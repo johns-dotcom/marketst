@@ -4,6 +4,7 @@ const crypto = require('crypto');
 const pool = require('../db');
 const authMiddleware = require('../middleware/auth');
 const { logSecurityEvent } = require('../middleware/securityAudit');
+const org = require('../lib/org-config');
 const { sendWelcomeEmail } = require('../services/email');
 const { prepareEmail: prepareEmailPayload } = require('../services/emailDispatch');
 const { clearForeignKeyRefs } = require('../lib/fkSweep');
@@ -56,10 +57,13 @@ router.get('/users', adminOnly, async (req, res) => {
 // POST /api/settings/users — create a new user
 router.post('/users', adminOnly, async (req, res) => {
   try {
-    const { name, email, role, department, hierarchy_level, boom_rep } = req.body;
+    const { name, email, department, hierarchy_level, boom_rep } = req.body;
     if (!name || !email) {
       return res.status(400).json({ success: false, error: 'Name and email are required' });
     }
+    // `role_key` may name a custom role (Settings › Roles & teams); the API enforces its BASE.
+    let role, roleKey;
+    try { ({ role, role_key: roleKey } = await org.resolveRole(req.body.role_key || req.body.role, req.body.role || 'User')); } catch (e) { return res.status(400).json({ success: false, error: e.message }); }
 
     // Only Superadmin can create Admin or Superadmin accounts
     if (!isSuperadmin(req.user.role) && isAdminOrSuperadmin(role)) {
@@ -74,10 +78,10 @@ router.post('/users', adminOnly, async (req, res) => {
     // signs in with Google, which needs no password). Login refuses a
     // password-less account with a sentence that says so.
     const result = await pool.query(
-      `INSERT INTO users (name, email, password_hash, role, department, hierarchy_level, boom_rep, created_at)
-       VALUES ($1, $2, NULL, $3, $4, $5, $6, NOW())
-       RETURNING id, name, email, role, department, hierarchy_level, boom_rep, created_at`,
-      [name, email, role || 'User', department || 'Operations', hierarchy_level || 99, repValue]
+      `INSERT INTO users (name, email, password_hash, role, role_key, department, hierarchy_level, boom_rep, created_at)
+       VALUES ($1, $2, NULL, $3, $7, $4, $5, $6, NOW())
+       RETURNING id, name, email, role, role_key, department, hierarchy_level, boom_rep, created_at`,
+      [name, email, role || 'User', department || 'Operations', hierarchy_level || 99, repValue, roleKey]
     );
 
     const newUser = result.rows[0];
@@ -168,7 +172,11 @@ router.post('/users', adminOnly, async (req, res) => {
 router.put('/users/:id', adminOnly, async (req, res) => {
   try {
     const userId = parseInt(req.params.id, 10);
-    const { name, email, role, department, hierarchy_level, password, boom_rep } = req.body;
+    const { name, email, department, hierarchy_level, password, boom_rep } = req.body;
+    let role = req.body.role, roleKey = null;
+    if (req.body.role_key !== undefined || req.body.role !== undefined) {
+      try { ({ role, role_key: roleKey } = await org.resolveRole(req.body.role_key || req.body.role, req.body.role)); } catch (e) { return res.status(400).json({ success: false, error: e.message }); }
+    }
     // boom_rep semantics on PUT:
     //   undefined  → don't touch the column (caller didn't send the field).
     //   '' or null → clear the assignment.
@@ -218,7 +226,7 @@ router.put('/users/:id', adminOnly, async (req, res) => {
       const repClause = repProvided ? ', boom_rep=$7' : '';
       const idIdx = repProvided ? 8 : 7;
       await pool.query(
-        `UPDATE users SET name=$1, email=$2, role=$3, department=$4, hierarchy_level=$5, password_hash=$6, token_version = COALESCE(token_version, 0) + 1${repClause} WHERE id=$${idIdx}`,
+        `UPDATE users SET name=$1, email=$2, role=$3, department=$4, hierarchy_level=$5, password_hash=$6, token_version = COALESCE(token_version, 0) + 1, role_key=${roleKey ? `'${roleKey.replace(/'/g, '')}'` : 'NULL'}${repClause} WHERE id=$${idIdx}`,
         params
       );
     } else {
@@ -228,7 +236,7 @@ router.put('/users/:id', adminOnly, async (req, res) => {
       const repClause = repProvided ? ', boom_rep=$6' : '';
       const idIdx = repProvided ? 7 : 6;
       await pool.query(
-        `UPDATE users SET name=$1, email=$2, role=$3, department=$4, hierarchy_level=$5${repClause} WHERE id=$${idIdx}`,
+        `UPDATE users SET name=$1, email=$2, role=$3, department=$4, hierarchy_level=$5, role_key=${roleKey ? `'${roleKey.replace(/'/g, '')}'` : 'NULL'}${repClause} WHERE id=$${idIdx}`,
         params
       );
     }
@@ -656,10 +664,28 @@ router.delete('/department-navs/:department', adminOnly, async (req, res) => {
   } catch (err) { console.error('department nav delete:', err); res.status(500).json({ success: false, error: 'Internal server error' }); }
 });
 
+// ── Roles, presets, departments (2026-09-22) ──
+//   GET  /org                                everyone signed in: the live lists (forms read them)
+//   POST/PUT/DELETE /org/presets[/:key]      Admin + Superadmin
+//   POST/PUT/DELETE /org/departments[/:name] Admin + Superadmin (DELETE ?move_to=)
+//   POST/PUT/DELETE /org/roles[/:key]        Superadmin (roles bind admins)
+const orgErr = (res, e) => { if (e.status) return res.status(e.status).json({ success: false, error: e.message }); console.error('org:', e); return res.status(500).json({ success: false, error: 'Internal server error' }); };
+router.get('/org', authMiddleware, async (req, res) => { try { res.json({ success: true, data: await org.read() }); } catch (e) { orgErr(res, e); } });
+router.post('/org/presets', adminOnly, async (req, res) => { try { const d = await org.upsertPreset(null, req.body || {}, req.user); res.status(201).json({ success: true, data: d }); } catch (e) { orgErr(res, e); } });
+router.put('/org/presets/:key', adminOnly, async (req, res) => { try { res.json({ success: true, data: await org.upsertPreset(req.params.key, req.body || {}, req.user) }); } catch (e) { orgErr(res, e); } });
+router.delete('/org/presets/:key', adminOnly, async (req, res) => { try { await org.deletePreset(req.params.key); res.json({ success: true }); } catch (e) { orgErr(res, e); } });
+router.post('/org/departments', adminOnly, async (req, res) => { try { const d = await org.upsertDepartment(null, req.body || {}, req.user); res.status(201).json({ success: true, data: d }); } catch (e) { orgErr(res, e); } });
+router.put('/org/departments/:name', adminOnly, async (req, res) => { try { res.json({ success: true, data: await org.upsertDepartment(req.params.name, req.body || {}, req.user) }); } catch (e) { orgErr(res, e); } });
+router.delete('/org/departments/:name', adminOnly, async (req, res) => { try { res.json({ success: true, ...(await org.deleteDepartment(req.params.name, req.query.move_to || null)) }); } catch (e) { orgErr(res, e); } });
+const superOnly = (req, res, next) => (isSuperadmin(req.user.role) ? next() : res.status(403).json({ success: false, error: 'Only a Superadmin edits roles' }));
+router.post('/org/roles', adminOnly, superOnly, async (req, res) => { try { const d = await org.upsertRole(null, req.body || {}, req.user); logSecurityEvent({ event_type: 'role_defined', severity: 'warning', user_id: req.user.id, user_name: req.user.name, ip: req.ip, user_agent: req.get('user-agent'), endpoint: req.originalUrl, details: `${d.label} on ${d.base_role}` }).catch(() => {}); res.status(201).json({ success: true, data: d }); } catch (e) { orgErr(res, e); } });
+router.put('/org/roles/:key', adminOnly, superOnly, async (req, res) => { try { const d = await org.upsertRole(req.params.key, req.body || {}, req.user); logSecurityEvent({ event_type: 'role_defined', severity: 'warning', user_id: req.user.id, user_name: req.user.name, ip: req.ip, user_agent: req.get('user-agent'), endpoint: req.originalUrl, details: `${d.label} on ${d.base_role}` }).catch(() => {}); res.json({ success: true, data: d }); } catch (e) { orgErr(res, e); } });
+router.delete('/org/roles/:key', adminOnly, superOnly, async (req, res) => { try { res.json({ success: true, ...(await org.deleteRole(req.params.key)) }); } catch (e) { orgErr(res, e); } });
+
 router.get('/people', adminOnly, async (req, res) => {
   try {
     const { rows: users } = await pool.query(
-      `SELECT u.id, u.name, u.email, u.role, u.department, u.hierarchy_level, u.boom_rep, u.title, u.phone, u.created_at,
+      `SELECT u.id, u.name, u.email, u.role, u.role_key, u.department, u.hierarchy_level, u.boom_rep, u.title, u.phone, u.created_at,
               -- pending = no password AND never signed in. A Google sign-in accepts the invite
               -- without a password; that person is google_only, not pending.
               (u.password_hash IS NULL AND NOT EXISTS (SELECT 1 FROM user_login_logs l WHERE l.user_id = u.id)) AS invite_pending,

@@ -5,12 +5,13 @@
 // Settings.jsx when Users and the Permissions matrix retired into /team.
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { roleById } from '../lib/roles'
+import { roleById, baseRoleOf } from '../lib/roles'
 import { Plus, Pencil, Trash2, X, Loader, Check, ChevronRight, ChevronDown, Search, AlertTriangle } from 'lucide-react'
 import api from '../api'
 import { SidebarEditor } from './NavEditors'
 import { NAV_PAGES } from '../navConfig'
-import { PRESETS, DEPARTMENTS, DEPARTMENT_LEVEL, presetsForDepartment, unionPaths, addPaths } from '../lib/navPresets'
+import { presetsForDepartment, unionPaths, addPaths } from '../lib/navPresets'
+import useOrg, { departmentNames, departmentLevel } from '../hooks/useOrg'
 import { useBoomReps, useBoomRepsContext } from '../context/BoomRepsContext'
 import { canViewPath } from '../lib/pageAccess'
 import PasswordInput from './PasswordInput'
@@ -151,7 +152,7 @@ export function PersonModal({ user, onClose, onSaved, currentUserRole }) {
   const [form, setForm] = useState({
     name:            user?.name            ?? '',
     email:           user?.email           ?? '',
-    role:            user?.role            ?? 'User',
+    role:            user?.role_key ?? user?.role ?? 'User',   // a custom role's key, else the base
     department:      user?.department      ?? 'Operations',
     hierarchy_level: user?.hierarchy_level ?? 99,
     boom_rep:        user?.boom_rep        ?? '',
@@ -182,22 +183,30 @@ export function PersonModal({ user, onClose, onSaved, currentUserRole }) {
   // tick, the admin can tick a second one for somebody who does two jobs, and
   // the page set is the union. Ticking rewrites the checkboxes below; the
   // admin can still adjust single pages afterwards.
-  const [presetKeys, setPresetKeys] = useState(() => new Set(presetsForDepartment(user?.department ?? 'Operations')))
-  const [allowedPages, setAllowedPages] = useState(() => new Set(unionPaths(presetsForDepartment(user?.department ?? 'Operations'))))
+  // Presets, departments and roles are DATA (Settings › Roles & teams); the static seed answers until the server does.
+  const org = useOrg()
+  const PRESETS = org.presets
+  const DEPARTMENTS = departmentNames(org)
+  const [presetKeys, setPresetKeys] = useState(() => new Set(presetsForDepartment(user?.department ?? 'Operations', org.departments)))
+  const [allowedPages, setAllowedPages] = useState(() => new Set(unionPaths(presetsForDepartment(user?.department ?? 'Operations', org.departments), org.presets)))
+  const baseRole = baseRoleOf(form.role, org.roles)   // what the API enforces; form.role may be a custom role's key
   const togglePreset = (key) => {
     const next = new Set(presetKeys)
     next.has(key) ? next.delete(key) : next.add(key)
     setPresetKeys(next)
-    setAllowedPages(new Set(unionPaths([...next])))
+    setAllowedPages(new Set(unionPaths([...next], org.presets)))
   }
   const setDepartment = (d) => {
     set('department', d)
     if (isEdit) return
-    // An Executive starts at the top of the task hierarchy unless a level was typed.
-    if (DEPARTMENT_LEVEL[d] && Number(form.hierarchy_level) === 99) set('hierarchy_level', DEPARTMENT_LEVEL[d])
-    const keys = new Set(presetsForDepartment(d))
+    // A department's default level (Executives at the top) unless a level was typed.
+    const lvl = departmentLevel(org, d)
+    if (lvl && Number(form.hierarchy_level) === 99) set('hierarchy_level', lvl)
+    const keys = new Set(presetsForDepartment(d, org.departments))
+    // a custom role's starting presets ride along
+    for (const k of (roleById(form.role, org.roles)?.presets || [])) keys.add(k)
     setPresetKeys(keys)
-    setAllowedPages(new Set(unionPaths([...keys])))
+    setAllowedPages(new Set(unionPaths([...keys], org.presets)))
   }
 
   const togglePage = (path) => {
@@ -223,7 +232,7 @@ export function PersonModal({ user, onClose, onSaved, currentUserRole }) {
       let userId
       if (isEdit) {
         const payload = {
-          name: form.name, email: form.email, role: form.role,
+          name: form.name, email: form.email, role: baseRole, role_key: form.role,
           department: form.department, hierarchy_level: Number(form.hierarchy_level),
           // Always send boom_rep so admins can both set AND clear the
           // assignment. Empty string → server clears to NULL.
@@ -237,7 +246,8 @@ export function PersonModal({ user, onClose, onSaved, currentUserRole }) {
         const res = await api.post('/settings/users', {
           name: form.name,
           email: form.email,
-          role: form.role,
+          role: baseRole,
+          role_key: form.role,
           department: form.department,
           hierarchy_level: Number(form.hierarchy_level),
           boom_rep: form.boom_rep || '',
@@ -245,7 +255,7 @@ export function PersonModal({ user, onClose, onSaved, currentUserRole }) {
           // account. The follow-up PUT below only fires for role 'User' with the
           // box unticked, which is why an Approver created in a hurry ends up
           // with no rows at all.
-          pages: (form.role === 'Admin' || form.role === 'Superadmin' || unrestricted)
+          pages: (baseRole === 'Admin' || baseRole === 'Superadmin' || unrestricted)
             ? [] : Array.from(allowedPages),
         })
         userId = res.data.data.id
@@ -259,7 +269,7 @@ export function PersonModal({ user, onClose, onSaved, currentUserRole }) {
       }
 
       // Save permissions for non-admin new users
-      if (!isEdit && form.role === 'User' && !unrestricted && userId) {
+      if (!isEdit && baseRole === 'User' && !unrestricted && userId) {
         await api.put(`/settings/permissions/${userId}`, {
           pages: Array.from(allowedPages),
         }).catch(() => {})
@@ -355,10 +365,10 @@ export function PersonModal({ user, onClose, onSaved, currentUserRole }) {
                 onChange={e => set('role', e.target.value)}
                 className="w-full text-sm border border-rule rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-boom-400 bg-card"
               >
-                {availableRoles.map(r => <option key={r} value={r}>{r}</option>)}
+                {org.roles.filter((r) => availableRoles.includes(r.base_role)).map((r) => <option key={r.key} value={r.key}>{r.label}{r.builtin ? '' : ` (${r.base_role})`}</option>)}
               </select>
               <p className="text-[11px] text-gray-500 mt-1.5 leading-snug" data-role-help>
-                {roleById(form.role)?.short}{' '}
+                {roleById(form.role, org.roles)?.short}{' '}
                 <Link to="/settings?tab=roles" className="text-boom-700 hover:underline">All roles compared</Link>
               </p>
             </div>
@@ -370,6 +380,7 @@ export function PersonModal({ user, onClose, onSaved, currentUserRole }) {
                 className="w-full text-sm border border-rule rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-boom-400 bg-card"
               >
                 {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
+                {form.department && !DEPARTMENTS.includes(form.department) && <option value={form.department}>{form.department}</option>}
               </select>
             </div>
           </div>
@@ -433,7 +444,7 @@ export function PersonModal({ user, onClose, onSaved, currentUserRole }) {
                 {BOOM_REPS.map(r => <option key={r} value={r}>{r}</option>)}
               </select>
               <p className="text-[11px] text-gray-400 mt-1">
-                {form.role === 'Admin' || form.role === 'Superadmin'
+                {baseRole === 'Admin' || baseRole === 'Superadmin'
                   ? 'Admins / Superadmins see every rep regardless, but you can still assign one to declare the rep persona.'
                   : 'When set, this user automatically sees invoices on Approvals + Payments where the boom_rep matches. Independent of the checkbox above.'}
               </p>
@@ -441,7 +452,7 @@ export function PersonModal({ user, onClose, onSaved, currentUserRole }) {
           </div>
 
           {/* Page permissions — only for new non-admin users */}
-          {!isEdit && form.role === 'User' && (
+          {!isEdit && baseRole === 'User' && (
             <div className="border border-rule rounded-xl p-4">
               <div className="flex items-center justify-between mb-3">
                 <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Page Permissions</label>
@@ -594,6 +605,7 @@ export function DeleteConfirm({ user, onClose, onDeleted }) {
 // this panel says is what their login gets. Admin/Superadmin rows are shown
 // read-only: those roles are not bound by rows here unless configured.
 export function AccessEditor({ person, currentUserRole, onSaved }) {
+  const PRESETS = useOrg().presets
   const [pages, setPages] = useState(null)      // Set | null (null = no rows)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)

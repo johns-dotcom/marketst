@@ -1110,6 +1110,44 @@ Authoritative project guide: **`boom-dashboard/CLAUDE.md`** — read it before m
   commit, as before). Docs-only and label-only commits: `add HEAD HOUSEKEEPING —
   --commit` then `skip <sha> "reason"` (or edit the row). Port-log commits never
   get a row. The root-level file list says how Cadence consumes it.
+- **Roles, presets and departments are DATA (2026-09-22, John: "I want admin
+  to be able to create roles and presets and edit existing ones. same with
+  departments").** The design decision: the four BASE roles (Superadmin ·
+  Admin · Approver · User) are what the API enforces in ~90 places and stay
+  code; a role a Superadmin creates is a NAME on one of them (`base_role`)
+  with its own description, Can/Cannot text and starting presets —
+  `users.role` stays the base (enforcement), `users.role_key` remembers the
+  custom one, and `resolveRole()` maps a form's `role_key` to both.
+  **Seed:** `client/src/lib/org.seed.json` — ONE file, read by the client's
+  `lib/navPresets.js` / `lib/roles.js` (the offline fallback and what the
+  fixtures check; every helper takes the live list as an optional argument)
+  and by `server/lib/org-config.js`, which seeds `nav_presets`,
+  `departments`, `role_defs` with INSERT … ON CONFLICT DO NOTHING (an edited
+  row is never overwritten by a deploy; the fixture proves it). A preset's
+  `paths` may be `'*'` (every page — the ops preset). **Routes**
+  (`/api/settings/org`): GET for anyone signed in; presets and departments
+  POST/PUT/DELETE for Admin + Superadmin; roles Superadmin only (they bind
+  admins). Built-ins are editable, not removable; a base role's tier is not
+  editable. Department rename cascades to `users.department` and
+  `department_navs`; delete needs `?move_to=` when people are in it; deleting
+  a preset drops its key from departments and roles; changing a custom
+  role's base tier moves everyone on it; deleting a custom role reverts
+  people to the base. `POST/PUT /settings/users` accept `role_key`; `/people`,
+  `/auth/me` carry it. **Client:** `hooks/useOrg.js` (one fetch, shared,
+  seed as fallback) feeds PersonModal (role picker lists custom roles as
+  "Name (Base)", department list, presets — a custom role's presets ride
+  along with the department's), AccessEditor, People's preset labels,
+  DepartmentNavsTab, the Activity department filter, and **Settings › Roles
+  & teams** (`components/OrgEditor.jsx`, replaces the read-only Roles tab):
+  three sections — Roles (cards + form: name, base tier, one line, who,
+  pages, Can/Cannot one per line, starting presets), Presets (label,
+  description, every-page or a NavGrid of pages), Departments (name, default
+  presets, default level). Harnesses: `server/scripts/org-config-fixture.cjs`
+  (27), settings-dom's admin scenario creates a role, a preset and a
+  department; navpresets-fixture inlines the seed JSON into its data: shim
+  (a data: module cannot resolve a relative JSON import). Not done: per-role
+  capability toggles beyond the four tiers (that is code), ordering, a
+  department's own nav being edited from here (it is on the Navs tab).
 - **Bank-statement heuristics were tuned on Boom's Bank of America statements.** The own-name lists (`statements.js` stop-words, `funding-pairs.js` account-trailer strip) now say Market Street, but the layout parsers have not seen a Market Street statement yet. Expect the AI fallback to do the work until they do.
 
 ## Commands (run from `boom-dashboard/`)

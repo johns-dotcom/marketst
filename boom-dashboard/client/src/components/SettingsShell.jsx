@@ -24,7 +24,7 @@ export const LABEL_ITEMS = [
   { id: 'people',       label: 'People',       icon: Users,       to: '/team',    path: '/team' },
   { id: 'label',        label: 'Label',        icon: Building2,   to: '/settings?tab=label' },
   { id: 'integrations', label: 'Integrations', icon: Plug,        to: '/settings?tab=integrations' },
-  { id: 'roles',        label: 'Roles',        icon: KeyRound,    to: '/settings?tab=roles' },
+  { id: 'roles',        label: 'Roles & teams', icon: KeyRound,    to: '/settings?tab=roles' },
   { id: 'navs',         label: 'Navs',         icon: KeyRound,    to: '/settings?tab=navs', superOnly: true },
   { id: 'activity',     label: 'Activity',     icon: ScrollText,  to: '/activity', path: '/activity' },
   { id: 'admin',        label: 'Admin docs',   icon: ShieldCheck, to: '/admin',    path: '/admin', strict: true },

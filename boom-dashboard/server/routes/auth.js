@@ -233,7 +233,7 @@ router.post('/register', authMiddleware, async (req, res) => {
 router.get('/me', authMiddleware, async (req, res) => {
   try {
     const result = await pool.query(
-      'SELECT id, name, email, role, department, hierarchy_level, boom_rep, title, phone, nav_hidden, created_at, (password_hash IS NOT NULL) AS has_password FROM users WHERE id = $1',
+      'SELECT id, name, email, role, role_key, department, hierarchy_level, boom_rep, title, phone, nav_hidden, created_at, (password_hash IS NOT NULL) AS has_password FROM users WHERE id = $1',
       [req.user.id]
     );
 

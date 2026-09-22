@@ -557,6 +557,8 @@ const runMigrations = async () => {
   await pool.query(`CREATE INDEX IF NOT EXISTS idx_deal_events_deal ON deal_events(deal_id, created_at DESC)`).catch(() => {});
   // Song campaigns (2026-09-21): the marketing team's per-song budget + lifecycle → recoupment hand-off.
   await require('./lib/song-campaigns').ensureSchema();
+  // Roles, presets, departments as data (2026-09-22), seeded once from client/src/lib/org.seed.json.
+  await require('./lib/org-config').ensureSchema();
   for (const col of [
     `email TEXT`, `phone TEXT`, `manager_name TEXT`, `manager_email TEXT`, `socials JSONB`, `spotify_url TEXT`,
     `signed_at TIMESTAMPTZ`, `onboarded_at TIMESTAMPTZ`, `signed_deal_id INTEGER`,

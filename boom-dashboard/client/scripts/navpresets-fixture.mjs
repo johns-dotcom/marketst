@@ -21,7 +21,9 @@ const icons = [...new Set([...raw.matchAll(/icon: ([A-Za-z0-9]+)/g)].map(m => m[
 const navShim = raw.replace(/import\s*\{[\s\S]*?\}\s*from\s*'lucide-react'/,
   icons.map(i => `const ${i} = '${i}'`).join('; '))
 const navUrl = 'data:text/javascript;base64,' + Buffer.from(navShim).toString('base64')
-const presetsSrc = fs.readFileSync(SRC + '/lib/navPresets.js', 'utf8')
+// navPresets reads lib/org.seed.json; a data: module cannot resolve a relative JSON import, so inline it.
+const seedJson = fs.readFileSync(SRC + '/lib/org.seed.json', 'utf8')
+const presetsSrc = fs.readFileSync(SRC + '/lib/navPresets.js', 'utf8').replace("import seed from './org.seed.json'", `const seed = ${seedJson}`)
   .replace("from '../navConfig'", `from '${navUrl}'`)
 const { PRESETS, DEPARTMENTS, presetsForDepartment, unionPaths, addPaths } = await import(
   'data:text/javascript;base64,' + Buffer.from(presetsSrc).toString('base64'))

@@ -398,6 +398,16 @@ Team directory badge, `google-password-fixture.cjs`. Boom has the same 500.
 `components/PasswordInput.jsx` (eye toggle, `data-password-toggle`), used by Settings
 › Sign-in, Login, the invite SetPassword page and PersonModal. Nothing label-shaped.
 
+## 32. Roles, presets and departments as data — PORT
+
+`client/src/lib/org.seed.json` (the one seed), `lib/navPresets.js` + `lib/roles.js`
+(read it; helpers take live lists), `server/lib/org-config.js` + `/settings/org`
+routes, `users.role_key` + `resolveRole` on the user routes, `hooks/useOrg.js`,
+`components/OrgEditor.jsx` (Settings › Roles & teams), PersonModal /
+AccessEditor / Team / NavEditors / ActivityHistory reading the live lists,
+`org-config-fixture.cjs`. Cadence: scope the three tables per tenant; the base
+tiers stay code there too.
+
 ## Suggested order for Cadence
 
 1. Sections 3, 4, 7 (sidebar, presets, Settings) — they define the shape

@@ -10,6 +10,7 @@ import { humanizeAction } from '../lib/activityText'
 import PageHeader from '../components/PageHeader'
 import usePageShortcuts from '../hooks/usePageShortcuts'
 import { focusFilter } from '../hooks/useListKeys'
+import useOrg, { departmentNames } from '../hooks/useOrg'
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -146,7 +147,8 @@ const DEPT_COLORS = {
   Finance:    'bg-rose-50 text-rose-700',
 }
 
-const DEPARTMENTS = ['Operations', 'Executive', 'A&R', 'Marketing', 'Finance']
+// Departments are data (Settings › Roles & teams); the options read the live list.
+function DepartmentOptions() { const org = useOrg(); return departmentNames(org).map((d) => <option key={d} value={d}>{d}</option>) }
 
 const DATE_PRESETS = [
   { label: 'Today',     days: 0 },
@@ -398,9 +400,7 @@ export default function ActivityHistory() {
           className="text-sm border border-rule rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-boom-400 text-gray-700"
         >
           <option value="all">All departments</option>
-          {DEPARTMENTS.map(d => (
-            <option key={d} value={d}>{d}</option>
-          ))}
+          <DepartmentOptions />
         </select>
 
         {/* Date preset */}

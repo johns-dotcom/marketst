@@ -27,6 +27,7 @@ const assert = (label, cond) => say(`  ${label} -> ${!!cond}`)
 const textOf = (el) => (el ? el.textContent.replace(/\s+/g, ' ').trim() : '')
 const click = (el) => el && el.dispatchEvent(new window.MouseEvent('click', { bubbles: true, cancelable: true }))
 const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set
+const setValue = (el, v) => { Object.getOwnPropertyDescriptor(window.HTMLSelectElement.prototype, 'value').set.call(el, v); el.dispatchEvent(new window.Event('change', { bubbles: true })) }
 const type = (el, text) => { setter.call(el, text); el.dispatchEvent(new window.Event('input', { bubbles: true })) }
 const scenario = (typeof process !== 'undefined' && process.env.SET_SCENARIO) || 'admin'
 globalThis.__HOME_ROLE__ = scenario === 'user' ? 'User' : 'Superadmin'
@@ -131,6 +132,29 @@ async function main() {
   assert('the QuickBooks and DocuSign cards render (unconnected, with the label signer line)', !!it?.querySelector('[data-quickbooks-card][data-connected="0"]') && !!it?.querySelector('[data-docusign-card][data-connected="0"]') && /no email yet/.test(it?.querySelector('[data-ds-signer]')?.textContent || ''))
   assert('integrations list status, what each powers, and a detail', it?.querySelector('[data-integration="gmail"]')?.getAttribute('data-configured') === '0' && it?.querySelector('[data-integration="storage"]')?.getAttribute('data-configured') === '1' && /bucket ms-files/.test(textOf(it)))
   assert('no key is rendered anywhere', !/[A-Za-z0-9]{32,}/.test(textOf(it)))
+  // ── Roles & teams: roles, presets and departments are editable data ──
+  click(host.querySelector('[data-tab="roles"]')); await sleep(250)
+  const oe = host.querySelector('[data-org-editor]')
+  assert('the Roles & teams tab renders the editor with three sections and the four base roles', !!oe && ['roles', 'presets', 'departments'].every((k) => oe.querySelector(`[data-org-section="${k}"]`)) && oe.querySelectorAll('[data-role-card]').length === 4 && oe.querySelector('[data-role-card="Admin"]')?.getAttribute('data-builtin') === '1')
+  click(oe.querySelector('[data-role-new]')); await sleep(100)
+  const rf = oe.querySelector('[data-role-form="new"]')
+  type(rf.querySelector('[data-role-label]'), 'Bookkeeper'); setValue(rf.querySelector('[data-role-base]'), 'Approver'); type(rf.querySelector('[data-role-short]'), 'Approves and pays, no people'); click(rf.querySelector('[data-role-preset="bookkeeper"]')); await sleep(40); rf.dispatchEvent(new window.Event('submit', { bubbles: true, cancelable: true })); await sleep(250)
+  const rp = calls.post.find((c) => c.url === '/settings/org/roles')
+  assert('a new role POSTs its name, base tier, description and starting presets', !!rp && rp.body.label === 'Bookkeeper' && rp.body.base_role === 'Approver' && rp.body.presets.includes('bookkeeper'))
+  click(oe.querySelector('[data-org-toggle="presets"]')); await sleep(150)
+  assert('the presets section lists the five built-ins with page counts and which departments default to them', oe.querySelectorAll('[data-preset-row]').length === 5 && /Every page/.test(textOf(oe.querySelector('[data-preset-row="ops"] [data-preset-count]'))) && /default for Marketing/.test(textOf(oe.querySelector('[data-preset-row="marketing"]'))))
+  click(oe.querySelector('[data-preset-new]')); await sleep(100)
+  const pf2 = oe.querySelector('[data-preset-form="new"]')
+  type(pf2.querySelector('[data-preset-label]'), 'Interns'); click(pf2.querySelector('[data-nav-page="/releases"] [data-nav-grant]')); click(pf2.querySelector('[data-nav-page="/catalog"] [data-nav-grant]')); await sleep(40); pf2.dispatchEvent(new window.Event('submit', { bubbles: true, cancelable: true })); await sleep(250)
+  const pp = calls.post.find((c) => c.url === '/settings/org/presets')
+  assert('a new preset POSTs its label and the ticked pages', !!pp && pp.body.label === 'Interns' && pp.body.paths.includes('/releases') && pp.body.paths.includes('/catalog') && pp.body.paths.length === 2)
+  click(oe.querySelector('[data-org-toggle="departments"]')); await sleep(150)
+  assert('the departments section lists the five with member counts and default presets', oe.querySelectorAll('[data-department-row]').length === 5 && /Marketing/.test(textOf(oe.querySelector('[data-department-row="Marketing"]'))) && /Default presets: Marketing/.test(textOf(oe.querySelector('[data-department-row="Marketing"]'))))
+  click(oe.querySelector('[data-department-new]')); await sleep(100)
+  const df = oe.querySelector('[data-department-form="new"]')
+  type(df.querySelector('[data-department-name]'), 'Publishing'); click(df.querySelector('[data-department-preset="anr"]')); type(df.querySelector('[data-department-level]'), '3'); await sleep(40); df.dispatchEvent(new window.Event('submit', { bubbles: true, cancelable: true })); await sleep(250)
+  const dp = calls.post.find((c) => c.url === '/settings/org/departments')
+  assert('a new department POSTs its name, default presets and level', !!dp && dp.body.name === 'Publishing' && dp.body.presets.includes('anr') && dp.body.default_level === 3)
   // ── My Nav saves to the ACCOUNT ──
   click(host.querySelector('[data-tab="mynav"]')); await sleep(200)
   const mn = host.querySelector('[data-mynav]')

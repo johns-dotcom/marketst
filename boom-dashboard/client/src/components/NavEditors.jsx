@@ -10,7 +10,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { Check, Users, RotateCcw } from 'lucide-react'
 import api from '../api'
 import { NAV_PAGES, NAV_GROUPS } from '../navConfig'
-import { presetsForDepartment, DEPARTMENTS, unionPaths } from '../lib/navPresets'
+import { presetsForDepartment, unionPaths } from '../lib/navPresets'
+import useOrg, { departmentNames } from '../hooks/useOrg'
 import { canViewPath } from '../lib/pageAccess'
 
 const familyOf = {}
@@ -101,6 +102,8 @@ export function SidebarEditor({ person, currentUserRole, onSaved }) {
 // Settings › Navs (Superadmin). One department at a time.
 export function DepartmentNavsTab() {
   const [state, setState] = useState(null)     // { navs: [], members: {dept: [...]}}
+  const org = useOrg()
+  const DEPARTMENTS = departmentNames(org)
   const [dept, setDept] = useState(DEPARTMENTS[0])
   const [pages, setPages] = useState(new Set())
   const [hidden, setHidden] = useState(new Set())
@@ -116,7 +119,7 @@ export function DepartmentNavsTab() {
     if (!state) return
     const saved = state.navs.find((n) => n.department === dept)
     if (saved) { setPages(new Set(saved.pages || [])); setHidden(new Set(saved.hidden || [])) }
-    else { setPages(new Set(unionPaths(presetsForDepartment(dept)))); setHidden(new Set()) }
+    else { setPages(new Set(unionPaths(presetsForDepartment(dept, org.departments), org.presets))); setHidden(new Set()) }
     setDirty(false)
   }, [dept, state])
   useEffect(() => { setNote('') }, [dept])   // a note describes the last save of THIS department
@@ -132,7 +135,7 @@ export function DepartmentNavsTab() {
       setNote(bits.join(' · ')); setDirty(false); await load()
     } catch (e) { setNote(e?.response?.data?.error || 'Could not save') } finally { setSaving(false) }
   }
-  const resetToPreset = () => { setPages(new Set(unionPaths(presetsForDepartment(dept)))); setHidden(new Set()); setDirty(true) }
+  const resetToPreset = () => { setPages(new Set(unionPaths(presetsForDepartment(dept, org.departments), org.presets))); setHidden(new Set()); setDirty(true) }
   if (!state) return <p className="text-sm text-gray-400">Loading…</p>
   const shownCount = NAV_PAGES.filter((p) => pages.has(p.path) && !p.hidden && !hidden.has(p.path)).length
   return (
